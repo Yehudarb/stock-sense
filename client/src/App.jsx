@@ -184,7 +184,7 @@ export default function App() {
       )}
 
       {snapshot && (
-        <div className="mb-3 grid grid-cols-4 gap-2 md:grid-cols-8">
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
           <KpiCard label="שינוי %" value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? 'text-green-400' : 'text-red-400'} />
           <KpiCard label="שיא 20 נרות" value={high20 ? `$${high20}` : '-'} />
           <KpiCard label="שפל 20 נרות" value={low20 ? `$${low20}` : '-'} />
@@ -210,7 +210,8 @@ export default function App() {
             <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} />
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="-mx-1 overflow-x-auto px-1">
+            <div className="flex min-w-max flex-nowrap gap-2 pb-1 sm:flex-wrap sm:pb-0">
             {[['candlestick', 'נרות'], ['line', 'קו']].map(([value, label]) => (
               <button
                 key={value}
@@ -306,12 +307,13 @@ export default function App() {
             >
               הכל
             </button>
-            <span className="self-center text-xs text-slate-500">
+            <span className="self-center whitespace-nowrap text-xs text-slate-500">
               מוצגים {Math.min(activeVisibleBars, n)}/{n} נרות
             </span>
+            </div>
           </div>
 
-          <ChartContainer title="גרף מחיר" height="h-[440px] md:h-[560px]" onWheel={handlePriceChartWheel}>
+          <ChartContainer title="גרף מחיר" height="h-[320px] sm:h-[380px] md:h-[560px]" onWheel={handlePriceChartWheel}>
             <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}-${chartShowSMA}-${chartShowEMA}-${chartShowBB}-${chartShowFibonacci}-${chartShowGaps}-${chartShowPatterns}-${chartShowLevels}-${patternResetKey}-${activeVisibleBars}`}>
               <PriceChart
                 ohlcv={ohlcv}
@@ -335,7 +337,7 @@ export default function App() {
           </ChartContainer>
 
           {!cleanChart && chartType !== 'candlestick' && (
-            <ChartContainer title="Volume" height="h-20">
+            <ChartContainer title="Volume" height="h-20 sm:h-24">
               <SafeChart isLoading={isLoading} resetKey={`volume-${chartResetKey}`}>
                 <VolumeChart ohlcv={ohlcv} interval={interval} visibleBars={activeVisibleBars} />
               </SafeChart>
@@ -344,25 +346,25 @@ export default function App() {
 
           {!cleanChart && (
             <>
-              <ChartContainer title={`RSI (14)${rsiLast != null ? ` - ${rsiLast.toFixed(1)}` : ''}`} height="h-24">
+              <ChartContainer title={`RSI (14)${rsiLast != null ? ` - ${rsiLast.toFixed(1)}` : ''}`} height="h-24 sm:h-28">
                 <SafeChart isLoading={isLoading} resetKey={`rsi-${chartResetKey}`}>
                   <RsiChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
                 </SafeChart>
               </ChartContainer>
 
-              <ChartContainer title={`Stochastic %K${stochLast != null ? ` - ${stochLast.toFixed(1)}` : ''}`} height="h-24">
+              <ChartContainer title={`Stochastic %K${stochLast != null ? ` - ${stochLast.toFixed(1)}` : ''}`} height="h-24 sm:h-28">
                 <SafeChart isLoading={isLoading} resetKey={`stoch-${chartResetKey}`}>
                   <StochChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
                 </SafeChart>
               </ChartContainer>
 
-              <ChartContainer title={`Williams %R${willRLast != null ? ` - ${willRLast.toFixed(1)}` : ''}`} height="h-24">
+              <ChartContainer title={`Williams %R${willRLast != null ? ` - ${willRLast.toFixed(1)}` : ''}`} height="h-24 sm:h-28">
                 <SafeChart isLoading={isLoading} resetKey={`willr-${chartResetKey}`}>
                   <WilliamsRChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
                 </SafeChart>
               </ChartContainer>
 
-              <ChartContainer title="MACD (12, 26, 9)" height="h-24">
+              <ChartContainer title="MACD (12, 26, 9)" height="h-24 sm:h-28">
                 <SafeChart isLoading={isLoading} resetKey={`macd-${chartResetKey}`}>
                   <MacdChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
                 </SafeChart>
