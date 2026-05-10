@@ -56,13 +56,29 @@ export default function MarketContextPanel({ marketContext, isLoading, language 
 
   const tone = TONE[marketContext.condition] ?? TONE.NEUTRAL
   const scorePosition = Math.round(((marketContext.score + 3) / 6) * 100)
+  const conditionLabel = isHebrew
+    ? marketContext.label
+    : ({
+      PANIC: 'Panic',
+      BEAR: 'Bearish',
+      MILD_BEAR: 'Mildly bearish',
+      NEUTRAL: 'Neutral',
+      MILD_BULL: 'Mildly bullish',
+      BULL: 'Bullish',
+    }[marketContext.condition] ?? marketContext.label)
+  const factorText = factor => {
+    if (isHebrew) return factor.text
+    if (factor.tone === 'bullish') return 'Bullish market factor supports the setup.'
+    if (factor.tone === 'bearish') return 'Bearish market factor is a headwind.'
+    return 'Neutral market factor.'
+  }
 
   return (
     <div className={`rounded-xl border p-4 ${tone.bg}`} dir={isHebrew ? 'rtl' : 'ltr'}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-xs font-bold text-slate-400">Market Context v4</div>
-          <div className={`mt-1 text-lg font-black ${tone.color}`}>{marketContext.label}</div>
+          <div className={`mt-1 text-lg font-black ${tone.color}`}>{conditionLabel}</div>
           <div className="mt-1 text-xs text-slate-400">
             {copy.sector}: {marketContext.sectorEtf} · {copy.alignment}: {marketContext.alignmentPct}%
           </div>
@@ -98,7 +114,7 @@ export default function MarketContextPanel({ marketContext, isLoading, language 
           <ul className="space-y-1">
             {marketContext.factors.map((factor, index) => (
               <li key={index} className={`text-xs leading-relaxed ${FACTOR_COLOR[factor.tone] ?? 'text-slate-300'}`}>
-                {factor.text}
+                {factorText(factor)}
               </li>
             ))}
           </ul>

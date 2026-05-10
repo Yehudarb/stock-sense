@@ -7,17 +7,17 @@ import { computeAnalystDecision } from '../lib/analystDecision'
 import { computeProfessionalFeatures } from '../lib/professionalFeatures'
 import { computeEnsembleConsensus } from '../lib/ensembleConsensus'
 
-export default function useSignal(ohlcv, indicators) {
+export default function useSignal(ohlcv, indicators, language = 'he') {
   return useMemo(() => {
     if (!ohlcv?.length || !indicators) return null
     const patternResult = detectPatterns(ohlcv)
     const signal        = computeSignal(ohlcv, indicators, patternResult.score)
     if (!signal) return null
-    const analysis = generateAnalysis(ohlcv, indicators, signal, patternResult)
+    const analysis = generateAnalysis(ohlcv, indicators, signal, patternResult, language)
     const risk     = computeRisk(ohlcv, indicators)
     const pro      = computeProfessionalFeatures(ohlcv, indicators, signal)
     const ensemble = computeEnsembleConsensus(ohlcv, indicators, { ...signal, pro, patterns: patternResult })
-    const decision = computeAnalystDecision(ohlcv, indicators, { ...signal, pro, patterns: patternResult, ensemble }, risk)
+    const decision = computeAnalystDecision(ohlcv, indicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language)
     return { ...signal, analysis, patterns: patternResult, risk, decision, pro, ensemble }
-  }, [ohlcv, indicators])
+  }, [ohlcv, indicators, language])
 }

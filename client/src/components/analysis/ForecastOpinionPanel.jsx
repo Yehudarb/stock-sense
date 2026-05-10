@@ -16,11 +16,7 @@ const TONE = {
   neutral: { card: 'border-yellow-700 bg-yellow-950/25', badge: 'bg-yellow-400 text-slate-950', text: 'text-yellow-300', bar: 'bg-yellow-300' },
 }
 
-const BIAS_DOT = {
-  bullish: 'bg-green-400',
-  bearish: 'bg-red-400',
-  neutral: 'bg-yellow-300',
-}
+const BIAS_DOT = { bullish: 'bg-green-400', bearish: 'bg-red-400', neutral: 'bg-yellow-300' }
 
 function Metric({ label, value, color = 'text-white', sub }) {
   return (
@@ -32,21 +28,23 @@ function Metric({ label, value, color = 'text-white', sub }) {
   )
 }
 
-function TimeframeRow({ item }) {
-  const color = {
-    bullish: 'text-green-300',
-    bearish: 'text-red-300',
-    neutral: 'text-yellow-300',
-  }[item.bias] ?? 'text-slate-300'
+function TimeframeRow({ item, language }) {
+  const color = { bullish: 'text-green-300', bearish: 'text-red-300', neutral: 'text-yellow-300' }[item.bias] ?? 'text-slate-300'
+  const label = language === 'en'
+    ? ({ '5y': '5Y', '1y': '1Y', '1mo': '1M', '1d': '1D', '1h': '1H', '5m': '5m' }[item.interval] ?? item.label)
+    : item.label
+  const trend = language === 'en'
+    ? ({ bullish: 'Bullish', bearish: 'Bearish', neutral: 'Mixed' }[item.bias] ?? item.trend)
+    : item.trend
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-950/60 px-2 py-1.5 text-xs">
       <div className="flex items-center gap-2">
         <span className={`h-2 w-2 rounded-full ${BIAS_DOT[item.bias] ?? 'bg-slate-500'}`} />
-        <span className="font-bold text-slate-200">{item.label}</span>
+        <span className="font-bold text-slate-200">{label}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className={color}>{item.trend}</span>
+        <span className={color}>{trend}</span>
         <span className="font-mono text-slate-500">{scoreText(item.score)}</span>
       </div>
     </div>
@@ -80,13 +78,19 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
   if (isLoading && !forecast) {
     return <div className="rounded-xl bg-slate-800 p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>{copy.loadingBuild}</div>
   }
-
   if (!forecast) {
     return <div className="rounded-xl bg-slate-800 p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>{copy.loadingForecast}</div>
   }
 
   const tone = TONE[forecast.tone] ?? TONE.neutral
   const positiveTarget = forecast.targetPct != null && forecast.targetPct >= 0
+  const timeframeRecommendation = isHebrew
+    ? forecast.multiTimeframe?.recommendation
+    : ({
+      bullish: 'Most timeframes support the upside direction',
+      bearish: 'Most timeframes warn of downside pressure',
+      neutral: 'Timeframes are mixed; wait for confirmation',
+    }[forecast.multiTimeframe?.bias] ?? forecast.multiTimeframe?.recommendation)
 
   return (
     <div className={`rounded-xl border p-4 ${tone.card}`} dir={isHebrew ? 'rtl' : 'ltr'}>
@@ -119,12 +123,7 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Metric label={copy.currentPrice} value={fmtPrice(forecast.currentPrice)} />
-        <Metric
-          label={forecast.tone === 'bearish' ? copy.downsideTarget : copy.target}
-          value={fmtPrice(forecast.targetPrice)}
-          color={positiveTarget ? 'text-green-300' : 'text-red-300'}
-          sub={pctText(forecast.targetPct)}
-        />
+        <Metric label={forecast.tone === 'bearish' ? copy.downsideTarget : copy.target} value={fmtPrice(forecast.targetPrice)} color={positiveTarget ? 'text-green-300' : 'text-red-300'} sub={pctText(forecast.targetPct)} />
         <Metric label={copy.holdAbove} value={fmtPrice(forecast.holdAbove)} color="text-cyan-300" />
         <Metric label={copy.buyAbove} value={fmtPrice(forecast.buyAbove)} color="text-green-300" />
         <Metric label={copy.cutBelow} value={fmtPrice(forecast.invalidBelow)} color="text-red-300" />
@@ -135,10 +134,10 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
         <div className="mt-3 border-t border-slate-700/70 pt-3">
           <div className="mb-2 flex items-center justify-between text-xs">
             <span className="font-bold text-slate-400">{copy.alignment}</span>
-            <span className={tone.text}>{forecast.multiTimeframe.alignmentPct}% · {forecast.multiTimeframe.recommendation}</span>
+            <span className={tone.text}>{forecast.multiTimeframe.alignmentPct}% · {timeframeRecommendation}</span>
           </div>
           <div className="grid grid-cols-1 gap-1.5">
-            {forecast.multiTimeframe.timeframes.map(item => <TimeframeRow key={item.interval} item={item} />)}
+            {forecast.multiTimeframe.timeframes.map(item => <TimeframeRow key={item.interval} item={item} language={language} />)}
           </div>
         </div>
       )}

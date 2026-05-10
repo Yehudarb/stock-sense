@@ -63,7 +63,7 @@ export default function App() {
   const { currentTicker, interval, ohlcv, snapshot, isLoading, error, language } = useStore()
   const isHebrew = language === 'he'
   const indicators = useIndicators(ohlcv)
-  const signal = useSignal(ohlcv, indicators)
+  const signal = useSignal(ohlcv, indicators, language)
   const { isConnected } = useSocket()
   const { data: multiTimeframe, isLoading: isMultiTimeframeLoading } = useMultiTimeframe(currentTicker)
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
@@ -120,7 +120,8 @@ export default function App() {
     earnings,
     multiTimeframe,
     marketContext,
-  }), [ohlcv, indicators, signal, interval, earnings, multiTimeframe, marketContext])
+    language,
+  }), [ohlcv, indicators, signal, interval, earnings, multiTimeframe, marketContext, language])
 
   const last = ohlcv[ohlcv.length - 1]
   const n = ohlcv.length
@@ -237,7 +238,7 @@ export default function App() {
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <div className={`flex flex-col gap-3 ${cleanChart ? 'xl:col-span-3' : 'xl:col-span-2'}`}>
           {!cleanChart && (
-            <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} />
+            <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
           )}
 
           <div className="-mx-1 overflow-x-auto px-1">

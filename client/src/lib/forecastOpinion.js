@@ -23,7 +23,20 @@ function returnPct(ohlcv, periods) {
   return pct(previous?.c, last?.c)
 }
 
-function horizonLabel(interval) {
+function horizonLabel(interval, language = 'he') {
+  if (language === 'en') {
+    return {
+      '1m': 'minutes timeframe',
+      '5m': 'short intraday timeframe',
+      '15m': 'intraday timeframe',
+      '1h': 'hourly timeframe',
+      '4h': 'short swing timeframe',
+      '1d': 'daily timeframe',
+      '1mo': 'monthly timeframe',
+      '1y': 'yearly timeframe',
+      '5y': 'multi-year timeframe',
+    }[interval] ?? 'selected timeframe'
+  }
   return {
     '1m': 'טווח דקות',
     '5m': 'טווח תוך יומי קצר',
@@ -37,7 +50,34 @@ function horizonLabel(interval) {
   }[interval] ?? 'טווח נבחר'
 }
 
-function biasCopy(bias) {
+function biasCopy(bias, language = 'he') {
+  if (language === 'en') {
+    return {
+      bullish: {
+        label: 'Bullish',
+        tone: 'bullish',
+        expectation: 'Upside bias',
+        action: 'Hold / look for staged entries',
+      },
+      bearish: {
+        label: 'Bearish',
+        tone: 'bearish',
+        expectation: 'Downside pressure',
+        action: 'Be cautious / reduce below protection levels',
+      },
+      neutral: {
+        label: 'Neutral',
+        tone: 'neutral',
+        expectation: 'Mixed movement expected',
+        action: 'Wait for clearer confirmation',
+      },
+    }[bias] ?? {
+      label: 'Neutral',
+      tone: 'neutral',
+      expectation: 'Mixed movement expected',
+      action: 'Wait for clearer confirmation',
+    }
+  }
   return {
     bullish: {
       label: 'בוליש',
@@ -420,7 +460,80 @@ function pickTarget({ bias, price, atr, decision, signal }) {
   return decision?.holdUntil ?? round(price)
 }
 
-export function computeForecastOpinion({ ohlcv, indicators, signal, interval, earnings, multiTimeframe, marketContext }) {
+function englishForecastText({ bias, interval, targetPrice, signal, ohlcv, indicators, multiTimeframe, marketContext, earnings }) {
+  const index = ohlcv.length - 1
+  const price = ohlcv[index].c
+  const rsi = latest(indicators.rsi14, index)
+  const sma50 = latest(indicators.sma50, index)
+  const sma200 = latest(indicators.sma200, index)
+  const macdLine = latest(indicators.macd?.line, index)
+  const macdSignal = latest(indicators.macd?.signal, index)
+  const volumeRatio = latest(indicators.volRatio, index)
+  const drivers = []
+  const risks = []
+  const marketLabel = {
+    PANIC: 'panic',
+    BEAR: 'bearish',
+    MILD_BEAR: 'mildly bearish',
+    NEUTRAL: 'neutral',
+    MILD_BULL: 'mildly bullish',
+    BULL: 'bullish',
+  }[marketContext?.condition] ?? marketContext?.label
+
+  if (signal.buyProbability > signal.sellProbability + 10) {
+    drivers.push(`The signal model favors buying (${signal.buyProbability}% vs ${signal.sellProbability}%).`)
+  } else if (signal.sellProbability > signal.buyProbability + 10) {
+    risks.push(`The signal model favors selling (${signal.sellProbability}% vs ${signal.buyProbability}%).`)
+  }
+
+  if (sma50 != null && sma200 != null) {
+    if (price > sma50 && price > sma200 && sma50 >= sma200) drivers.push('Price is above SMA50 and SMA200, supporting a healthy trend structure.')
+    if (price < sma50 && price < sma200) risks.push('Price is below the main moving averages, showing a weaker structure.')
+  }
+  if (rsi != null) {
+    if (rsi >= 48 && rsi <= 65) drivers.push(`RSI ${round(rsi, 1)} is in a constructive momentum zone.`)
+    if (rsi > 72) risks.push(`RSI ${round(rsi, 1)} is elevated, so pullback risk is higher.`)
+    if (rsi < 30) drivers.push(`RSI ${round(rsi, 1)} is oversold, which can support a technical rebound.`)
+    if (rsi < 42 && rsi >= 30) risks.push(`RSI ${round(rsi, 1)} is relatively weak.`)
+  }
+  if (macdLine != null && macdSignal != null) {
+    if (macdLine > macdSignal) drivers.push('MACD is above the signal line.')
+    else risks.push('MACD is below the signal line.')
+  }
+  if (volumeRatio != null && volumeRatio > 1.5) {
+    const last = ohlcv[index]
+    if (last.c >= last.o) drivers.push(`Positive high-volume move detected (${round(volumeRatio, 2)}x).`)
+    else risks.push(`High-volume downside move detected (${round(volumeRatio, 2)}x).`)
+  }
+  if (signal.patterns?.best) {
+    const pattern = signal.patterns.best
+    if (pattern.direction === 'bullish') drivers.push(`Leading bullish pattern: ${pattern.label}.`)
+    if (pattern.direction === 'bearish') risks.push(`Leading bearish pattern: ${pattern.label}.`)
+  }
+  if (multiTimeframe?.total) {
+    if (multiTimeframe.bias === 'bullish') drivers.push(`Multi-timeframe alignment: ${multiTimeframe.bullish}/${multiTimeframe.total} bullish (${multiTimeframe.alignmentPct}%).`)
+    if (multiTimeframe.bias === 'bearish') risks.push(`Multi-timeframe alignment: ${multiTimeframe.bearish}/${multiTimeframe.total} bearish (${multiTimeframe.alignmentPct}%).`)
+    if (multiTimeframe.bias === 'neutral') risks.push('Timeframes are mixed, so the outlook is less decisive.')
+  }
+  if (marketContext) {
+    if (['BULL', 'MILD_BULL'].includes(marketContext.condition)) drivers.push(`Broad market context supports the setup: ${marketLabel}.`)
+    if (['BEAR', 'MILD_BEAR', 'PANIC'].includes(marketContext.condition)) risks.push(`Broad market context is a headwind: ${marketLabel}.`)
+    if (marketContext.shouldBlockBuy) risks.push('Broad market conditions call for stronger confirmation before new aggressive buys.')
+  }
+  if (earnings?.nextReport?.daysUntil != null && earnings.nextReport.daysUntil >= 0 && earnings.nextReport.daysUntil <= 14) {
+    risks.push(`Earnings are due in ${earnings.nextReport.daysUntil} days, so volatility can rise around the event.`)
+  }
+
+  const summary = bias === 'bullish'
+    ? `The current outlook is bullish on the ${horizonLabel(interval, 'en')}. As long as price holds above the protection area, the next technical target is around $${targetPrice}.`
+    : bias === 'bearish'
+      ? `The current outlook is bearish on the ${horizonLabel(interval, 'en')}. Negative pressure is stronger, with a downside technical target around $${targetPrice}.`
+      : `The current outlook is neutral on the ${horizonLabel(interval, 'en')}. There is no clear edge yet, so waiting for a break above resistance or below support is preferable.`
+
+  return { summary, drivers: drivers.slice(0, 5), risks: risks.slice(0, 5) }
+}
+
+export function computeForecastOpinion({ ohlcv, indicators, signal, interval, earnings, multiTimeframe, marketContext, language = 'he' }) {
   if (!ohlcv?.length || !indicators || !signal) return null
 
   const index = ohlcv.length - 1
@@ -445,7 +558,7 @@ export function computeForecastOpinion({ ohlcv, indicators, signal, interval, ea
   const bearishScore = round(layers.reduce((sum, layer) => sum + layer.bearish, 0), 2)
   const net = bullishScore - bearishScore
   const bias = net >= 1.8 ? 'bullish' : net <= -1.8 ? 'bearish' : 'neutral'
-  const copy = biasCopy(bias)
+  const copy = biasCopy(bias, language)
   const confidenceBase = 48 + Math.abs(net) * 7 + (multiTimeframe?.alignmentPct ?? 0) * 0.08
   const confidence = Math.round(clamp(confidenceBase, 45, 92))
   const targetPrice = pickTarget({ bias, price, atr, decision, signal })
@@ -456,7 +569,9 @@ export function computeForecastOpinion({ ohlcv, indicators, signal, interval, ea
   const buyAbove = decision?.buyAbove ?? resistance
   const holdAbove = support ?? decision?.trailingStop ?? invalidBelow
 
-  const summary = bias === 'bullish'
+  const summary = language === 'en'
+    ? englishForecastText({ bias, interval, targetPrice, signal, ohlcv, indicators, multiTimeframe, marketContext, earnings }).summary
+    : bias === 'bullish'
     ? `הצפי כרגע בוליש ב${horizonLabel(interval)}: כל עוד המחיר מחזיק מעל אזור ההגנה, היעד הטכני הבא הוא סביב $${targetPrice}.`
     : bias === 'bearish'
       ? `הצפי כרגע בריש ב${horizonLabel(interval)}: הלחץ השלילי גובר, והיעד הטכני למטה נמצא סביב $${targetPrice}.`
@@ -475,15 +590,15 @@ export function computeForecastOpinion({ ohlcv, indicators, signal, interval, ea
     bullishScore,
     bearishScore,
     netScore: round(net, 2),
-    horizon: horizonLabel(interval),
+    horizon: horizonLabel(interval, language),
     holdAbove: round(holdAbove),
     buyAbove: round(buyAbove),
     invalidBelow: round(invalidBelow),
     support: round(support),
     resistance: round(resistance),
     summary,
-    drivers: drivers.slice(0, 5),
-    risks: risks.slice(0, 5),
+    drivers: language === 'en' ? englishForecastText({ bias, interval, targetPrice, signal, ohlcv, indicators, multiTimeframe, marketContext, earnings }).drivers : drivers.slice(0, 5),
+    risks: language === 'en' ? englishForecastText({ bias, interval, targetPrice, signal, ohlcv, indicators, multiTimeframe, marketContext, earnings }).risks : risks.slice(0, 5),
     multiTimeframe,
     marketContext,
   }
