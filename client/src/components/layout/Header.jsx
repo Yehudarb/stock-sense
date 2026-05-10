@@ -1,6 +1,7 @@
 import useStore from '../../store/useStore'
 import { fmtPrice, fmtChange } from '../../lib/formatters'
 import { INTERVALS } from '../../../../shared/constants'
+import StockLogo from '../ui/StockLogo'
 
 const INTERVAL_LABELS = {
   he: {
@@ -33,7 +34,8 @@ export default function Header({ isConnected }) {
   const copy = {
     loading: isHebrew ? 'טוען...' : 'Loading...',
     range: isHebrew ? 'טווח' : 'Range',
-    language: isHebrew ? 'EN' : 'עב',
+    language: isHebrew ? '🇮🇱 עברית' : '🇺🇸 English',
+    switchLanguage: isHebrew ? 'Switch to English' : 'עבור לעברית',
   }
 
   const changeColor = snapshot?.change >= 0 ? 'text-green-400' : 'text-red-400'
@@ -44,6 +46,7 @@ export default function Header({ isConnected }) {
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:justify-start lg:gap-4">
           <div className="flex min-w-0 items-center gap-2">
             {isConnected && <span className="live-dot shrink-0" />}
+            <StockLogo ticker={currentTicker} size="md" />
             <span className="text-lg font-bold text-white sm:text-xl">{currentTicker}</span>
             {snapshot?.name && (
               <span className="truncate text-xs text-slate-400 sm:text-sm">{snapshot.name}</span>
@@ -70,6 +73,8 @@ export default function Header({ isConnected }) {
             <button
               onClick={() => setLanguage(isHebrew ? 'en' : 'he')}
               className="mr-1 rounded border border-slate-600 bg-slate-800 px-3 py-1 text-xs font-bold text-slate-200 hover:bg-slate-700"
+              title={copy.switchLanguage}
+              aria-label={copy.switchLanguage}
             >
               {copy.language}
             </button>

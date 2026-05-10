@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import axios from 'axios'
 import useStore from '../../store/useStore'
 import TickerSearch from './TickerSearch'
+import StockLogo from '../ui/StockLogo'
 
 export default function WatchlistPanel() {
   const { watchlist, setWatchlist, currentTicker, setCurrentTicker, removeFromWatchlist, language } = useStore()
@@ -24,11 +25,14 @@ export default function WatchlistPanel() {
             <div
               key={w.ticker}
               onClick={() => setCurrentTicker(w.ticker)}
-              className={`flex min-w-[88px] items-center justify-between rounded-lg px-3 py-2 transition-colors md:min-w-0 md:cursor-pointer ${
+              className={`flex min-w-[108px] items-center justify-between rounded-lg px-3 py-2 transition-colors md:min-w-0 md:cursor-pointer ${
                 w.ticker === currentTicker ? 'bg-blue-900' : 'bg-slate-700 hover:bg-slate-600'
               }`}
             >
-              <span className="text-sm font-bold text-white">{w.ticker}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <StockLogo ticker={w.ticker} />
+                <span className="text-sm font-bold text-white">{w.ticker}</span>
+              </span>
               <button
                 onClick={e => {
                   e.stopPropagation()

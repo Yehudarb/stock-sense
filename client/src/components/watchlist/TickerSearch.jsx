@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import useStore from '../../store/useStore'
+import StockLogo from '../ui/StockLogo'
 
 export default function TickerSearch() {
   const [query, setQuery] = useState('')
@@ -48,6 +49,7 @@ export default function TickerSearch() {
               onClick={() => select(r.ticker)}
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-600 text-left"
             >
+              <StockLogo ticker={r.ticker} />
               <span className="font-bold text-white text-sm">{r.ticker}</span>
               <span className="text-slate-400 text-xs truncate">{r.name}</span>
             </button>
