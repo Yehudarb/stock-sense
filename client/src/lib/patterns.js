@@ -1,3 +1,5 @@
+import { detectPivotTriangles } from './advancedTrends'
+
 const PATTERN_DEFS = {
   BULLISH_FLAG: { label: 'דגל שורי', weight: 75, direction: 'bullish', targetFactor: 1.0 },
   BEARISH_FLAG: { label: 'דגל דובי', weight: -75, direction: 'bearish', targetFactor: 1.0 },
@@ -14,6 +16,7 @@ const PATTERN_DEFS = {
   ASCENDING_TRIANGLE: { label: 'משולש עולה', weight: 75, direction: 'bullish', targetFactor: 0.8 },
   DESCENDING_TRIANGLE: { label: 'משולש יורד', weight: -75, direction: 'bearish', targetFactor: 0.8 },
   SYMMETRICAL_TRIANGLE: { label: 'משולש סימטרי', weight: 35, direction: 'neutral', targetFactor: 0.65 },
+  EXPANDING_TRIANGLE: { label: 'Megaphone / Expanding Triangle', weight: 0, direction: 'neutral', targetFactor: 0.75 },
   RECTANGLE_BULLISH: { label: 'מלבן שורי', weight: 62, direction: 'bullish', targetFactor: 0.7 },
   RECTANGLE_BEARISH: { label: 'מלבן דובי', weight: -62, direction: 'bearish', targetFactor: 0.7 },
   CUP_HANDLE: { label: 'כוס וידית', weight: 82, direction: 'bullish', targetFactor: 0.9 },
@@ -118,6 +121,26 @@ function addPattern(found, key, ohlcv, strength = 1, status = 'developing', visu
     targetPrice: Number(targetPrice.toFixed(targetPrice >= 100 ? 2 : 3)),
     potentialPct: Number((((targetPrice - current) / current) * 100).toFixed(2)),
     visual: visual ?? fallbackVisual,
+  })
+}
+
+function addPivotTrianglePatterns(found, ohlcv) {
+  detectPivotTriangles(ohlcv).forEach(triangle => {
+    if (found.some(pattern => pattern.key === triangle.key)) return
+    const def = PATTERN_DEFS[triangle.key]
+    const current = ohlcv[ohlcv.length - 1].c
+    const targetPrice = triangle.direction === 'bearish' ? triangle.targetDown : triangle.targetUp
+    found.push({
+      key: triangle.key,
+      label: def.label,
+      weight: Math.round((def.weight || 0) * (triangle.strength / 2)),
+      direction: def.direction,
+      status: triangle.status === 'breakout_up' || triangle.status === 'breakout_down' ? 'confirmed' : 'developing',
+      targetPrice,
+      potentialPct: Number((((targetPrice - current) / current) * 100).toFixed(2)),
+      visual: triangle.visual,
+      meta: triangle,
+    })
   })
 }
 
@@ -346,6 +369,7 @@ export function detectPatterns(ohlcv) {
   detectFlagsPennants(patterns, ohlcv)
   detectDoubleTriple(patterns, ohlcv)
   detectTrianglesAndWedges(patterns, ohlcv)
+  addPivotTrianglePatterns(patterns, ohlcv)
   detectRectangles(patterns, ohlcv)
   detectHeadShoulders(patterns, ohlcv)
   detectCupHandle(patterns, ohlcv)

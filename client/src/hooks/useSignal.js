@@ -6,6 +6,7 @@ import { computeRisk } from '../lib/riskManagement'
 import { computeAnalystDecision } from '../lib/analystDecision'
 import { computeProfessionalFeatures } from '../lib/professionalFeatures'
 import { computeEnsembleConsensus } from '../lib/ensembleConsensus'
+import { analyzeAdvancedTrends } from '../lib/advancedTrends'
 
 export default function useSignal(ohlcv, indicators, language = 'he') {
   return useMemo(() => {
@@ -18,6 +19,7 @@ export default function useSignal(ohlcv, indicators, language = 'he') {
     const pro      = computeProfessionalFeatures(ohlcv, indicators, signal)
     const ensemble = computeEnsembleConsensus(ohlcv, indicators, { ...signal, pro, patterns: patternResult })
     const decision = computeAnalystDecision(ohlcv, indicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language)
-    return { ...signal, analysis, patterns: patternResult, risk, decision, pro, ensemble }
+    const trends   = analyzeAdvancedTrends(ohlcv, indicators)
+    return { ...signal, analysis, patterns: patternResult, risk, decision, pro, ensemble, trends }
   }, [ohlcv, indicators, language])
 }

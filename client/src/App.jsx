@@ -21,6 +21,7 @@ import ForecastOpinionPanel from './components/analysis/ForecastOpinionPanel'
 import MarketContextPanel from './components/analysis/MarketContextPanel'
 import MarketTradeAlert from './components/analysis/MarketTradeAlert'
 import SignalPanel from './components/analysis/SignalPanel'
+import AdvancedTrendsPanel from './components/analysis/AdvancedTrendsPanel'
 import KpiCard from './components/ui/KpiCard'
 import Spinner from './components/ui/Spinner'
 import { fmtVolume, fmtPercent } from './lib/formatters'
@@ -409,6 +410,7 @@ export default function App() {
             <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} language={language} />
             <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
             <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
+            <AdvancedTrendsPanel trends={signal?.trends} language={language} />
             <SignalPanel signal={signal} language={language} />
           </div>
         )}
