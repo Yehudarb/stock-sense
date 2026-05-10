@@ -24,7 +24,7 @@ import SignalPanel from './components/analysis/SignalPanel'
 import AdvancedTrendsPanel from './components/analysis/AdvancedTrendsPanel'
 import KpiCard from './components/ui/KpiCard'
 import Spinner from './components/ui/Spinner'
-import { fmtVolume, fmtPercent } from './lib/formatters'
+import { fmtVolume, fmtPercent, fmtPrice } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 
 const FG_COLOR = value => (
@@ -60,6 +60,65 @@ function SafeChart({ isLoading, resetKey, children }) {
   return <ChartErrorBoundary resetKey={resetKey}>{children}</ChartErrorBoundary>
 }
 
+function TriangleChartPanel({ triangles, language }) {
+  const isHebrew = language === 'he'
+  const labels = {
+    title: isHebrew ? 'משולשים על הגרף' : 'Triangles on chart',
+    empty: isHebrew
+      ? 'לא נמצא כרגע משולש פעיל בטווח הזמן הזה. נסה טווח אחר כמו 1D / 1H או הגדל את מספר הנרות.'
+      : 'No active triangle was found on this timeframe. Try another range like 1D / 1H or show more candles.',
+    found: isHebrew ? 'נמצאו' : 'Found',
+    resistance: isHebrew ? 'התנגדות' : 'Resistance',
+    support: isHebrew ? 'תמיכה' : 'Support',
+    target: isHebrew ? 'יעד' : 'Target',
+    completion: isHebrew ? 'השלמה' : 'Completion',
+    hint: isHebrew
+      ? 'כאשר יש זיהוי, הקווים מופיעים ישירות על גרף המחיר.'
+      : 'When detected, the pattern lines are drawn directly on the price chart.',
+  }
+  const typeLabel = {
+    ascending: isHebrew ? 'משולש עולה' : 'Ascending triangle',
+    descending: isHebrew ? 'משולש יורד' : 'Descending triangle',
+    symmetrical: isHebrew ? 'משולש סימטרי' : 'Symmetrical triangle',
+    expanding: isHebrew ? 'מגפון / משולש מתרחב' : 'Megaphone / expanding triangle',
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-800 bg-emerald-950/25 p-3" dir={isHebrew ? 'rtl' : 'ltr'}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-black text-emerald-200">{labels.title}</div>
+          <div className="mt-0.5 text-xs text-emerald-300/75">{labels.hint}</div>
+        </div>
+        <span className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-black text-emerald-300">
+          {labels.found}: {triangles.length}
+        </span>
+      </div>
+
+      {triangles.length === 0 ? (
+        <div className="mt-3 rounded-lg bg-slate-950/70 p-2 text-xs leading-relaxed text-slate-400">{labels.empty}</div>
+      ) : (
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {triangles.map(triangle => {
+            const target = triangle.direction === 'bearish' ? triangle.targetDown : triangle.targetUp
+            return (
+              <div key={`${triangle.key}-${triangle.status}`} className="rounded-lg bg-slate-950/70 p-2 text-xs text-slate-300">
+                <div className="font-black text-white">{typeLabel[triangle.type] ?? triangle.type}</div>
+                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                  <span className="text-slate-500">{labels.resistance}</span><span className="font-mono text-orange-300">{fmtPrice(triangle.resistance)}</span>
+                  <span className="text-slate-500">{labels.support}</span><span className="font-mono text-cyan-300">{fmtPrice(triangle.support)}</span>
+                  <span className="text-slate-500">{labels.target}</span><span className="font-mono text-green-300">{fmtPrice(target)}</span>
+                  <span className="text-slate-500">{labels.completion}</span><span className="font-mono text-emerald-300">{triangle.completionPct}%</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function App() {
   const { currentTicker, interval, ohlcv, snapshot, isLoading, error, language } = useStore()
   const isHebrew = language === 'he'
@@ -75,7 +134,7 @@ export default function App() {
   const [showFibonacci, setShowFibonacci] = useState(false)
   const [showGaps, setShowGaps] = useState(true)
   const [showPatterns, setShowPatterns] = useState(true)
-  const [showTriangles, setShowTriangles] = useState(true)
+  const [showTriangles, setShowTriangles] = useState(false)
   const [cleanChart, setCleanChart] = useState(false)
   const [chartType, setChartType] = useState('candlestick')
   const [visibleBars, setVisibleBars] = useState(null)
@@ -168,6 +227,7 @@ export default function App() {
   const smaDistPct = last && sma20Last ? (((last.c - sma20Last) / sma20Last) * 100).toFixed(1) : null
   const high20 = n ? Math.max(...ohlcv.slice(-20).map(bar => bar.h)).toFixed(2) : null
   const low20 = n ? Math.min(...ohlcv.slice(-20).map(bar => bar.l)).toFixed(2) : null
+  const triangleList = signal?.trends?.triangles ?? []
 
   const regime = signal?.gates?.trend?.regime
   const regimeLabel = {
@@ -267,7 +327,7 @@ export default function App() {
                 onClick={() => setter(!value)}
                 className={`rounded px-3 py-1 text-xs font-medium ${!cleanChart && value ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}
               >
-                {label}
+                {label}{key === 'showTriangles' ? ` (${triangleList.length})` : ''}
               </button>
             ))}
             <div className="mx-1 w-px bg-slate-700" />
@@ -349,8 +409,12 @@ export default function App() {
             </div>
           </div>
 
+          {!cleanChart && showTriangles && (
+            <TriangleChartPanel triangles={triangleList} language={language} />
+          )}
+
           <ChartContainer title={copy.priceChart} height="h-[320px] sm:h-[380px] md:h-[560px]" onWheel={handlePriceChartWheel}>
-            <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}-${chartShowSMA}-${chartShowEMA}-${chartShowBB}-${chartShowFibonacci}-${chartShowGaps}-${chartShowPatterns}-${chartShowLevels}-${patternResetKey}-${activeVisibleBars}`}>
+            <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}-${chartShowSMA}-${chartShowEMA}-${chartShowBB}-${chartShowFibonacci}-${chartShowGaps}-${chartShowPatterns}-${chartShowTriangles}-${chartShowLevels}-${patternResetKey}-${activeVisibleBars}`}>
               <PriceChart
                 ohlcv={ohlcv}
                 indicators={indicators}
