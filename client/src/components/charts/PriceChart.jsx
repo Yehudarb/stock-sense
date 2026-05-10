@@ -247,19 +247,28 @@ function tradingViewYAxis(range) {
 }
 
 function drawLabel(ctx, text, x, y, color) {
-  ctx.font = '600 11px Arial'
-  const paddingX = 6
-  const paddingY = 4
+  ctx.save()
+  ctx.font = '800 12px Arial'
+  ctx.textBaseline = 'middle'
+  const paddingX = 8
   const width = ctx.measureText(text).width + paddingX * 2
-  const height = 18
+  const height = 22
+  const radius = 5
 
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.82)'
-  ctx.fillRect(x, y, width, height)
+  ctx.shadowColor = 'rgba(2, 6, 23, 0.35)'
+  ctx.shadowBlur = 8
+  ctx.shadowOffsetY = 2
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.96)'
+  ctx.beginPath()
+  ctx.roundRect(x, y, width, height, radius)
+  ctx.fill()
+  ctx.shadowColor = 'transparent'
   ctx.strokeStyle = color
-  ctx.lineWidth = 1
-  ctx.strokeRect(x, y, width, height)
-  ctx.fillStyle = '#e2e8f0'
-  ctx.fillText(text, x + paddingX, y + height - paddingY)
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(text, x + paddingX, y + height / 2)
+  ctx.restore()
 }
 
 function drawPriceTag(ctx, text, x, y, color, chartArea) {
@@ -330,7 +339,7 @@ const volumeOverlayPlugin = {
 
 const gapOverlayPlugin = {
   id: 'gapOverlay',
-  beforeDatasetsDraw(chart, _args, options) {
+  afterDatasetsDraw(chart, _args, options) {
     const gaps = options?.gaps ?? []
     if (!gaps.length) return
 
@@ -636,19 +645,27 @@ const dateRangePlugin = {
 
     const { ctx, chartArea } = chart
     ctx.save()
-    ctx.font = '600 11px Arial'
+    ctx.font = '800 12px Arial'
     const paddingX = 8
     const width = ctx.measureText(options.text).width + paddingX * 2
-    const height = 20
+    const height = 22
     const x = chartArea.left + 8
     const y = chartArea.top + 8
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)'
-    ctx.fillRect(x, y, width, height)
-    ctx.strokeStyle = 'rgba(15, 23, 42, 0.10)'
-    ctx.strokeRect(x, y, width, height)
-    ctx.fillStyle = '#334155'
-    ctx.fillText(options.text, x + paddingX, y + 14)
+    ctx.shadowColor = 'rgba(2, 6, 23, 0.25)'
+    ctx.shadowBlur = 8
+    ctx.shadowOffsetY = 2
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)'
+    ctx.beginPath()
+    ctx.roundRect(x, y, width, height, 5)
+    ctx.fill()
+    ctx.shadowColor = 'transparent'
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.fillStyle = '#ffffff'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(options.text, x + paddingX, y + height / 2)
     ctx.restore()
   },
 }
