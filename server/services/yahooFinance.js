@@ -25,14 +25,22 @@ const YAHOO_INTERVAL_MAP = {
   '5y':  { interval: '1wk', range: '5y'  },
 }
 
+const FETCH_TIMEOUT_MS = parseInt(process.env.MARKET_FETCH_TIMEOUT_MS ?? '8000', 10)
+
 async function yfFetch(url) {
-  const res = await fetch(url, { headers: YF_HEADERS })
+  const res = await fetch(url, {
+    headers: YF_HEADERS,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
   if (!res.ok) throw Object.assign(new Error(`Yahoo Finance HTTP ${res.status}`), { status: res.status })
   return res.json()
 }
 
 async function nasdaqFetch(url) {
-  const res = await fetch(url, { headers: NASDAQ_HEADERS })
+  const res = await fetch(url, {
+    headers: NASDAQ_HEADERS,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
   if (!res.ok) throw Object.assign(new Error(`Nasdaq HTTP ${res.status}`), { status: res.status })
   return res.json()
 }

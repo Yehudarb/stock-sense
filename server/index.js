@@ -20,6 +20,12 @@ const hasClientBuild = existsSync(clientDistPath)
 const app = express()
 const httpServer = createServer(app)
 
+httpServer.keepAliveTimeout = 61_000
+httpServer.headersTimeout = 65_000
+httpServer.requestTimeout = 30_000
+
+app.set('trust proxy', 1)
+
 const io = new SocketServer(httpServer, {
   cors: {
     origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*',
@@ -29,7 +35,7 @@ const io = new SocketServer(httpServer, {
 initSocketBridge(io)
 
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*' }))
-app.use(express.json())
+app.use(express.json({ limit: '64kb' }))
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX ?? '300'),
