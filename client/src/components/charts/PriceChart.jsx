@@ -162,6 +162,10 @@ function normalizePatternsForView(patternResult, viewStart, viewEnd) {
   }
 }
 
+function isTrianglePattern(pattern) {
+  return pattern?.key?.includes('TRIANGLE') || pattern?.meta?.type
+}
+
 function normalizeGapsForView(gapResult, viewStart, viewEnd) {
   return (gapResult?.gaps ?? [])
     .filter(gap => gap.index <= viewEnd && (gap.endIndex ?? viewEnd) >= viewStart)
@@ -661,6 +665,7 @@ export default function PriceChart({
   showFibonacci = false,
   showGaps = true,
   showPatterns = true,
+  showTriangles = true,
   showLevels = true,
   ticker,
   decision,
@@ -678,7 +683,11 @@ export default function PriceChart({
     const viewEnd = ohlcv.length - 1
     const visibleOhlcv = ohlcv.slice(viewStart)
     const visibleIndicators = sliceIndicatorTree(indicators, viewStart)
-    const visiblePatterns = showPatterns ? normalizePatternsForView(patterns, viewStart, viewEnd) : { patterns: [], score: 0, best: null }
+    const patternSource = patterns?.patterns?.filter(pattern => (
+      (showPatterns && !isTrianglePattern(pattern)) || (showTriangles && isTrianglePattern(pattern))
+    )) ?? []
+    const filteredPatternResult = { ...patterns, patterns: patternSource }
+    const visiblePatterns = patternSource.length ? normalizePatternsForView(filteredPatternResult, viewStart, viewEnd) : { patterns: [], score: 0, best: null }
     const visibleGaps = showGaps ? normalizeGapsForView(gaps, viewStart, viewEnd) : []
     const fibonacci = showFibonacci ? computeFibonacci(visibleOhlcv) : null
     const labels = labelsFromBars(visibleOhlcv, interval)
@@ -857,7 +866,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showBB, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showLevels, ticker, decision, interval, visibleBars])
+  }, [ohlcv, indicators, showSMA, showEMA, showBB, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, interval, visibleBars])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

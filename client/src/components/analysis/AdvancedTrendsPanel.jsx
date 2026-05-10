@@ -95,7 +95,13 @@ function TriangleCard({ triangle, language }) {
 
 export default function AdvancedTrendsPanel({ trends, language = 'he' }) {
   const isEnglish = language === 'en'
-  if (!trends) return null
+  if (!trends) {
+    return (
+      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 text-sm text-slate-500" dir={isEnglish ? 'ltr' : 'rtl'}>
+        {isEnglish ? 'Loading advanced trend and triangle analysis...' : 'טוען ניתוח טרנדים ומשולשים...'}
+      </div>
+    )
+  }
 
   const copy = {
     title: isEnglish ? 'Advanced trends' : 'טרנדים מתקדמים',

@@ -75,6 +75,7 @@ export default function App() {
   const [showFibonacci, setShowFibonacci] = useState(false)
   const [showGaps, setShowGaps] = useState(true)
   const [showPatterns, setShowPatterns] = useState(true)
+  const [showTriangles, setShowTriangles] = useState(true)
   const [cleanChart, setCleanChart] = useState(false)
   const [chartType, setChartType] = useState('candlestick')
   const [visibleBars, setVisibleBars] = useState(null)
@@ -161,6 +162,7 @@ export default function App() {
   const chartShowFibonacci = !cleanChart && showFibonacci
   const chartShowGaps = !cleanChart && showGaps
   const chartShowPatterns = !cleanChart && showPatterns
+  const chartShowTriangles = !cleanChart && showTriangles
   const chartShowLevels = !cleanChart
 
   const smaDistPct = last && sma20Last ? (((last.c - sma20Last) / sma20Last) * 100).toFixed(1) : null
@@ -199,6 +201,7 @@ export default function App() {
     fib: isHebrew ? 'פיבונאצ׳י' : 'Fibonacci',
     gaps: isHebrew ? 'גאפים' : 'Gaps',
     patterns: isHebrew ? 'תבניות' : 'Patterns',
+    triangles: isHebrew ? 'משולשים' : 'Triangles',
     cleanChart: isHebrew ? 'גרף נקי' : 'Clean chart',
     zoomIn: isHebrew ? 'זום +' : 'Zoom +',
     zoomOut: isHebrew ? 'זום -' : 'Zoom -',
@@ -272,6 +275,7 @@ export default function App() {
               ['showFibonacci', showFibonacci, setShowFibonacci, copy.fib],
               ['showGaps', showGaps, setShowGaps, copy.gaps],
               ['showPatterns', showPatterns, setShowPatterns, copy.patterns],
+              ['showTriangles', showTriangles, setShowTriangles, copy.triangles],
             ].map(([key, value, setter, label]) => (
               <button
                 key={key}
@@ -359,6 +363,7 @@ export default function App() {
                 showFibonacci={chartShowFibonacci}
                 showGaps={chartShowGaps}
                 showPatterns={chartShowPatterns}
+                showTriangles={chartShowTriangles}
                 showLevels={chartShowLevels}
                 ticker={currentTicker}
                 decision={signal?.decision}
