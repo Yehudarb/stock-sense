@@ -1,5 +1,88 @@
 import { useState } from 'react'
 
+const TRADINGVIEW_SLUGS = {
+  AAPL: 'apple',
+  MSFT: 'microsoft',
+  GOOGL: 'alphabet',
+  GOOG: 'alphabet',
+  AMZN: 'amazon',
+  TSLA: 'tesla',
+  META: 'meta-platforms',
+  NVDA: 'nvidia',
+  NFLX: 'netflix',
+  AMD: 'advanced-micro-devices',
+  INTC: 'intel',
+  IBM: 'international-business-machines',
+  ORCL: 'oracle',
+  CRM: 'salesforce',
+  ADBE: 'adobe',
+  PYPL: 'paypal',
+  SHOP: 'shopify',
+  UBER: 'uber',
+  ABNB: 'airbnb',
+  COIN: 'coinbase',
+  SQ: 'block',
+  PLTR: 'palantir',
+  SNOW: 'snowflake',
+  NET: 'cloudflare',
+  DDOG: 'datadog',
+  JPM: 'jpmorgan-chase',
+  BAC: 'bank-of-america',
+  WFC: 'wells-fargo',
+  GS: 'goldman-sachs',
+  MS: 'morgan-stanley',
+  V: 'visa',
+  MA: 'mastercard',
+  DIS: 'walt-disney',
+  NKE: 'nike',
+  SBUX: 'starbucks',
+  MCD: 'mcdonalds',
+  WMT: 'walmart',
+  TGT: 'target',
+  COST: 'costco-wholesale',
+  HD: 'home-depot',
+  LOW: 'lowes',
+  PEP: 'pepsico',
+  KO: 'coca-cola',
+  PG: 'procter-and-gamble',
+  JNJ: 'johnson-and-johnson',
+  PFE: 'pfizer',
+  MRK: 'merck-and-co',
+  UNH: 'unitedhealth',
+  LLY: 'eli-lilly',
+  ABBV: 'abbvie',
+  TMO: 'thermo-fisher-scientific',
+  ISRG: 'intuitive-surgical',
+  XOM: 'exxon',
+  CVX: 'chevron',
+  COP: 'conocophillips',
+  SLB: 'schlumberger',
+  BA: 'boeing',
+  GE: 'general-electric',
+  CAT: 'caterpillar',
+  DE: 'deere',
+  HON: 'honeywell',
+  UPS: 'united-parcel-service',
+  FDX: 'fedex',
+  F: 'ford',
+  GM: 'general-motors',
+  RIVN: 'rivian',
+  LCID: 'lucid-group',
+  BABA: 'alibaba',
+  NIO: 'nio',
+  TSM: 'taiwan-semiconductor',
+  ASML: 'asml',
+  SAP: 'sap',
+  SONY: 'sony',
+  TM: 'toyota',
+  SPY: 'spdr-sandp500-etf-tr',
+  QQQ: 'invesco-qqq-trust',
+  DIA: 'spdr-dow-jones-industrial-average-etf',
+  IWM: 'ishares-russell-2000-etf',
+  VOO: 'vanguard-sandp500-etf',
+  VTI: 'vanguard-total-stock-market-etf',
+}
+
 const LOGO_DOMAINS = {
   AAPL: 'apple.com',
   MSFT: 'microsoft.com',
@@ -38,6 +121,7 @@ const LOGO_DOMAINS = {
   SBUX: 'starbucks.com',
   MCD: 'mcdonalds.com',
   WMT: 'walmart.com',
+  TGT: 'target.com',
   COST: 'costco.com',
   HD: 'homedepot.com',
   LOW: 'lowes.com',
@@ -77,11 +161,17 @@ function initials(ticker) {
 
 export default function StockLogo({ ticker, size = 'sm', className = '' }) {
   const symbol = ticker?.toUpperCase()
-  const [failed, setFailed] = useState(false)
-  const domain = LOGO_DOMAINS[symbol]
+  const [fallbackStep, setFallbackStep] = useState(0)
+  const tradingViewSlug = TRADINGVIEW_SLUGS[symbol]
+  const clearbitDomain = LOGO_DOMAINS[symbol]
   const sizeClass = SIZE_CLASS[size] ?? SIZE_CLASS.sm
+  const logoSrc = fallbackStep === 0 && tradingViewSlug
+    ? `https://s3-symbol-logo.tradingview.com/${tradingViewSlug}.svg`
+    : fallbackStep < 2 && clearbitDomain
+      ? `https://logo.clearbit.com/${clearbitDomain}`
+      : null
 
-  if (!domain || failed) {
+  if (!logoSrc) {
     return (
       <span
         className={`inline-flex shrink-0 items-center justify-center rounded-full border border-slate-600 bg-gradient-to-br from-slate-700 to-slate-950 font-black text-slate-100 shadow-inner ${sizeClass} ${className}`}
@@ -95,12 +185,12 @@ export default function StockLogo({ ticker, size = 'sm', className = '' }) {
   return (
     <span className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-white ${sizeClass} ${className}`}>
       <img
-        src={`https://logo.clearbit.com/${domain}`}
+        src={logoSrc}
         alt=""
-        className="h-full w-full object-contain p-0.5"
+        className="h-full w-full object-contain"
         loading="lazy"
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={() => setFallbackStep(step => step + 1)}
       />
     </span>
   )
