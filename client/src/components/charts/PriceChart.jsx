@@ -283,6 +283,32 @@ function drawPriceTag(ctx, text, x, y, color, chartArea) {
   ctx.fillText(text, x + 5, tagY + 14)
 }
 
+function drawMeasurementBubble(ctx, text, x, y, chartArea) {
+  ctx.save()
+  ctx.font = '800 12px Arial'
+  ctx.textBaseline = 'middle'
+  const paddingX = 9
+  const width = ctx.measureText(text).width + paddingX * 2
+  const height = 24
+  const safeX = clamp(x - width / 2, chartArea.left + 4, chartArea.right - width - 4)
+  const safeY = clamp(y - height - 12, chartArea.top + 4, chartArea.bottom - height - 4)
+
+  ctx.shadowColor = 'rgba(2, 6, 23, 0.35)'
+  ctx.shadowBlur = 10
+  ctx.shadowOffsetY = 2
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.96)'
+  ctx.beginPath()
+  ctx.roundRect(safeX, safeY, width, height, 6)
+  ctx.fill()
+  ctx.shadowColor = 'transparent'
+  ctx.strokeStyle = '#38bdf8'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(text, safeX + paddingX, safeY + height / 2)
+  ctx.restore()
+}
+
 function drawPatternLine(ctx, xScale, yScale, line, color, chartArea) {
   const x1 = pixelForIndex(xScale, line.from.index)
   const x2 = pixelForIndex(xScale, line.to.index)
@@ -670,6 +696,49 @@ const dateRangePlugin = {
   },
 }
 
+const measurementPlugin = {
+  id: 'measurementOverlay',
+  afterDraw(chart, _args, options) {
+    if (!options?.enabled) return
+    const measurement = options.stateRef?.current
+    if (!measurement?.start || !measurement?.end) return
+
+    const { ctx, chartArea, scales } = chart
+    const start = measurement.start
+    const end = measurement.end
+    const startPrice = scales.y.getValueForPixel(start.y)
+    const endPrice = scales.y.getValueForPixel(end.y)
+    const pct = startPrice ? ((endPrice - startPrice) / startPrice) * 100 : 0
+    const priceDiff = endPrice - startPrice
+    const bars = Math.round(scales.x.getValueForPixel(end.x) - scales.x.getValueForPixel(start.x))
+    const color = pct >= 0 ? '#22c55e' : '#ef4444'
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.moveTo(start.x, start.y)
+    ctx.lineTo(end.x, end.y)
+    ctx.strokeStyle = color
+    ctx.lineWidth = 2
+    ctx.setLineDash([7, 5])
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    ;[start, end].forEach(point => {
+      ctx.beginPath()
+      ctx.arc(point.x, point.y, 5, 0, Math.PI * 2)
+      ctx.fillStyle = color
+      ctx.fill()
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    })
+
+    const label = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}% | ${priceDiff >= 0 ? '+' : ''}${formatOverlayPrice(priceDiff)} | ${Math.abs(bars)} bars`
+    drawMeasurementBubble(ctx, label, end.x, end.y, chartArea)
+    ctx.restore()
+  },
+}
+
 export default function PriceChart({
   ohlcv,
   indicators,
@@ -688,12 +757,15 @@ export default function PriceChart({
   decision,
   interval,
   visibleBars,
+  measurementEnabled = false,
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
+  const measurementRef = useRef({ active: false, start: null, end: null })
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length) return
+    measurementRef.current = { active: false, start: null, end: null }
 
     const viewSize = Math.min(ohlcv.length, Math.max(20, visibleBars ?? ohlcv.length))
     const viewStart = Math.max(0, ohlcv.length - viewSize)
@@ -858,6 +930,10 @@ export default function PriceChart({
           dateRangeLabel: {
             text: dateRangeText,
           },
+          measurementOverlay: {
+            enabled: measurementEnabled,
+            stateRef: measurementRef,
+          },
         },
         scales: {
           x: tradingViewXAxis(maxTicksForInterval(interval, visibleOhlcv.length)),
@@ -874,16 +950,67 @@ export default function PriceChart({
         priceLevelsPlugin,
         currentPricePlugin,
         dateRangePlugin,
+        measurementPlugin,
       ],
     })
 
+    const canvas = canvasRef.current
+    const chart = chartRef.current
+    const pointFromEvent = event => {
+      const rect = canvas.getBoundingClientRect()
+      const chartArea = chart.chartArea
+      return {
+        x: clamp(event.clientX - rect.left, chartArea.left, chartArea.right),
+        y: clamp(event.clientY - rect.top, chartArea.top, chartArea.bottom),
+      }
+    }
+
+    const handlePointerDown = event => {
+      if (!measurementEnabled) return
+      event.preventDefault()
+      const point = pointFromEvent(event)
+      measurementRef.current = { active: true, start: point, end: point }
+      canvas.setPointerCapture?.(event.pointerId)
+      chart.draw()
+    }
+
+    const handlePointerMove = event => {
+      if (!measurementEnabled || !measurementRef.current.active) return
+      event.preventDefault()
+      measurementRef.current.end = pointFromEvent(event)
+      chart.draw()
+    }
+
+    const stopMeasurement = event => {
+      if (!measurementEnabled || !measurementRef.current.active) return
+      measurementRef.current.active = false
+      if (event?.clientX != null) measurementRef.current.end = pointFromEvent(event)
+      canvas.releasePointerCapture?.(event.pointerId)
+      chart.draw()
+    }
+
+    if (measurementEnabled) {
+      canvas.style.cursor = 'crosshair'
+      canvas.addEventListener('pointerdown', handlePointerDown)
+      canvas.addEventListener('pointermove', handlePointerMove)
+      canvas.addEventListener('pointerup', stopMeasurement)
+      canvas.addEventListener('pointerleave', stopMeasurement)
+    } else {
+      canvas.style.cursor = ''
+    }
+
     return () => {
+      canvas.style.cursor = ''
+      canvas.removeEventListener('pointerdown', handlePointerDown)
+      canvas.removeEventListener('pointermove', handlePointerMove)
+      canvas.removeEventListener('pointerup', stopMeasurement)
+      canvas.removeEventListener('pointerleave', stopMeasurement)
       if (chartRef.current) {
         chartRef.current.destroy()
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showBB, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, interval, visibleBars])
+  }, [ohlcv, indicators, showSMA, showEMA, showBB, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, interval, visibleBars, measurementEnabled])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

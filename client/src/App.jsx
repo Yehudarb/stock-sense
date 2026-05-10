@@ -137,6 +137,8 @@ export default function App() {
   const [showTriangles, setShowTriangles] = useState(false)
   const [cleanChart, setCleanChart] = useState(false)
   const [chartType, setChartType] = useState('candlestick')
+  const [chartExpanded, setChartExpanded] = useState(false)
+  const [measureMode, setMeasureMode] = useState(false)
   const [visibleBars, setVisibleBars] = useState(null)
   const [fearGreed, setFearGreed] = useState(null)
   const [earnings, setEarnings] = useState(null)
@@ -263,6 +265,10 @@ export default function App() {
     patterns: isHebrew ? 'תבניות' : 'Patterns',
     triangles: isHebrew ? 'משולשים' : 'Triangles',
     cleanChart: isHebrew ? 'גרף נקי' : 'Clean chart',
+    expandChart: isHebrew ? 'הגדל גרף' : 'Expand chart',
+    shrinkChart: isHebrew ? 'הקטן גרף' : 'Shrink chart',
+    measure: isHebrew ? 'סרגל %' : '% ruler',
+    measuring: isHebrew ? 'מצב מדידה: גרור על הגרף כדי למדוד שינוי באחוזים' : 'Measure mode: drag on the chart to measure percent change',
     zoomIn: isHebrew ? 'זום +' : 'Zoom +',
     zoomOut: isHebrew ? 'זום -' : 'Zoom -',
     bars: isHebrew ? 'נרות' : 'bars',
@@ -300,7 +306,7 @@ export default function App() {
       )}
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <div className={`flex flex-col gap-3 ${cleanChart ? 'xl:col-span-3' : 'xl:col-span-2'}`}>
+        <div className={`flex flex-col gap-3 ${cleanChart || chartExpanded ? 'xl:col-span-3' : 'xl:col-span-2'}`}>
           {!cleanChart && (
             <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
           )}
@@ -327,7 +333,7 @@ export default function App() {
                 onClick={() => setter(!value)}
                 className={`rounded px-3 py-1 text-xs font-medium ${!cleanChart && value ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}
               >
-                {label}{key === 'showTriangles' ? ` (${triangleList.length})` : ''}
+                {label}
               </button>
             ))}
             <div className="mx-1 w-px bg-slate-700" />
@@ -346,9 +352,29 @@ export default function App() {
                     : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                 }`}
               >
-                {label}
+                {label}{key === 'showTriangles' ? ` (${triangleList.length})` : ''}
               </button>
             ))}
+            <button
+              onClick={() => setMeasureMode(value => !value)}
+              className={`rounded px-3 py-1 text-xs font-bold ${
+                measureMode
+                  ? 'bg-cyan-500 text-slate-950'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              {copy.measure}
+            </button>
+            <button
+              onClick={() => setChartExpanded(value => !value)}
+              className={`rounded px-3 py-1 text-xs font-bold ${
+                chartExpanded
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              {chartExpanded ? copy.shrinkChart : copy.expandChart}
+            </button>
             <button
               onClick={() => setCleanChart(value => !value)}
               className={`rounded px-3 py-1 text-xs font-bold ${
@@ -409,11 +435,17 @@ export default function App() {
             </div>
           </div>
 
+          {!cleanChart && measureMode && (
+            <div className="rounded-lg border border-cyan-800 bg-cyan-950/30 px-3 py-2 text-xs font-bold text-cyan-200" dir={isHebrew ? 'rtl' : 'ltr'}>
+              {copy.measuring}
+            </div>
+          )}
+
           {!cleanChart && showTriangles && (
             <TriangleChartPanel triangles={triangleList} language={language} />
           )}
 
-          <ChartContainer title={copy.priceChart} height="h-[320px] sm:h-[380px] md:h-[560px]" onWheel={handlePriceChartWheel}>
+          <ChartContainer title={copy.priceChart} height={chartExpanded ? 'h-[72vh]' : 'h-[320px] sm:h-[380px] md:h-[560px]'} onWheel={handlePriceChartWheel}>
             <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}-${chartShowSMA}-${chartShowEMA}-${chartShowBB}-${chartShowFibonacci}-${chartShowGaps}-${chartShowPatterns}-${chartShowTriangles}-${chartShowLevels}-${patternResetKey}-${activeVisibleBars}`}>
               <PriceChart
                 ohlcv={ohlcv}
@@ -433,6 +465,7 @@ export default function App() {
                 decision={signal?.decision}
                 interval={interval}
                 visibleBars={activeVisibleBars}
+                measurementEnabled={measureMode}
               />
             </SafeChart>
           </ChartContainer>
@@ -474,7 +507,7 @@ export default function App() {
           )}
         </div>
 
-        {!cleanChart && (
+        {!cleanChart && !chartExpanded && (
           <div className="flex flex-col gap-3">
             <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} language={language} />
             <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
