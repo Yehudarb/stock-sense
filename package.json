@@ -8,7 +8,7 @@
     "build": "npm run build:client",
     "build:client": "npm run build -w client",
     "start:server": "npm run start -w server",
-    "start": "npm run start:server",
+    "start": "node server/index.js",
     "lint": "npm run lint -w client"
   },
   "devDependencies": {
