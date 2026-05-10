@@ -95,7 +95,9 @@ function buildReasons({ signal, trend, rsi, macdLine, macdSig, price, sma20, sma
   if (price != null && sma20 != null && price > sma20) reasons.push('המחיר מעל SMA20, הקונים עדיין שולטים בטווח הקצר.')
   if (price != null && sma50 != null && sma200 != null && price < sma50 && price < sma200) reasons.push('המחיר מתחת ל-SMA50 ול-SMA200, כניסה חדשה מסוכנת יותר.')
   if (volumeRatio != null && volumeRatio > 1.5) reasons.push('נפח המסחר גבוה מהממוצע ומחזק את האות.')
-  if (signal?.gates?.confluence?.active != null) reasons.push(`${signal.gates.confluence.active}/${signal.gates.confluence.total} אינדיקטורים מיושרים עם הכיוון.`)
+  if (signal?.gates?.confluence?.active != null && signal.score >= 0) {
+    reasons.push(`${signal.gates.confluence.active}/${signal.gates.confluence.total} אינדיקטורים מיושרים לצד הקנייה.`)
+  }
 
   return reasons.slice(0, 4)
 }

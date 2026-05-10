@@ -351,10 +351,10 @@ export default function SignalPanel({ signal }) {
           </div>
           <GateRow label="שער מגמה" passed={gates.trend?.passed}
             detail={gates.trend?.passed ? 'עבר' : 'חסום'} />
-          <GateRow label="Confluence"
+          <GateRow label="Confluence קנייה"
             passed={gates.confluence?.passed}
             detail={`${gates.confluence?.active ?? 0}/${gates.confluence?.total ?? 0} מיושרים`} />
-          <GateRow label="אישור היפוך"
+          <GateRow label="אישור היפוך בולישי"
             passed={gates.reversal?.passed}
             detail={gates.reversal?.trigger === 'both' ? 'נר + נפח' : gates.reversal?.trigger === 'bullish_candle' ? 'נר בולישי' : 'לא אושר'} />
         </div>

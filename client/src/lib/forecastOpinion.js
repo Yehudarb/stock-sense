@@ -104,10 +104,9 @@ function scoreSignalLayer(signal, drivers, risks) {
     bearish += 1.4
     addRisk(risks, 'שער המגמה מצביע על מגמה יורדת.')
   }
-  if (signal.gates?.confluence?.passed) {
-    bullish += signal.score >= 0 ? 0.8 : 0
-    bearish += signal.score < 0 ? 0.8 : 0
-    addDriver(drivers, `${signal.gates.confluence.active}/${signal.gates.confluence.total} אינדיקטורים מיושרים.`)
+  if (signal.gates?.confluence?.passed && signal.score >= 0) {
+    bullish += 0.8
+    addDriver(drivers, `${signal.gates.confluence.active}/${signal.gates.confluence.total} אינדיקטורים מיושרים לצד הקנייה.`)
   }
 
   return { bullish, bearish }

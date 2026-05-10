@@ -3,6 +3,11 @@
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
+function logisticProbability(score, scale = 65) {
+  if (!Number.isFinite(score)) return 50
+  return Math.round((1 / (1 + Math.exp(-score / scale))) * 100)
+}
+
 // Linear gradient: 1.0 at oversold, 0.0 at overbought (for buy side)
 function buyGradient(value, oversold, overbought) {
   if (value == null) return null
@@ -20,9 +25,6 @@ function sellGradient(value, oversold, overbought) {
 }
 
 // Sigmoid calibration → probability 0-100
-function sigmoid(score, slope = 0.012, intercept = -1.0) {
-  return Math.round((1 / (1 + Math.exp(-(slope * score + intercept)))) * 100)
-}
 
 // ── Gate 1: Trend / Regime ────────────────────────────────────────────────
 function trendGate(price, sma50, sma200) {
@@ -156,8 +158,8 @@ export function computeSignal(ohlcv, indicators, patternScore = 0) {
   // Blocked by downtrend
   if (!trend.passed && (action === 'BUY' || action === 'STRONG_BUY')) action = 'HOLD'
 
-  const buyProbability  = sigmoid(buyScore)
-  const sellProbability = sigmoid(sellScore)
+  const buyProbability  = logisticProbability(netScore)
+  const sellProbability = 100 - buyProbability
   const confidence      = Math.min(100, Math.round((Math.abs(netScore) / (MAX_BUY_SCORE * 1.5)) * 100))
 
   // ── Factor list for UI ────────────────────────────────────────────────
