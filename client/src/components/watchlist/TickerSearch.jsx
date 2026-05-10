@@ -6,8 +6,9 @@ export default function TickerSearch() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [open, setOpen] = useState(false)
-  const { addToWatchlist } = useStore()
+  const { addToWatchlist, language } = useStore()
   const debounceRef = useRef(null)
+  const isHebrew = language === 'he'
 
   useEffect(() => {
     if (query.length < 1) { setResults([]); return }
@@ -35,9 +36,9 @@ export default function TickerSearch() {
         type="text"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="חיפוש מניה..."
+        placeholder={isHebrew ? 'חיפוש מניה...' : 'Search ticker...'}
         className="w-full bg-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder-slate-400"
-        dir="rtl"
+        dir={isHebrew ? 'rtl' : 'ltr'}
       />
       {open && results.length > 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-slate-700 rounded-lg shadow-xl overflow-hidden">

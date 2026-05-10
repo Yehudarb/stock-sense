@@ -4,7 +4,7 @@ import useStore from '../../store/useStore'
 import TickerSearch from './TickerSearch'
 
 export default function WatchlistPanel() {
-  const { watchlist, setWatchlist, currentTicker, setCurrentTicker, removeFromWatchlist } = useStore()
+  const { watchlist, setWatchlist, currentTicker, setCurrentTicker, removeFromWatchlist, language } = useStore()
 
   useEffect(() => {
     axios.get('/api/watchlist').then(r => setWatchlist(r.data)).catch(() => {})
@@ -35,7 +35,7 @@ export default function WatchlistPanel() {
                   removeTicker(w.ticker)
                 }}
                 className="ml-2 text-xs text-slate-400 hover:text-red-400"
-                aria-label={`Remove ${w.ticker}`}
+                aria-label={language === 'he' ? `הסר ${w.ticker}` : `Remove ${w.ticker}`}
               >
                 ×
               </button>

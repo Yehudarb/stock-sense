@@ -1,9 +1,13 @@
 import Header from './Header'
 import Sidebar from './Sidebar'
+import useStore from '../../store/useStore'
 
 export default function Layout({ children, isConnected }) {
+  const { language } = useStore()
+  const isHebrew = language === 'he'
+
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 md:h-screen">
+    <div className="flex min-h-screen flex-col bg-slate-950 md:h-screen" dir={isHebrew ? 'rtl' : 'ltr'}>
       <Header isConnected={isConnected} />
       <div className="flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
         <Sidebar />

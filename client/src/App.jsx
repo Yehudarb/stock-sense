@@ -60,7 +60,8 @@ function SafeChart({ isLoading, resetKey, children }) {
 }
 
 export default function App() {
-  const { currentTicker, interval, ohlcv, snapshot, isLoading, error } = useStore()
+  const { currentTicker, interval, ohlcv, snapshot, isLoading, error, language } = useStore()
+  const isHebrew = language === 'he'
   const indicators = useIndicators(ohlcv)
   const signal = useSignal(ohlcv, indicators)
   const { isConnected } = useSocket()
@@ -166,37 +167,66 @@ export default function App() {
 
   const regime = signal?.gates?.trend?.regime
   const regimeLabel = {
-    uptrend: 'מגמה עולה',
-    downtrend: 'מגמה יורדת',
-    sideways: 'שוק צדדי',
-    unknown: 'לא ידוע',
-  }[regime] ?? 'לא ידוע'
+    he: {
+      uptrend: 'מגמה עולה',
+      downtrend: 'מגמה יורדת',
+      sideways: 'שוק צדדי',
+      unknown: 'לא ידוע',
+    },
+    en: {
+      uptrend: 'Uptrend',
+      downtrend: 'Downtrend',
+      sideways: 'Sideways',
+      unknown: 'Unknown',
+    },
+  }[language]?.[regime] ?? (isHebrew ? 'לא ידוע' : 'Unknown')
   const regimeColor = {
     uptrend: 'text-green-400',
     downtrend: 'text-red-400',
     sideways: 'text-yellow-400',
   }[regime] ?? 'text-slate-400'
+  const copy = {
+    errorLoading: isHebrew ? 'טוען...' : 'Loading...',
+    changePct: isHebrew ? 'שינוי %' : 'Change %',
+    high20: isHebrew ? 'שיא 20 נרות' : '20-bar high',
+    low20: isHebrew ? 'שפל 20 נרות' : '20-bar low',
+    trend: isHebrew ? 'מגמה' : 'Trend',
+    vsSma20: 'vs SMA20',
+    candles: isHebrew ? 'נרות' : 'Candles',
+    line: isHebrew ? 'קו' : 'Line',
+    fib: isHebrew ? 'פיבונאצ׳י' : 'Fibonacci',
+    gaps: isHebrew ? 'גאפים' : 'Gaps',
+    patterns: isHebrew ? 'תבניות' : 'Patterns',
+    cleanChart: isHebrew ? 'גרף נקי' : 'Clean chart',
+    zoomIn: isHebrew ? 'זום +' : 'Zoom +',
+    zoomOut: isHebrew ? 'זום -' : 'Zoom -',
+    bars: isHebrew ? 'נרות' : 'bars',
+    all: isHebrew ? 'הכל' : 'All',
+    showing: isHebrew ? 'מוצגים' : 'Showing',
+    priceChart: isHebrew ? 'גרף מחיר' : 'Price chart',
+    volume: 'Volume',
+  }
 
   return (
     <Layout isConnected={isConnected}>
       {error && (
-        <div className="mb-3 rounded-lg bg-red-900 p-3 text-right text-sm text-red-300">{error}</div>
+        <div className="mb-3 rounded-lg bg-red-900 p-3 text-sm text-red-300">{error}</div>
       )}
 
       {snapshot && (
         <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
-          <KpiCard label="שינוי %" value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? 'text-green-400' : 'text-red-400'} />
-          <KpiCard label="שיא 20 נרות" value={high20 ? `$${high20}` : '-'} />
-          <KpiCard label="שפל 20 נרות" value={low20 ? `$${low20}` : '-'} />
+          <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? 'text-green-400' : 'text-red-400'} />
+          <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
+          <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
           <KpiCard label="Volume" value={fmtVolume(snapshot.volume)} />
           <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? 'text-green-400' : rsiLast > 70 ? 'text-red-400' : 'text-white'} />
           <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? 'text-green-400' : stochLast > 80 ? 'text-red-400' : 'text-white'} />
-          <KpiCard label="מגמה" value={regimeLabel} color={regimeColor} />
+          <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
           {fearGreed?.value != null ? (
-            <KpiCard label="Fear & Greed" value={`${fearGreed.value} - ${FG_LABEL_HE(fearGreed.classification)}`} color={FG_COLOR(fearGreed.value)} />
+            <KpiCard label="Fear & Greed" value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
           ) : (
             <KpiCard
-              label="vs SMA20"
+              label={copy.vsSma20}
               value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
               color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? 'text-green-400' : 'text-red-400') : ''}
             />
@@ -212,7 +242,7 @@ export default function App() {
 
           <div className="-mx-1 overflow-x-auto px-1">
             <div className="flex min-w-max flex-nowrap gap-2 pb-1 sm:flex-wrap sm:pb-0">
-            {[['candlestick', 'נרות'], ['line', 'קו']].map(([value, label]) => (
+            {[['candlestick', copy.candles], ['line', copy.line]].map(([value, label]) => (
               <button
                 key={value}
                 onClick={() => setChartType(value)}
@@ -237,9 +267,9 @@ export default function App() {
             ))}
             <div className="mx-1 w-px bg-slate-700" />
             {[
-              ['showFibonacci', showFibonacci, setShowFibonacci, 'פיבונאצ׳י'],
-              ['showGaps', showGaps, setShowGaps, 'גאפים'],
-              ['showPatterns', showPatterns, setShowPatterns, 'תבניות'],
+              ['showFibonacci', showFibonacci, setShowFibonacci, copy.fib],
+              ['showGaps', showGaps, setShowGaps, copy.gaps],
+              ['showPatterns', showPatterns, setShowPatterns, copy.patterns],
             ].map(([key, value, setter, label]) => (
               <button
                 key={key}
@@ -261,7 +291,7 @@ export default function App() {
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
               }`}
             >
-              גרף נקי
+              {copy.cleanChart}
             </button>
             <div className="mx-1 w-px bg-slate-700" />
             <button
@@ -269,14 +299,14 @@ export default function App() {
               disabled={!canZoom}
               className="rounded bg-slate-700 px-3 py-1 text-xs font-bold text-white hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              זום +
+              {copy.zoomIn}
             </button>
             <button
               onClick={zoomOut}
               disabled={!canZoom}
               className="rounded bg-slate-700 px-3 py-1 text-xs font-bold text-white hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              זום -
+              {copy.zoomOut}
             </button>
             {[
               [50, '50'],
@@ -293,7 +323,7 @@ export default function App() {
                     : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                 } disabled:cursor-not-allowed disabled:opacity-40`}
               >
-                {label} נרות
+                {label} {copy.bars}
               </button>
             ))}
             <button
@@ -305,15 +335,15 @@ export default function App() {
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
               } disabled:cursor-not-allowed disabled:opacity-40`}
             >
-              הכל
+              {copy.all}
             </button>
             <span className="self-center whitespace-nowrap text-xs text-slate-500">
-              מוצגים {Math.min(activeVisibleBars, n)}/{n} נרות
+              {copy.showing} {Math.min(activeVisibleBars, n)}/{n} {copy.bars}
             </span>
             </div>
           </div>
 
-          <ChartContainer title="גרף מחיר" height="h-[320px] sm:h-[380px] md:h-[560px]" onWheel={handlePriceChartWheel}>
+          <ChartContainer title={copy.priceChart} height="h-[320px] sm:h-[380px] md:h-[560px]" onWheel={handlePriceChartWheel}>
             <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}-${chartShowSMA}-${chartShowEMA}-${chartShowBB}-${chartShowFibonacci}-${chartShowGaps}-${chartShowPatterns}-${chartShowLevels}-${patternResetKey}-${activeVisibleBars}`}>
               <PriceChart
                 ohlcv={ohlcv}
@@ -337,7 +367,7 @@ export default function App() {
           </ChartContainer>
 
           {!cleanChart && chartType !== 'candlestick' && (
-            <ChartContainer title="Volume" height="h-20 sm:h-24">
+            <ChartContainer title={copy.volume} height="h-20 sm:h-24">
               <SafeChart isLoading={isLoading} resetKey={`volume-${chartResetKey}`}>
                 <VolumeChart ohlcv={ohlcv} interval={interval} visibleBars={activeVisibleBars} />
               </SafeChart>
@@ -375,10 +405,10 @@ export default function App() {
 
         {!cleanChart && (
           <div className="flex flex-col gap-3">
-            <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} />
-            <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} />
-            <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} />
-            <SignalPanel signal={signal} />
+            <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} language={language} />
+            <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
+            <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
+            <SignalPanel signal={signal} language={language} />
           </div>
         )}
       </div>

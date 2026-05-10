@@ -287,17 +287,38 @@ function EnsembleCard({ ensemble }) {
   )
 }
 
-export default function SignalPanel({ signal }) {
+export default function SignalPanel({ signal, language = 'he' }) {
+  const isHebrew = language === 'he'
+  const copy = {
+    loading: isHebrew ? 'טוען ניתוח...' : 'Loading analysis...',
+    signalTitle: isHebrew ? 'אות מסחר' : 'Trading signal',
+    confidence: isHebrew ? 'ביטחון' : 'Confidence',
+    buyProbability: isHebrew ? 'הסתברות קנייה' : 'Buy probability',
+    sellProbability: isHebrew ? 'הסתברות מכירה' : 'Sell probability',
+    pipeline: isHebrew ? 'שערי Pipeline' : 'Pipeline gates',
+    marketTrend: isHebrew ? 'מגמת שוק' : 'Market trend',
+    trendGate: isHebrew ? 'שער מגמה' : 'Trend gate',
+    passed: isHebrew ? 'עבר' : 'Passed',
+    blocked: isHebrew ? 'חסום' : 'Blocked',
+    buyConfluence: isHebrew ? 'Confluence קנייה' : 'Buy confluence',
+    bullishReversal: isHebrew ? 'אישור היפוך בולישי' : 'Bullish reversal',
+    indicators: isHebrew ? 'אינדיקטורים' : 'Indicators',
+    patterns: isHebrew ? 'תבניות גרפיות' : 'Chart patterns',
+    patternLead: isHebrew ? 'תבנית מובילה' : 'Leading pattern',
+    patternScore: isHebrew ? 'ניקוד תבניות' : 'Pattern score',
+    risk: isHebrew ? 'ניהול סיכונים' : 'Risk management',
+    analysis: isHebrew ? 'ניתוח' : 'Analysis',
+  }
   if (!signal) return (
     <div className="bg-slate-800 rounded-xl p-4 text-slate-500 text-center text-sm">
-      טוען ניתוח...
+      {copy.loading}
     </div>
   )
 
   const { gates, patterns, risk, decision, pro, ensemble } = signal
 
   return (
-    <div className="flex flex-col gap-3" dir="rtl">
+    <div className="flex flex-col gap-3" dir={isHebrew ? 'rtl' : 'ltr'}>
       <AnalystDecisionCard decision={decision} />
       <EnsembleCard ensemble={ensemble} />
       <ProFeaturesCard pro={pro} />
@@ -305,14 +326,14 @@ export default function SignalPanel({ signal }) {
       {/* ── Main Signal Card ── */}
       <div className="bg-slate-800 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-white">אות מסחר</h3>
+          <h3 className="text-base font-bold text-white">{copy.signalTitle}</h3>
           <Badge action={signal.action} label={SIGNAL_BADGES[signal.action]} />
         </div>
 
         {/* Confidence bar */}
         <div>
           <div className="flex justify-between text-xs text-slate-400 mb-1">
-            <span>ביטחון</span>
+            <span>{copy.confidence}</span>
             <span>{signal.confidence}%</span>
           </div>
           <div className="w-full bg-slate-700 rounded-full h-2">
@@ -327,11 +348,11 @@ export default function SignalPanel({ signal }) {
         {/* Buy / Sell probability */}
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-green-950 rounded-lg p-2 text-center">
-            <div className="text-xs text-green-400 mb-0.5">הסתברות קנייה</div>
+            <div className="text-xs text-green-400 mb-0.5">{copy.buyProbability}</div>
             <div className="text-lg font-bold text-green-300">{signal.buyProbability}%</div>
           </div>
           <div className="bg-red-950 rounded-lg p-2 text-center">
-            <div className="text-xs text-red-400 mb-0.5">הסתברות מכירה</div>
+            <div className="text-xs text-red-400 mb-0.5">{copy.sellProbability}</div>
             <div className="text-lg font-bold text-red-300">{signal.sellProbability}%</div>
           </div>
         </div>
@@ -340,21 +361,21 @@ export default function SignalPanel({ signal }) {
       {/* ── Pipeline Gates ── */}
       {gates && (
         <div className="bg-slate-800 rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">שערי Pipeline</h4>
+          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.pipeline}</h4>
           <div className="border-b border-slate-700 pb-2 mb-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">מגמת שוק</span>
+              <span className="text-slate-400">{copy.marketTrend}</span>
               <span className={REGIME_COLOR[gates.trend?.regime] ?? 'text-slate-400'}>
                 {REGIME_HE[gates.trend?.regime] ?? '—'} ({gates.trend?.strength ?? 0}%)
               </span>
             </div>
           </div>
-          <GateRow label="שער מגמה" passed={gates.trend?.passed}
-            detail={gates.trend?.passed ? 'עבר' : 'חסום'} />
-          <GateRow label="Confluence קנייה"
+          <GateRow label={copy.trendGate} passed={gates.trend?.passed}
+            detail={gates.trend?.passed ? copy.passed : copy.blocked} />
+          <GateRow label={copy.buyConfluence}
             passed={gates.confluence?.passed}
             detail={`${gates.confluence?.active ?? 0}/${gates.confluence?.total ?? 0} מיושרים`} />
-          <GateRow label="אישור היפוך בולישי"
+          <GateRow label={copy.bullishReversal}
             passed={gates.reversal?.passed}
             detail={gates.reversal?.trigger === 'both' ? 'נר + נפח' : gates.reversal?.trigger === 'bullish_candle' ? 'נר בולישי' : 'לא אושר'} />
         </div>
@@ -362,7 +383,7 @@ export default function SignalPanel({ signal }) {
 
       {/* ── Indicator Factors ── */}
       <div className="bg-slate-800 rounded-xl p-4">
-        <h4 className="text-xs font-bold text-slate-400 mb-2">אינדיקטורים</h4>
+        <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.indicators}</h4>
         {signal.factors.map((f, i) => (
           <FactorRow key={i} label={f.label} signal={f.signal} value={f.value} />
         ))}
@@ -371,10 +392,10 @@ export default function SignalPanel({ signal }) {
       {/* ── Detected Patterns ── */}
       {patterns?.patterns?.length > 0 && (
         <div className="bg-slate-800 rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">תבניות גרפיות ({patterns.patterns.length})</h4>
+          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.patterns} ({patterns.patterns.length})</h4>
           {patterns.best && (
             <div className="mb-3 rounded-lg border border-blue-900 bg-blue-950/40 p-2 text-xs text-blue-200">
-              תבנית מובילה: <span className="font-bold">{patterns.best.label}</span>
+              {copy.patternLead}: <span className="font-bold">{patterns.best.label}</span>
               {patterns.best.targetPrice != null && (
                 <span> · יעד משוער {fmtPrice(patterns.best.targetPrice)} · {formatPotential(patterns.best.potentialPct)}</span>
               )}
@@ -386,7 +407,7 @@ export default function SignalPanel({ signal }) {
             ))}
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            ניקוד תבניות: <span className={patterns.score >= 0 ? 'text-green-400' : 'text-red-400'}>
+            {copy.patternScore}: <span className={patterns.score >= 0 ? 'text-green-400' : 'text-red-400'}>
               {patterns.score > 0 ? '+' : ''}{patterns.score}
             </span>
           </div>
@@ -396,7 +417,7 @@ export default function SignalPanel({ signal }) {
       {/* ── Risk Management ── */}
       {risk && (
         <div className="bg-slate-800 rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">ניהול סיכונים (ATR={risk.atr})</h4>
+          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.risk} (ATR={risk.atr})</h4>
           <div className="grid grid-cols-1 gap-2 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-400">Stop Loss</span>
@@ -421,7 +442,7 @@ export default function SignalPanel({ signal }) {
       {/* ── Hebrew Analysis ── */}
       {signal.analysis && (
         <div className="bg-slate-800 rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">ניתוח</h4>
+          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.analysis}</h4>
           <p className="text-sm text-slate-300 leading-relaxed">{signal.analysis}</p>
         </div>
       )}
