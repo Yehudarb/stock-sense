@@ -38,16 +38,16 @@ export default function TickerSearch() {
         value={query}
         onChange={e => setQuery(e.target.value)}
         placeholder={isHebrew ? 'חיפוש מניה...' : 'Search ticker...'}
-        className="w-full bg-slate-700 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder-slate-400"
+        className="w-full bg-slate-900/60 border border-slate-800/50 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder-slate-500 focus:border-cyan-500/50 transition-colors"
         dir={isHebrew ? 'rtl' : 'ltr'}
       />
       {open && results.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-slate-700 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 glass-panel shadow-xl overflow-hidden">
           {results.map(r => (
             <button
               key={r.ticker}
               onClick={() => select(r.ticker)}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-600 text-left"
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-800/60 transition-colors text-left"
             >
               <StockLogo ticker={r.ticker} />
               <span className="font-bold text-white text-sm">{r.ticker}</span>

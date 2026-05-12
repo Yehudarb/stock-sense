@@ -16,8 +16,8 @@ export default function ChartContainer({ title, children, height = 'h-48', onWhe
   }, [onWheel])
 
   return (
-    <div className="bg-slate-800 rounded-xl p-3">
-      {title && <div className="text-xs text-slate-400 mb-2 font-medium">{title}</div>}
+    <div className="glass-panel rounded-xl p-4">
+      {title && <div className="text-[11px] font-medium tracking-wide uppercase text-slate-400 mb-3">{title}</div>}
       <div ref={bodyRef} className={`${height} overscroll-contain`}>{children}</div>
     </div>
   )

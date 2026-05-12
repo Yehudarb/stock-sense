@@ -19,7 +19,7 @@ export default function FactorRow({ label, signal, value, language = 'he' }) {
   const displayLabel = labelMap[language]?.[label] ?? (language === 'en' && label?.includes('SMA20') ? 'SMA20 distance' : label)
 
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-slate-700 last:border-0">
+    <div className="flex items-center justify-between py-1.5 border-b border-slate-800/50 last:border-0">
       <span className="text-sm text-slate-300">{displayLabel}</span>
       <div className="flex items-center gap-2">
         <span className="text-sm text-slate-400 font-mono">{value}</span>

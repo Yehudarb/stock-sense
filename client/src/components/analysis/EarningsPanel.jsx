@@ -38,9 +38,9 @@ function resultCopy(result, language) {
 
 function Metric({ label, value, sub, color = 'text-white' }) {
   return (
-    <div className="rounded-lg bg-slate-900 p-2">
-      <div className="text-[11px] text-slate-500">{label}</div>
-      <div className={`mt-0.5 text-sm font-bold ${color}`}>{value}</div>
+    <div className="rounded-lg bg-slate-900/40 border border-slate-800/50 p-3">
+      <div className="text-[11px] font-medium tracking-wide uppercase text-slate-500">{label}</div>
+      <div className={`mt-1 text-sm font-black ${color}`}>{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
     </div>
   )
@@ -72,7 +72,7 @@ export default function EarningsPanel({ earnings, isLoading, language = 'he' }) 
   }
   if (isLoading) {
     return (
-      <div className="rounded-xl bg-slate-800 p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>
+      <div className="glass-panel rounded-xl p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>
         {copy.loading}
       </div>
     )
@@ -91,13 +91,13 @@ export default function EarningsPanel({ earnings, isLoading, language = 'he' }) 
       : (isHebrew ? `לפני ${Math.abs(next.daysUntil)} ימים` : `${Math.abs(next.daysUntil)} days ago`)
 
   return (
-    <div className="rounded-xl bg-slate-800 p-4" dir={isHebrew ? 'rtl' : 'ltr'}>
+    <div className="glass-panel rounded-xl p-4" dir={isHebrew ? 'rtl' : 'ltr'}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
           <h4 className="text-xs font-bold text-slate-400">{copy.title}</h4>
           <div className="mt-1 text-sm font-bold text-white">{earnings.ticker}</div>
         </div>
-        <span className="rounded bg-slate-900 px-2 py-1 text-[11px] text-slate-400">{earnings.source}</span>
+        <span className="rounded-full border border-white/5 bg-slate-950/60 px-2.5 py-1 text-[11px] text-slate-400">{earnings.source}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -146,7 +146,7 @@ export default function EarningsPanel({ earnings, isLoading, language = 'he' }) 
       )}
 
       {next?.sourceMessage && !hasNextDate && (
-        <div className="mt-3 rounded-lg bg-slate-900 p-2 text-xs leading-relaxed text-slate-500">
+        <div className="mt-3 rounded-lg border border-slate-800/50 bg-slate-900/40 p-3 text-xs leading-relaxed text-slate-500">
           {next.sourceMessage}
         </div>
       )}

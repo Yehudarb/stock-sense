@@ -11,18 +11,18 @@ function scoreText(value) {
 }
 
 const TONE = {
-  bullish: { card: 'border-green-700 bg-green-950/35', badge: 'bg-green-500 text-slate-950', text: 'text-green-300', bar: 'bg-green-400' },
-  bearish: { card: 'border-red-700 bg-red-950/35', badge: 'bg-red-500 text-white', text: 'text-red-300', bar: 'bg-red-400' },
-  neutral: { card: 'border-yellow-700 bg-yellow-950/25', badge: 'bg-yellow-400 text-slate-950', text: 'text-yellow-300', bar: 'bg-yellow-300' },
+  bullish: { card: 'glass-panel border-green-500/20', badge: 'bg-green-500/20 text-green-300 border border-green-500/30', text: 'text-green-300', bar: 'bg-green-400' },
+  bearish: { card: 'glass-panel border-red-500/20', badge: 'bg-red-500/20 text-red-300 border border-red-500/30', text: 'text-red-300', bar: 'bg-red-400' },
+  neutral: { card: 'glass-panel border-yellow-500/20', badge: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30', text: 'text-yellow-300', bar: 'bg-yellow-400' },
 }
 
 const BIAS_DOT = { bullish: 'bg-green-400', bearish: 'bg-red-400', neutral: 'bg-yellow-300' }
 
 function Metric({ label, value, color = 'text-white', sub }) {
   return (
-    <div className="rounded-lg bg-slate-950/70 p-2">
-      <div className="text-[11px] text-slate-500">{label}</div>
-      <div className={`mt-0.5 text-sm font-black ${color}`}>{value}</div>
+    <div className="rounded-lg bg-slate-900/40 border border-slate-800/50 p-3">
+      <div className="text-[11px] font-medium tracking-wide uppercase text-slate-500">{label}</div>
+      <div className={`mt-1 text-sm font-black ${color}`}>{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
     </div>
   )
@@ -38,7 +38,7 @@ function TimeframeRow({ item, language }) {
     : item.trend
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-950/60 px-2 py-1.5 text-xs">
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-800/50 bg-slate-950/50 px-2.5 py-2 text-xs">
       <div className="flex items-center gap-2">
         <span className={`h-2 w-2 rounded-full ${BIAS_DOT[item.bias] ?? 'bg-slate-500'}`} />
         <span className="font-bold text-slate-200">{label}</span>
@@ -76,10 +76,10 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
   }
 
   if (isLoading && !forecast) {
-    return <div className="rounded-xl bg-slate-800 p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>{copy.loadingBuild}</div>
+    return <div className="glass-panel rounded-xl p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>{copy.loadingBuild}</div>
   }
   if (!forecast) {
-    return <div className="rounded-xl bg-slate-800 p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>{copy.loadingForecast}</div>
+    return <div className="glass-panel rounded-xl p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>{copy.loadingForecast}</div>
   }
 
   const tone = TONE[forecast.tone] ?? TONE.neutral
@@ -103,7 +103,7 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
           </div>
           <div className="mt-1 text-xs text-slate-500">{forecast.horizon}</div>
         </div>
-        <div className="shrink-0 rounded-lg bg-slate-950 px-3 py-2 text-center">
+        <div className="shrink-0 rounded-xl border border-white/5 bg-slate-950/60 px-3 py-2 text-center">
           <div className="text-[11px] text-slate-500">{copy.confidence}</div>
           <div className={`text-lg font-black ${tone.text}`}>{forecast.confidence}%</div>
         </div>
@@ -116,7 +116,7 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
           <span>{copy.bullishScore} {scoreText(forecast.bullishScore)}</span>
           <span>{copy.bearishScore} {scoreText(forecast.bearishScore)}</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-900">
+        <div className="h-2 overflow-hidden rounded-full bg-slate-900/80">
           <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${Math.min(100, Math.max(12, forecast.confidence))}%` }} />
         </div>
       </div>
@@ -160,7 +160,7 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
         </div>
       )}
 
-      <div className="mt-3 rounded-lg bg-slate-950/70 p-2 text-[11px] leading-relaxed text-slate-500">{copy.disclaimer}</div>
+      <div className="mt-3 rounded-lg border border-slate-800/50 bg-slate-950/50 p-3 text-[11px] leading-relaxed text-slate-500">{copy.disclaimer}</div>
     </div>
   )
 }

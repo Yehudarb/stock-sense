@@ -60,6 +60,14 @@ function SafeChart({ isLoading, resetKey, children }) {
   return <ChartErrorBoundary resetKey={resetKey}>{children}</ChartErrorBoundary>
 }
 
+function chartToggleClass(active, activeClass = 'bg-primary text-surface-muted shadow-[0_0_10px_rgba(34,211,238,0.22)]') {
+  return `rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+    active
+      ? activeClass
+      : 'border-white/10 bg-surface-muted/35 text-slate-400 hover:bg-surface-bright/50 hover:text-white'
+  }`
+}
+
 function TriangleChartPanel({ triangles, language }) {
   const isHebrew = language === 'he'
   const labels = {
@@ -84,25 +92,25 @@ function TriangleChartPanel({ triangles, language }) {
   }
 
   return (
-    <div className="rounded-xl border border-emerald-800 bg-emerald-950/25 p-3" dir={isHebrew ? 'rtl' : 'ltr'}>
+    <div className="glass-panel border-emerald-500/20 p-4" dir={isHebrew ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-sm font-black text-emerald-200">{labels.title}</div>
           <div className="mt-0.5 text-xs text-emerald-300/75">{labels.hint}</div>
         </div>
-        <span className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-black text-emerald-300">
+        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-300">
           {labels.found}: {triangles.length}
         </span>
       </div>
 
       {triangles.length === 0 ? (
-        <div className="mt-3 rounded-lg bg-slate-950/70 p-2 text-xs leading-relaxed text-slate-400">{labels.empty}</div>
+        <div className="mt-3 rounded-lg border border-slate-800/50 bg-slate-900/40 p-3 text-xs leading-relaxed text-slate-400">{labels.empty}</div>
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {triangles.map(triangle => {
             const target = triangle.direction === 'bearish' ? triangle.targetDown : triangle.targetUp
             return (
-              <div key={`${triangle.key}-${triangle.status}`} className="rounded-lg bg-slate-950/70 p-2 text-xs text-slate-300">
+              <div key={`${triangle.key}-${triangle.status}`} className="rounded-lg border border-slate-800/50 bg-slate-900/40 p-3 text-xs text-slate-300">
                 <div className="font-black text-white">{typeLabel[triangle.type] ?? triangle.type}</div>
                 <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
                   <span className="text-slate-500">{labels.resistance}</span><span className="font-mono text-orange-300">{fmtPrice(triangle.resistance)}</span>
@@ -317,12 +325,12 @@ export default function App() {
               <button
                 key={value}
                 onClick={() => setChartType(value)}
-                className={`rounded px-3 py-1 text-xs font-medium ${chartType === value ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                className={chartToggleClass(chartType === value)}
               >
                 {label}
               </button>
             ))}
-            <div className="mx-1 w-px bg-slate-700" />
+            <div className="mx-1 w-px bg-white/10" />
             {[
               ['showSMA', showSMA, setShowSMA, 'SMA 20'],
               ['showEMA', showEMA, setShowEMA, 'EMA 50'],
@@ -331,12 +339,12 @@ export default function App() {
               <button
                 key={key}
                 onClick={() => setter(!value)}
-                className={`rounded px-3 py-1 text-xs font-medium ${!cleanChart && value ? 'bg-slate-600 text-white' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}
+                className={chartToggleClass(!cleanChart && value, 'border-slate-500/30 bg-slate-200/10 text-white')}
               >
                 {label}
               </button>
             ))}
-            <div className="mx-1 w-px bg-slate-700" />
+            <div className="mx-1 w-px bg-white/10" />
             {[
               ['showFibonacci', showFibonacci, setShowFibonacci, copy.fib],
               ['showGaps', showGaps, setShowGaps, copy.gaps],
@@ -346,57 +354,41 @@ export default function App() {
               <button
                 key={key}
                 onClick={() => setter(!value)}
-                className={`rounded px-3 py-1 text-xs font-medium ${
-                  !cleanChart && value
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                }`}
+                className={chartToggleClass(!cleanChart && value, 'border-emerald-500/30 bg-emerald-500/20 text-emerald-100')}
               >
                 {label}{key === 'showTriangles' ? ` (${triangleList.length})` : ''}
               </button>
             ))}
             <button
               onClick={() => setMeasureMode(value => !value)}
-              className={`rounded px-3 py-1 text-xs font-bold ${
-                measureMode
-                  ? 'bg-cyan-500 text-slate-950'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
+              className={chartToggleClass(measureMode, 'border-cyan-500/30 bg-cyan-500/20 text-cyan-100')}
             >
               {copy.measure}
             </button>
             <button
               onClick={() => setChartExpanded(value => !value)}
-              className={`rounded px-3 py-1 text-xs font-bold ${
-                chartExpanded
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
+              className={chartToggleClass(chartExpanded)}
             >
               {chartExpanded ? copy.shrinkChart : copy.expandChart}
             </button>
             <button
               onClick={() => setCleanChart(value => !value)}
-              className={`rounded px-3 py-1 text-xs font-bold ${
-                cleanChart
-                  ? 'bg-amber-500 text-slate-950'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
+              className={chartToggleClass(cleanChart, 'border-amber-500/30 bg-amber-500/20 text-amber-100')}
             >
               {copy.cleanChart}
             </button>
-            <div className="mx-1 w-px bg-slate-700" />
+            <div className="mx-1 w-px bg-white/10" />
             <button
               onClick={zoomIn}
               disabled={!canZoom}
-              className="rounded bg-slate-700 px-3 py-1 text-xs font-bold text-white hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-surface-bright/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {copy.zoomIn}
             </button>
             <button
               onClick={zoomOut}
               disabled={!canZoom}
-              className="rounded bg-slate-700 px-3 py-1 text-xs font-bold text-white hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-surface-bright/60 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {copy.zoomOut}
             </button>
@@ -409,11 +401,7 @@ export default function App() {
                 key={bars}
                 onClick={() => setVisibleBars(Math.min(n, bars))}
                 disabled={!canZoom}
-                className={`rounded px-3 py-1 text-xs font-medium ${
-                  activeVisibleBars === Math.min(n, bars)
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                } disabled:cursor-not-allowed disabled:opacity-40`}
+                className={`${chartToggleClass(activeVisibleBars === Math.min(n, bars))} disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 {label} {copy.bars}
               </button>
@@ -421,11 +409,7 @@ export default function App() {
             <button
               onClick={() => setVisibleBars(n)}
               disabled={!canZoom}
-              className={`rounded px-3 py-1 text-xs font-medium ${
-                activeVisibleBars === n
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              } disabled:cursor-not-allowed disabled:opacity-40`}
+              className={`${chartToggleClass(activeVisibleBars === n)} disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {copy.all}
             </button>

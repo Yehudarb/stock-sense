@@ -4,12 +4,12 @@ function pctText(value) {
 }
 
 const TONE = {
-  PANIC: { color: 'text-red-300', bg: 'bg-red-950/45 border-red-700', bar: '#ef4444' },
-  BEAR: { color: 'text-red-300', bg: 'bg-red-950/35 border-red-800', bar: '#ef4444' },
-  MILD_BEAR: { color: 'text-orange-300', bg: 'bg-orange-950/25 border-orange-800', bar: '#fb923c' },
-  NEUTRAL: { color: 'text-yellow-300', bg: 'bg-yellow-950/25 border-yellow-800', bar: '#eab308' },
-  MILD_BULL: { color: 'text-lime-300', bg: 'bg-lime-950/25 border-lime-800', bar: '#a3e635' },
-  BULL: { color: 'text-green-300', bg: 'bg-green-950/35 border-green-800', bar: '#22c55e' },
+  PANIC: { color: 'text-red-300', bg: 'glass-panel border-red-500/20', bar: '#ef4444' },
+  BEAR: { color: 'text-red-300', bg: 'glass-panel border-red-500/20', bar: '#ef4444' },
+  MILD_BEAR: { color: 'text-orange-300', bg: 'glass-panel border-orange-500/20', bar: '#fb923c' },
+  NEUTRAL: { color: 'text-yellow-300', bg: 'glass-panel border-yellow-500/20', bar: '#eab308' },
+  MILD_BULL: { color: 'text-lime-300', bg: 'glass-panel border-lime-500/20', bar: '#a3e635' },
+  BULL: { color: 'text-green-300', bg: 'glass-panel border-green-500/20', bar: '#22c55e' },
 }
 
 const FACTOR_COLOR = {
@@ -20,11 +20,11 @@ const FACTOR_COLOR = {
 
 function AssetMetric({ label, asset, valueOverride, daysLabel }) {
   return (
-    <div className="rounded-lg bg-slate-950/70 p-2">
-      <div className="text-[11px] text-slate-500">{label}</div>
-      <div className="mt-0.5 text-sm font-black text-white">{valueOverride ?? (asset?.current ?? '-')}</div>
+    <div className="rounded-lg bg-slate-900/40 border border-slate-800/50 p-3">
+      <div className="text-[11px] font-medium tracking-wide uppercase text-slate-500">{label}</div>
+      <div className="mt-1 text-sm font-black text-white">{valueOverride ?? (asset?.current ?? '-')}</div>
       {asset?.return5d != null && (
-        <div className={asset.return5d >= 0 ? 'mt-0.5 text-[11px] text-green-300' : 'mt-0.5 text-[11px] text-red-300'}>
+        <div className={asset.return5d >= 0 ? 'mt-0.5 text-[11px] text-green-400' : 'mt-0.5 text-[11px] text-red-400'}>
           {daysLabel}: {pctText(asset.return5d)}
         </div>
       )}
@@ -46,7 +46,7 @@ export default function MarketContextPanel({ marketContext, isLoading, language 
   }
   if (isLoading && !marketContext) {
     return (
-      <div className="rounded-xl bg-slate-800 p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>
+      <div className="glass-panel rounded-xl p-4 text-center text-sm text-slate-500" dir={isHebrew ? 'rtl' : 'ltr'}>
         {copy.loading}
       </div>
     )

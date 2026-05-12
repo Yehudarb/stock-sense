@@ -50,9 +50,9 @@ function GateRow({ label, passed, detail }) {
 
 function Metric({ label, value, color = 'text-white', sub }) {
   return (
-    <div className="rounded-lg bg-slate-900 p-2">
-      <div className="text-[11px] text-slate-500">{label}</div>
-      <div className={`mt-0.5 text-sm font-bold ${color}`}>{value}</div>
+    <div className="rounded-lg bg-slate-900/40 border border-slate-800/50 p-3">
+      <div className="text-[11px] font-medium tracking-wide uppercase text-slate-500">{label}</div>
+      <div className={`mt-1 text-sm font-black ${color}`}>{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
     </div>
   )
@@ -86,10 +86,10 @@ function AnalystDecisionCard({ decision, language }) {
   if (!decision) return null
   const isEnglish = language === 'en'
   const toneClass = {
-    bullish: 'border-green-700 bg-green-950/40',
-    bearish: 'border-red-700 bg-red-950/40',
-    neutral: 'border-yellow-700 bg-yellow-950/30',
-  }[decision.tone] ?? 'border-slate-700 bg-slate-900'
+    bullish: 'glass-panel border-green-500/20',
+    bearish: 'glass-panel border-red-500/20',
+    neutral: 'glass-panel border-yellow-500/20',
+  }[decision.tone] ?? 'glass-panel border-slate-500/20'
   const toneText = { bullish: 'text-green-300', bearish: 'text-red-300', neutral: 'text-yellow-300' }[decision.tone] ?? 'text-white'
   const en = decisionCopy(decision.action, language)
   const primaryAction = isEnglish ? en[0] : decision.primaryAction
@@ -183,7 +183,7 @@ function ProFeaturesCard({ pro, language }) {
   }
 
   return (
-    <div className="bg-slate-800 rounded-xl p-4">
+    <div className="glass-panel rounded-xl p-4">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-slate-400">{labels.title}</h4>
         <span className="text-xs font-bold text-blue-300">{prof.confluencePct}% {prof.confidenceLevel}</span>
@@ -209,10 +209,10 @@ function EnsembleCard({ ensemble, language }) {
   if (!ensemble) return null
   const isEnglish = language === 'en'
   const tone = {
-    bullish: { label: isEnglish ? 'Bullish' : 'בוליש', color: 'text-green-300', bg: 'bg-green-950/35 border-green-800', bar: '#22c55e' },
-    bearish: { label: isEnglish ? 'Bearish' : 'בריש', color: 'text-red-300', bg: 'bg-red-950/35 border-red-800', bar: '#ef4444' },
-    neutral: { label: isEnglish ? 'Mixed' : 'מעורב', color: 'text-yellow-300', bg: 'bg-yellow-950/35 border-yellow-800', bar: '#eab308' },
-  }[ensemble.bias] ?? { label: isEnglish ? 'Mixed' : 'מעורב', color: 'text-yellow-300', bg: 'bg-yellow-950/35 border-yellow-800', bar: '#eab308' }
+    bullish: { label: isEnglish ? 'Bullish' : 'בוליש', color: 'text-green-300', bg: 'glass-panel border-green-500/20', bar: '#22c55e' },
+    bearish: { label: isEnglish ? 'Bearish' : 'בריש', color: 'text-red-300', bg: 'glass-panel border-red-500/20', bar: '#ef4444' },
+    neutral: { label: isEnglish ? 'Mixed' : 'מעורב', color: 'text-yellow-300', bg: 'glass-panel border-yellow-500/20', bar: '#eab308' },
+  }[ensemble.bias] ?? { label: isEnglish ? 'Mixed' : 'מעורב', color: 'text-yellow-300', bg: 'glass-panel border-yellow-500/20', bar: '#eab308' }
 
   return (
     <div className={`rounded-xl border p-4 ${tone.bg}`}>
@@ -263,8 +263,8 @@ function PatternBadge({ pattern, language }) {
     developing: isEnglish ? 'Developing' : 'מתפתחת',
   }[pattern.status] ?? pattern.status
   const tone = pattern.direction === 'neutral' || pattern.weight === 0
-    ? 'bg-yellow-950 text-yellow-300 border-yellow-800'
-    : pattern.weight > 0 ? 'bg-green-950 text-green-300 border-green-800' : 'bg-red-950 text-red-300 border-red-800'
+    ? 'glass-panel border-yellow-500/20 text-yellow-300'
+    : pattern.weight > 0 ? 'glass-panel border-green-500/20 text-green-300' : 'glass-panel border-red-500/20 text-red-300'
 
   return (
     <div className={`rounded-xl border px-3 py-2 text-xs ${tone}`}>
@@ -311,7 +311,7 @@ export default function SignalPanel({ signal, language = 'he' }) {
   }
 
   if (!signal) {
-    return <div className="bg-slate-800 rounded-xl p-4 text-slate-500 text-center text-sm">{copy.loading}</div>
+    return <div className="glass-panel rounded-xl p-4 text-slate-500 text-center text-sm">{copy.loading}</div>
   }
 
   const { gates, patterns, risk, decision, pro, ensemble } = signal
@@ -323,7 +323,7 @@ export default function SignalPanel({ signal, language = 'he' }) {
       <EnsembleCard ensemble={ensemble} language={language} />
       <ProFeaturesCard pro={pro} language={language} />
 
-      <div className="bg-slate-800 rounded-xl p-4 flex flex-col gap-3">
+      <div className="glass-panel rounded-xl p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-white">{copy.signalTitle}</h3>
           <Badge action={signal.action} label={signalLabel} />
@@ -350,7 +350,7 @@ export default function SignalPanel({ signal, language = 'he' }) {
       </div>
 
       {gates && (
-        <div className="bg-slate-800 rounded-xl p-4">
+        <div className="glass-panel rounded-xl p-4">
           <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.pipeline}</h4>
           <div className="border-b border-slate-700 pb-2 mb-2">
             <div className="flex items-center justify-between text-xs">
@@ -370,13 +370,13 @@ export default function SignalPanel({ signal, language = 'he' }) {
         </div>
       )}
 
-      <div className="bg-slate-800 rounded-xl p-4">
+      <div className="glass-panel rounded-xl p-4">
         <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.indicators}</h4>
         {signal.factors.map((f, i) => <FactorRow key={i} label={f.label} signal={f.signal} value={f.value} language={language} />)}
       </div>
 
       {patterns?.patterns?.length > 0 && (
-        <div className="bg-slate-800 rounded-xl p-4">
+        <div className="glass-panel rounded-xl p-4">
           <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.patterns} ({patterns.patterns.length})</h4>
           {patterns.best && (
             <div className="mb-3 rounded-lg border border-blue-900 bg-blue-950/40 p-2 text-xs text-blue-200">
@@ -394,7 +394,7 @@ export default function SignalPanel({ signal, language = 'he' }) {
       )}
 
       {risk && (
-        <div className="bg-slate-800 rounded-xl p-4">
+        <div className="glass-panel rounded-xl p-4">
           <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.risk} (ATR={risk.atr})</h4>
           <div className="grid grid-cols-1 gap-2 text-xs">
             <div className="flex justify-between"><span className="text-slate-400">Stop Loss</span><span className="text-red-400 font-mono">${risk.stopLoss} <span className="text-slate-500">(-{risk.riskPct}%)</span></span></div>
@@ -406,7 +406,7 @@ export default function SignalPanel({ signal, language = 'he' }) {
       )}
 
       {signal.analysis && (
-        <div className="bg-slate-800 rounded-xl p-4">
+        <div className="glass-panel rounded-xl p-4">
           <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.analysis}</h4>
           <p className="text-sm text-slate-300 leading-relaxed">{signal.analysis}</p>
         </div>

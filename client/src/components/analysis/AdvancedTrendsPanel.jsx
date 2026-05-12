@@ -62,9 +62,9 @@ function toneFor(value) {
 
 function Metric({ label, value, color = 'text-white', sub }) {
   return (
-    <div className="rounded-lg bg-slate-950/70 p-2">
-      <div className="text-[11px] text-slate-500">{label}</div>
-      <div className={`mt-0.5 text-sm font-black ${color}`}>{value}</div>
+    <div className="rounded-lg bg-slate-900/40 border border-slate-800/50 p-3">
+      <div className="text-[11px] font-medium tracking-wide uppercase text-slate-500">{label}</div>
+      <div className={`mt-1 text-sm font-black ${color}`}>{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
     </div>
   )
@@ -73,7 +73,7 @@ function Metric({ label, value, color = 'text-white', sub }) {
 function TriangleCard({ triangle, language }) {
   const target = triangle.direction === 'bearish' ? triangle.targetDown : triangle.targetUp
   return (
-    <div className={`rounded-xl border p-3 text-xs ${toneFor(triangle.direction)}`}>
+    <div className={`rounded-xl border p-4 text-xs glass-panel ${toneFor(triangle.direction)}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="font-black">{TRIANGLE_LABEL[language]?.[triangle.type] ?? triangle.type}</div>
@@ -97,7 +97,7 @@ export default function AdvancedTrendsPanel({ trends, language = 'he' }) {
   const isEnglish = language === 'en'
   if (!trends) {
     return (
-      <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 text-sm text-slate-500" dir={isEnglish ? 'ltr' : 'rtl'}>
+      <div className="glass-panel rounded-xl p-4 text-sm text-slate-500" dir={isEnglish ? 'ltr' : 'rtl'}>
         {isEnglish ? 'Loading advanced trend and triangle analysis...' : 'טוען ניתוח טרנדים ומשולשים...'}
       </div>
     )
@@ -128,7 +128,7 @@ export default function AdvancedTrendsPanel({ trends, language = 'he' }) {
   const regime = trends.regime
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800 p-4" dir={isEnglish ? 'ltr' : 'rtl'}>
+    <div className="glass-panel rounded-xl p-4" dir={isEnglish ? 'ltr' : 'rtl'}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-black text-white">{copy.title}</h3>

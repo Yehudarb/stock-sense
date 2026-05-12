@@ -18,12 +18,12 @@ const CONFIG = {
 }
 
 const CLASS_NAME = {
-  PANIC: 'border-red-600 bg-red-950/70 text-red-100',
-  BEAR: 'border-red-700 bg-red-950/55 text-red-100',
-  MILD_BEAR: 'border-orange-700 bg-orange-950/45 text-orange-100',
-  NEUTRAL: 'border-yellow-700 bg-yellow-950/40 text-yellow-100',
-  MILD_BULL: 'border-lime-700 bg-lime-950/40 text-lime-100',
-  BULL: 'border-green-700 bg-green-950/45 text-green-100',
+  PANIC: 'border-red-600/50 bg-red-950/20 text-red-100',
+  BEAR: 'border-red-700/50 bg-red-950/20 text-red-100',
+  MILD_BEAR: 'border-orange-700/50 bg-orange-950/20 text-orange-100',
+  NEUTRAL: 'border-slate-700/50 bg-slate-900/30 text-slate-100',
+  MILD_BULL: 'border-lime-700/50 bg-lime-950/20 text-lime-100',
+  BULL: 'border-green-700/50 bg-green-950/20 text-green-100',
 }
 
 function scoreText(score) {
@@ -36,7 +36,7 @@ export default function MarketTradeAlert({ marketContext, isLoading, language = 
 
   if (isLoading && !marketContext) {
     return (
-      <div className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-400" dir={isEnglish ? 'ltr' : 'rtl'}>
+      <div className="glass-panel px-4 py-3 text-sm text-slate-400" dir={isEnglish ? 'ltr' : 'rtl'}>
         {isEnglish ? 'Checking whether the broad market supports this trade...' : 'בודק אם השוק הרחב תומך בעסקה...'}
       </div>
     )
@@ -47,7 +47,7 @@ export default function MarketTradeAlert({ marketContext, isLoading, language = 
   const [title, message, badge] = CONFIG[language]?.[marketContext.condition] ?? CONFIG[language]?.NEUTRAL ?? CONFIG.he.NEUTRAL
 
   return (
-    <div className={`rounded-xl border px-4 py-3 shadow-lg ${CLASS_NAME[marketContext.condition] ?? CLASS_NAME.NEUTRAL}`} dir={isEnglish ? 'ltr' : 'rtl'}>
+    <div className={`glass-panel p-4 ${CLASS_NAME[marketContext.condition] ?? CLASS_NAME.NEUTRAL}`} dir={isEnglish ? 'ltr' : 'rtl'}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">

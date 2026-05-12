@@ -25,8 +25,8 @@ export default function WatchlistPanel() {
             <div
               key={w.ticker}
               onClick={() => setCurrentTicker(w.ticker)}
-              className={`flex min-w-[108px] items-center justify-between rounded-lg px-3 py-2 transition-colors md:min-w-0 md:cursor-pointer ${
-                w.ticker === currentTicker ? 'bg-blue-900' : 'bg-slate-700 hover:bg-slate-600'
+              className={`flex min-w-[108px] items-center justify-between rounded-lg px-3 py-2 transition-colors border md:min-w-0 md:cursor-pointer ${
+                w.ticker === currentTicker ? 'bg-blue-900/40 border-blue-700/50' : 'bg-slate-900/40 border-slate-800/50 hover:bg-slate-800/60'
               }`}
             >
               <span className="flex min-w-0 items-center gap-2">
