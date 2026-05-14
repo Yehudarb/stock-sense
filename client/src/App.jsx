@@ -154,6 +154,7 @@ export default function App() {
   const n = ohlcv.length
   const last = ohlcv[n - 1]
   const sma20Last = indicators?.sma20?.[n - 1]
+  const rsiLast = indicators?.rsi14?.[n - 1]
   const stochLast = indicators?.stoch?.k?.[n - 1]
   const overallLoading = isLoading || isMultiTimeframeLoading || isMarketContextLoading || isEarningsLoading
 
