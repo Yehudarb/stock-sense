@@ -68,16 +68,9 @@ const DEFAULT_VISIBLE_BARS = {
 }
 
 const EXAMPLES = [
-  { ticker: 'AAPL', title: 'Mega-cap trend read', summary: 'Balanced market leader with strong support around moving averages.' },
-  { ticker: 'NVDA', title: 'Momentum vs valuation tension', summary: 'High-upside setup with elevated volatility and sentiment extremes.' },
-  { ticker: 'TSLA', title: 'Risk-heavy swing example', summary: 'Useful for seeing how the model handles mixed trend and event risk.' },
-]
-
-const PRODUCT_FEATURES = [
-  { title: 'Recent analysis examples', body: 'One-click demo presets make the landing page feel like a product, not just a blank dashboard.' },
-  { title: 'Saved watchlist placeholder', body: 'The watchlist module remains available and now reads like part of a larger workflow.' },
-  { title: 'Compare mode placeholder', body: 'A compare-two-stocks CTA is surfaced to signal roadmap direction without pretending full support exists.' },
-  { title: 'Shareable report CTA', body: 'A lightweight report action makes it easier to imagine sharing the AI output with teammates or clients.' },
+  { ticker: 'AAPL', title: 'Trend overview', summary: 'Quickly see whether the chart is steady, stretched, or turning.' },
+  { ticker: 'NVDA', title: 'Risk snapshot', summary: 'Check nearby resistance, support, and pressure zones at a glance.' },
+  { ticker: 'TSLA', title: 'Market context', summary: 'Understand whether the broader environment supports the move.' },
 ]
 
 function SafeChart({ isLoading, resetKey, children }) {
@@ -152,68 +145,28 @@ function TriangleChartPanel({ triangles, language }) {
   )
 }
 
-function FeaturePreviewSection({ onAnalyzeTicker }) {
+function ExampleSection({ onAnalyzeTicker }) {
   return (
     <section className="space-y-6">
       <SectionTitle
-        eyebrow="Product surface"
-        title="Demo affordances that make the experience feel closer to a real financial AI product."
-        subtitle="These sections are intentionally lightweight, but they frame the dashboard as part of a broader workflow rather than a one-off technical prototype."
+        eyebrow="How people use it"
+        title="A simple way to review a stock before acting."
+        subtitle="Start with a ticker, scan the summary, and move into the chart only if you need more detail."
       />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        {PRODUCT_FEATURES.map(item => (
-          <Card key={item.title} className="rounded-2xl p-5">
-            <div className="text-sm font-bold text-white">{item.title}</div>
-            <p className="mt-2 text-sm leading-6 text-slate-300">{item.body}</p>
-          </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {EXAMPLES.map(example => (
+          <button
+            key={example.ticker}
+            className="rounded-2xl border border-white/6 bg-slate-950/35 p-5 text-left transition-colors hover:border-primary/25 hover:bg-slate-950/55"
+            onClick={() => onAnalyzeTicker(example.ticker)}
+            type="button"
+          >
+            <div className="text-sm font-bold text-white">{example.title}</div>
+            <div className="mt-1 text-xs uppercase tracking-[0.2em] text-primary/80">{example.ticker}</div>
+            <p className="mt-3 text-sm leading-6 text-slate-400">{example.summary}</p>
+          </button>
         ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card className="rounded-2xl p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Recent analysis examples</div>
-              <div className="mt-2 text-lg font-bold text-white">Jump into a realistic demo flow</div>
-            </div>
-            <Badge tone="balanced">Example presets</Badge>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            {EXAMPLES.map(example => (
-              <button
-                key={example.ticker}
-                className="rounded-2xl border border-white/6 bg-slate-950/40 p-4 text-left transition-colors hover:border-primary/25 hover:bg-slate-950/60"
-                onClick={() => onAnalyzeTicker(example.ticker)}
-                type="button"
-              >
-                <div className="text-sm font-bold text-white">{example.title}</div>
-                <div className="mt-1 text-xs uppercase tracking-[0.2em] text-primary/80">{example.ticker}</div>
-                <p className="mt-3 text-sm leading-6 text-slate-400">{example.summary}</p>
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="rounded-2xl p-5">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Next workflow placeholders</div>
-          <div className="mt-2 text-lg font-bold text-white">Compare, save, and share</div>
-          <div className="mt-4 space-y-3">
-            <div className="rounded-2xl border border-white/6 bg-slate-950/40 p-4">
-              <div className="text-sm font-semibold text-white">Compare two stocks</div>
-              <div className="mt-1 text-sm text-slate-400">Placeholder CTA for side-by-side AI outlooks on two names.</div>
-            </div>
-            <div className="rounded-2xl border border-white/6 bg-slate-950/40 p-4">
-              <div className="text-sm font-semibold text-white">Saved watchlist workflow</div>
-              <div className="mt-1 text-sm text-slate-400">Keep commonly analyzed names one click away in the sidebar and hero.</div>
-            </div>
-            <div className="rounded-2xl border border-white/6 bg-slate-950/40 p-4">
-              <div className="text-sm font-semibold text-white">Shareable report button</div>
-              <div className="mt-1 text-sm text-slate-400">A lightweight CTA is included below the main analysis to support future sharing flows.</div>
-            </div>
-          </div>
-        </Card>
       </div>
     </section>
   )
@@ -229,7 +182,6 @@ export default function App() {
     error,
     language,
     setCurrentTicker,
-    watchlist,
     lastLoadedTicker,
     bumpAnalysisRun,
   } = useStore()
@@ -477,11 +429,10 @@ export default function App() {
           isLoading={overallLoading}
           onAnalyze={handleAnalyzeTicker}
           onPickTicker={handleAnalyzeTicker}
-          watchlistCount={watchlist.length}
           lastLoadedTicker={lastLoadedTicker}
         />
 
-        <FeaturePreviewSection onAnalyzeTicker={handleAnalyzeTicker} />
+        <ExampleSection onAnalyzeTicker={handleAnalyzeTicker} />
         <TrustSection />
 
         {overallLoading && !snapshot && (
@@ -509,7 +460,7 @@ export default function App() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <SectionTitle
                   eyebrow="Live analysis workspace"
-                  title={`Reviewing ${currentTicker} like a financial AI product should`}
+                  title={`Reviewing ${currentTicker} with a clearer market view`}
                   subtitle="The dashboard below keeps the tactical detail, while the structured AI result at the top makes the output easier to trust, question, and act on."
                 />
                 <div className="flex flex-wrap gap-2">
