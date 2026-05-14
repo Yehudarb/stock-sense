@@ -8,14 +8,7 @@ import useSocket from './hooks/useSocket'
 import useMultiTimeframe from './hooks/useMultiTimeframe'
 import useMarketContext from './hooks/useMarketContext'
 import Layout from './components/layout/Layout'
-import ChartContainer from './components/charts/ChartContainer'
-import ChartErrorBoundary from './components/charts/ChartErrorBoundary'
-import PriceChart from './components/charts/PriceChart'
-import VolumeChart from './components/charts/VolumeChart'
-import RsiChart from './components/charts/RsiChart'
-import StochChart from './components/charts/StochChart'
-import WilliamsRChart from './components/charts/WilliamsRChart'
-import MacdChart from './components/charts/MacdChart'
+import ChartWorkspace from './components/charts/ChartWorkspace'
 import EarningsPanel from './components/analysis/EarningsPanel'
 import ForecastOpinionPanel from './components/analysis/ForecastOpinionPanel'
 import MarketContextPanel from './components/analysis/MarketContextPanel'
@@ -26,15 +19,12 @@ import AnalysisResultCard from './components/analysis/AnalysisResultCard'
 import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
-import Badge from './components/ui/Badge'
 import Button from './components/ui/Button'
-import Card from './components/ui/Card'
 import ErrorState from './components/ui/ErrorState'
 import KpiCard from './components/ui/KpiCard'
 import LoadingState from './components/ui/LoadingState'
 import SectionTitle from './components/ui/SectionTitle'
-import Spinner from './components/ui/Spinner'
-import { fmtVolume, fmtPercent, fmtPrice } from './lib/formatters'
+import { fmtVolume, fmtPercent } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
 import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
@@ -55,95 +45,11 @@ const FG_LABEL_HE = classification => ({
   'Extreme Fear': 'פחד קיצוני',
 })[classification] ?? classification
 
-const DEFAULT_VISIBLE_BARS = {
-  '1m': 120,
-  '5m': 120,
-  '15m': 120,
-  '1h': 160,
-  '4h': 160,
-  '1d': 180,
-  '1mo': 23,
-  '1y': 252,
-  '5y': 260,
-}
-
 const EXAMPLES = [
   { ticker: 'AAPL', title: 'Trend overview', summary: 'Quickly see whether the chart is steady, stretched, or turning.' },
   { ticker: 'NVDA', title: 'Risk snapshot', summary: 'Check nearby resistance, support, and pressure zones at a glance.' },
   { ticker: 'TSLA', title: 'Market context', summary: 'Understand whether the broader environment supports the move.' },
 ]
-
-function SafeChart({ isLoading, resetKey, children }) {
-  if (isLoading) return <Spinner />
-  return <ChartErrorBoundary resetKey={resetKey}>{children}</ChartErrorBoundary>
-}
-
-function chartToggleClass(active, activeClass = 'bg-primary text-surface-muted shadow-[0_0_10px_rgba(34,211,238,0.22)]') {
-  return `rounded-full border px-3 py-1 text-xs font-medium transition-all ${
-    active
-      ? activeClass
-      : 'border-white/10 bg-surface-muted/35 text-slate-400 hover:bg-surface-bright/50 hover:text-white'
-  }`
-}
-
-function TriangleChartPanel({ triangles, language }) {
-  const isHebrew = language === 'he'
-  const labels = {
-    title: isHebrew ? 'Triangles on chart' : 'Triangles on chart',
-    empty: isHebrew
-      ? 'No active triangle was found on this timeframe. Try another range like 1D / 1H or show more candles.'
-      : 'No active triangle was found on this timeframe. Try another range like 1D / 1H or show more candles.',
-    found: isHebrew ? 'Found' : 'Found',
-    resistance: isHebrew ? 'Resistance' : 'Resistance',
-    support: isHebrew ? 'Support' : 'Support',
-    target: isHebrew ? 'Target' : 'Target',
-    completion: isHebrew ? 'Completion' : 'Completion',
-    hint: isHebrew
-      ? 'When detected, the pattern lines are drawn directly on the price chart.'
-      : 'When detected, the pattern lines are drawn directly on the price chart.',
-  }
-  const typeLabel = {
-    ascending: 'Ascending triangle',
-    descending: 'Descending triangle',
-    symmetrical: 'Symmetrical triangle',
-    expanding: 'Megaphone / expanding triangle',
-  }
-
-  return (
-    <div className="glass-panel border-emerald-500/20 p-4" dir={isHebrew ? 'rtl' : 'ltr'}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-black text-emerald-200">{labels.title}</div>
-          <div className="mt-0.5 text-xs text-emerald-300/75">{labels.hint}</div>
-        </div>
-        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-300">
-          {labels.found}: {triangles.length}
-        </span>
-      </div>
-
-      {triangles.length === 0 ? (
-        <div className="mt-3 rounded-lg border border-slate-800/50 bg-slate-900/40 p-3 text-xs leading-relaxed text-slate-400">{labels.empty}</div>
-      ) : (
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {triangles.map(triangle => {
-            const target = triangle.direction === 'bearish' ? triangle.targetDown : triangle.targetUp
-            return (
-              <div key={`${triangle.key}-${triangle.status}`} className="rounded-lg border border-slate-800/50 bg-slate-900/40 p-3 text-xs text-slate-300">
-                <div className="font-black text-white">{typeLabel[triangle.type] ?? triangle.type}</div>
-                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
-                  <span className="text-slate-500">{labels.resistance}</span><span className="font-mono text-orange-300">{fmtPrice(triangle.resistance)}</span>
-                  <span className="text-slate-500">{labels.support}</span><span className="font-mono text-cyan-300">{fmtPrice(triangle.support)}</span>
-                  <span className="text-slate-500">{labels.target}</span><span className="font-mono text-green-300">{fmtPrice(target)}</span>
-                  <span className="text-slate-500">{labels.completion}</span><span className="font-mono text-emerald-300">{triangle.completionPct}%</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function ExampleSection({ onAnalyzeTicker }) {
   return (
@@ -194,18 +100,6 @@ export default function App() {
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
   const { data: technicalAnalysis, isLoading: isTechnicalAnalysisLoading, error: technicalAnalysisError } = useTechnicalAnalysis(currentTicker)
 
-  const [showSMA, setShowSMA] = useState(false)
-  const [showEMA, setShowEMA] = useState(false)
-  const [showBB, setShowBB] = useState(false)
-  const [showFibonacci, setShowFibonacci] = useState(false)
-  const [showGaps, setShowGaps] = useState(true)
-  const [showPatterns, setShowPatterns] = useState(true)
-  const [showTriangles, setShowTriangles] = useState(false)
-  const [cleanChart, setCleanChart] = useState(false)
-  const [chartType, setChartType] = useState('candlestick')
-  const [chartExpanded, setChartExpanded] = useState(false)
-  const [measureMode, setMeasureMode] = useState(false)
-  const [visibleBars, setVisibleBars] = useState(null)
   const [fearGreed, setFearGreed] = useState(null)
   const [earnings, setEarnings] = useState(null)
   const [isEarningsLoading, setIsEarningsLoading] = useState(false)
@@ -219,10 +113,6 @@ export default function App() {
       setFearGreed(response.data)
     }).catch(() => {})
   }, [])
-
-  useEffect(() => {
-    setVisibleBars(null)
-  }, [currentTicker, interval])
 
   useEffect(() => {
     let cancelled = false
@@ -261,26 +151,10 @@ export default function App() {
     earnings,
   }), [earnings, forecast, marketContext, signal])
 
-  const last = ohlcv[ohlcv.length - 1]
   const n = ohlcv.length
+  const last = ohlcv[n - 1]
   const sma20Last = indicators?.sma20?.[n - 1]
-  const rsiLast = indicators?.rsi14?.[n - 1]
   const stochLast = indicators?.stoch?.k?.[n - 1]
-  const willRLast = indicators?.willR?.[n - 1]
-  const chartResetKey = `${ohlcv[0]?.t ?? 0}-${ohlcv[n - 1]?.t ?? 0}-${n}-${chartType}`
-  const patternResetKey = `${signal?.patterns?.score ?? 0}-${signal?.patterns?.best?.key ?? 'none'}`
-  const defaultVisibleBars = DEFAULT_VISIBLE_BARS[interval] ?? n
-  const activeVisibleBars = Math.min(n, visibleBars ?? defaultVisibleBars)
-  const canZoom = n > 30
-  const chartShowSMA = !cleanChart && showSMA
-  const chartShowEMA = !cleanChart && showEMA
-  const chartShowBB = !cleanChart && showBB
-  const chartShowFibonacci = !cleanChart && showFibonacci
-  const chartShowGaps = !cleanChart && showGaps
-  const chartShowPatterns = !cleanChart && showPatterns
-  const chartShowTriangles = !cleanChart && showTriangles
-  const chartShowLevels = !cleanChart
-  const triangleList = signal?.trends?.triangles ?? []
   const overallLoading = isLoading || isMultiTimeframeLoading || isMarketContextLoading || isEarningsLoading
 
   useEffect(() => {
@@ -324,24 +198,6 @@ export default function App() {
     low20: isHebrew ? '20-bar low' : '20-bar low',
     trend: isHebrew ? 'Trend' : 'Trend',
     vsSma20: 'vs SMA20',
-    candles: isHebrew ? 'Candles' : 'Candles',
-    line: isHebrew ? 'Line' : 'Line',
-    fib: 'Fibonacci',
-    gaps: 'Gaps',
-    patterns: 'Patterns',
-    triangles: 'Triangles',
-    cleanChart: isHebrew ? 'Clean chart' : 'Clean chart',
-    expandChart: isHebrew ? 'Expand chart' : 'Expand chart',
-    shrinkChart: isHebrew ? 'Shrink chart' : 'Shrink chart',
-    measure: isHebrew ? '% ruler' : '% ruler',
-    measuring: isHebrew ? 'Measure mode: drag on the chart to measure percent change.' : 'Measure mode: drag on the chart to measure percent change.',
-    zoomIn: isHebrew ? 'Zoom +' : 'Zoom +',
-    zoomOut: isHebrew ? 'Zoom -' : 'Zoom -',
-    bars: isHebrew ? 'bars' : 'bars',
-    all: isHebrew ? 'All' : 'All',
-    showing: isHebrew ? 'Showing' : 'Showing',
-    priceChart: isHebrew ? 'Price chart' : 'Price chart',
-    volume: 'Volume',
   }
 
   const loadingSteps = useMemo(() => ([
@@ -366,30 +222,6 @@ export default function App() {
       state: analysisResult ? 'done' : (signal ? 'active' : 'queued'),
     },
   ]), [analysisResult, currentTicker, forecast, isEarningsLoading, isLoading, isMarketContextLoading, signal, snapshot])
-
-  function changeVisibleBars(multiplier) {
-    if (!canZoom) return
-    setVisibleBars(current => {
-      const base = Math.min(n, current ?? activeVisibleBars)
-      const next = Math.round(base * multiplier)
-      if (next >= n) return n
-      return Math.max(20, next)
-    })
-  }
-
-  function zoomIn() {
-    changeVisibleBars(0.65)
-  }
-
-  function zoomOut() {
-    changeVisibleBars(1.55)
-  }
-
-  function handlePriceChartWheel(event) {
-    if (!canZoom) return
-    event.preventDefault()
-    changeVisibleBars(event.deltaY < 0 ? 0.86 : 1.16)
-  }
 
   function handleAnalyzeTicker(nextTicker) {
     if (!nextTicker) return
@@ -524,195 +356,27 @@ export default function App() {
             </section>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className={`flex flex-col gap-4 ${cleanChart || chartExpanded ? 'xl:col-span-3' : 'xl:col-span-2'}`}>
-                {!cleanChart && (
-                  <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
-                )}
-
-                <Card className="rounded-2xl p-4">
-                  <div className="-mx-1 overflow-x-auto px-1">
-                    <div className="flex min-w-max flex-nowrap gap-2 pb-1 sm:flex-wrap sm:pb-0">
-                      {[['candlestick', copy.candles], ['line', copy.line]].map(([value, label]) => (
-                        <button
-                          key={value}
-                          onClick={() => setChartType(value)}
-                          className={chartToggleClass(chartType === value)}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                      <div className="mx-1 w-px bg-white/10" />
-                      {[
-                        ['showSMA', showSMA, setShowSMA, 'SMA 20'],
-                        ['showEMA', showEMA, setShowEMA, 'EMA 50'],
-                        ['showBB', showBB, setShowBB, 'BB'],
-                      ].map(([key, value, setter, label]) => (
-                        <button
-                          key={key}
-                          onClick={() => setter(!value)}
-                          className={chartToggleClass(!cleanChart && value, 'border-slate-500/30 bg-slate-200/10 text-white')}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                      <div className="mx-1 w-px bg-white/10" />
-                      {[
-                        ['showFibonacci', showFibonacci, setShowFibonacci, copy.fib],
-                        ['showGaps', showGaps, setShowGaps, copy.gaps],
-                        ['showPatterns', showPatterns, setShowPatterns, copy.patterns],
-                        ['showTriangles', showTriangles, setShowTriangles, copy.triangles],
-                      ].map(([key, value, setter, label]) => (
-                        <button
-                          key={key}
-                          onClick={() => setter(!value)}
-                          className={chartToggleClass(!cleanChart && value, 'border-emerald-500/30 bg-emerald-500/20 text-emerald-100')}
-                        >
-                          {label}{key === 'showTriangles' ? ` (${triangleList.length})` : ''}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setMeasureMode(value => !value)}
-                        className={chartToggleClass(measureMode, 'border-cyan-500/30 bg-cyan-500/20 text-cyan-100')}
-                      >
-                        {copy.measure}
-                      </button>
-                      <button
-                        onClick={() => setChartExpanded(value => !value)}
-                        className={chartToggleClass(chartExpanded)}
-                      >
-                        {chartExpanded ? copy.shrinkChart : copy.expandChart}
-                      </button>
-                      <button
-                        onClick={() => setCleanChart(value => !value)}
-                        className={chartToggleClass(cleanChart, 'border-amber-500/30 bg-amber-500/20 text-amber-100')}
-                      >
-                        {copy.cleanChart}
-                      </button>
-                      <div className="mx-1 w-px bg-white/10" />
-                      <button
-                        onClick={zoomIn}
-                        disabled={!canZoom}
-                        className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-surface-bright/60 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {copy.zoomIn}
-                      </button>
-                      <button
-                        onClick={zoomOut}
-                        disabled={!canZoom}
-                        className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-surface-bright/60 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {copy.zoomOut}
-                      </button>
-                      {[
-                        [50, '50'],
-                        [100, '100'],
-                        [200, '200'],
-                      ].map(([bars, label]) => (
-                        <button
-                          key={bars}
-                          onClick={() => setVisibleBars(Math.min(n, bars))}
-                          disabled={!canZoom}
-                          className={`${chartToggleClass(activeVisibleBars === Math.min(n, bars))} disabled:cursor-not-allowed disabled:opacity-40`}
-                        >
-                          {label} {copy.bars}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setVisibleBars(n)}
-                        disabled={!canZoom}
-                        className={`${chartToggleClass(activeVisibleBars === n)} disabled:cursor-not-allowed disabled:opacity-40`}
-                      >
-                        {copy.all}
-                      </button>
-                      <span className="self-center whitespace-nowrap text-xs text-slate-500">
-                        {copy.showing} {Math.min(activeVisibleBars, n)}/{n} {copy.bars}
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-
-                {!cleanChart && measureMode && (
-                  <div className="rounded-2xl border border-cyan-400/14 bg-cyan-400/8 px-4 py-3 text-xs font-semibold text-cyan-100" dir={isHebrew ? 'rtl' : 'ltr'}>
-                    {copy.measuring}
-                  </div>
-                )}
-
-                {!cleanChart && showTriangles && (
-                  <TriangleChartPanel triangles={triangleList} language={language} />
-                )}
-
-                <ChartContainer title={copy.priceChart} height={chartExpanded ? 'h-[72vh]' : 'h-[320px] sm:h-[380px] md:h-[560px]'} onWheel={handlePriceChartWheel}>
-                  <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}-${chartShowSMA}-${chartShowEMA}-${chartShowBB}-${chartShowFibonacci}-${chartShowGaps}-${chartShowPatterns}-${chartShowTriangles}-${chartShowLevels}-${patternResetKey}-${activeVisibleBars}`}>
-                    <PriceChart
-                      ohlcv={ohlcv}
-                      indicators={indicators}
-                      showSMA={chartShowSMA}
-                      showEMA={chartShowEMA}
-                      showBB={chartShowBB}
-                      chartType={chartType}
-                      patterns={signal?.patterns}
-                      gaps={signal?.pro?.gaps}
-                      showFibonacci={chartShowFibonacci}
-                      showGaps={chartShowGaps}
-                      showPatterns={chartShowPatterns}
-                      showTriangles={chartShowTriangles}
-                      showLevels={chartShowLevels}
-                      ticker={currentTicker}
-                      decision={signal?.decision}
-                      technicalAnalysis={technicalAnalysis}
-                      interval={interval}
-                      visibleBars={activeVisibleBars}
-                      measurementEnabled={measureMode}
-                    />
-                  </SafeChart>
-                </ChartContainer>
-
-                {!cleanChart && chartType !== 'candlestick' && (
-                  <ChartContainer title={copy.volume} height="h-20 sm:h-24">
-                    <SafeChart isLoading={isLoading} resetKey={`volume-${chartResetKey}`}>
-                      <VolumeChart ohlcv={ohlcv} interval={interval} visibleBars={activeVisibleBars} />
-                    </SafeChart>
-                  </ChartContainer>
-                )}
-
-                {!cleanChart && (
-                  <>
-                    <ChartContainer title={`RSI (14)${rsiLast != null ? ` - ${rsiLast.toFixed(1)}` : ''}`} height="h-24 sm:h-28">
-                      <SafeChart isLoading={isLoading} resetKey={`rsi-${chartResetKey}`}>
-                        <RsiChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
-                      </SafeChart>
-                    </ChartContainer>
-
-                    <ChartContainer title={`Stochastic %K${stochLast != null ? ` - ${stochLast.toFixed(1)}` : ''}`} height="h-24 sm:h-28">
-                      <SafeChart isLoading={isLoading} resetKey={`stoch-${chartResetKey}`}>
-                        <StochChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
-                      </SafeChart>
-                    </ChartContainer>
-
-                    <ChartContainer title={`Williams %R${willRLast != null ? ` - ${willRLast.toFixed(1)}` : ''}`} height="h-24 sm:h-28">
-                      <SafeChart isLoading={isLoading} resetKey={`willr-${chartResetKey}`}>
-                        <WilliamsRChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
-                      </SafeChart>
-                    </ChartContainer>
-
-                    <ChartContainer title="MACD (12, 26, 9)" height="h-24 sm:h-28">
-                      <SafeChart isLoading={isLoading} resetKey={`macd-${chartResetKey}`}>
-                        <MacdChart ohlcv={ohlcv} indicators={indicators} interval={interval} visibleBars={activeVisibleBars} />
-                      </SafeChart>
-                    </ChartContainer>
-                  </>
-                )}
+              <div className="flex flex-col gap-4 xl:col-span-2">
+                <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
+                <ChartWorkspace
+                  currentTicker={currentTicker}
+                  interval={interval}
+                  snapshot={snapshot}
+                  ohlcv={ohlcv}
+                  indicators={indicators}
+                  signal={signal}
+                  technicalAnalysis={technicalAnalysis}
+                  isLoading={isLoading}
+                />
               </div>
 
-              {!cleanChart && !chartExpanded && (
-                <div className="flex flex-col gap-4">
-                  <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} language={language} />
-                  <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
-                  <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
-                  <AdvancedTrendsPanel trends={signal?.trends} language={language} />
-                  <SignalPanel signal={signal} language={language} />
-                </div>
-              )}
+              <div className="flex flex-col gap-4">
+                <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} language={language} />
+                <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
+                <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
+                <AdvancedTrendsPanel trends={signal?.trends} language={language} />
+                <SignalPanel signal={signal} language={language} />
+              </div>
             </div>
           </>
         )}

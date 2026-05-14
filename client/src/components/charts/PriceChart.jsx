@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
-import { labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import { createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
 
-const TV_GREEN = '#089981'
-const TV_RED = '#f23645'
-const TV_GRID = 'rgba(15, 23, 42, 0.08)'
-const TV_TEXT = '#0f172a'
+const TV_GREEN = '#10b981'
+const TV_RED = '#f43f5e'
+const TV_GRID = 'rgba(148, 163, 184, 0.08)'
+const TV_TEXT = 'rgba(226, 232, 240, 0.92)'
 const CHART_FONT = "Heebo, Inter, system-ui, sans-serif"
 
 const PATTERN_COLORS = {
@@ -115,12 +115,12 @@ function buildPriceRange(ohlcv, indicators, showSMA, showEMA, showBB, patterns, 
   return { min: min - pad, max: max + pad }
 }
 
-function sliceIndicatorTree(value, startIndex) {
-  if (Array.isArray(value)) return value.slice(startIndex)
+function sliceIndicatorTree(value, startIndex, endIndex) {
+  if (Array.isArray(value)) return value.slice(startIndex, endIndex)
   if (!value || typeof value !== 'object') return value
 
   return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, sliceIndicatorTree(child, startIndex)]),
+    Object.entries(value).map(([key, child]) => [key, sliceIndicatorTree(child, startIndex, endIndex)]),
   )
 }
 
@@ -227,7 +227,7 @@ function tradingViewXAxis(maxTicksLimit = 10) {
       font: { size: 11 },
     },
     grid: { color: TV_GRID, drawTicks: false },
-    border: { color: 'rgba(15, 23, 42, 0.12)' },
+    border: { color: 'rgba(148, 163, 184, 0.14)' },
   }
 }
 
@@ -243,7 +243,7 @@ function tradingViewYAxis(range) {
       font: { size: 11 },
     },
     grid: { color: TV_GRID, drawTicks: false },
-    border: { color: 'rgba(15, 23, 42, 0.12)' },
+    border: { color: 'rgba(148, 163, 184, 0.14)' },
   }
 }
 
@@ -330,7 +330,10 @@ const chartBackgroundPlugin = {
   beforeDraw(chart) {
     const { ctx, width, height } = chart
     ctx.save()
-    ctx.fillStyle = '#ffffff'
+    const gradient = ctx.createLinearGradient(0, 0, 0, height)
+    gradient.addColorStop(0, '#07111f')
+    gradient.addColorStop(1, '#050c17')
+    ctx.fillStyle = gradient
     ctx.fillRect(0, 0, width, height)
     ctx.restore()
   },
@@ -639,6 +642,44 @@ const priceLevelsPlugin = {
   },
 }
 
+const zoneOverlayPlugin = {
+  id: 'zoneOverlay',
+  beforeDatasetsDraw(chart, _args, options) {
+    const zones = options?.zones ?? []
+    if (!zones.length) return
+
+    const { ctx, chartArea, scales } = chart
+    ctx.save()
+    zones.forEach(zone => {
+      if (zone?.low == null || zone?.high == null) return
+      const yTop = scales.y.getPixelForValue(zone.high)
+      const yBottom = scales.y.getPixelForValue(zone.low)
+      if (![yTop, yBottom].every(Number.isFinite)) return
+
+      const top = Math.max(chartArea.top, Math.min(yTop, yBottom))
+      const bottom = Math.min(chartArea.bottom, Math.max(yTop, yBottom))
+      const height = Math.max(2, bottom - top)
+
+      ctx.fillStyle = zone.fill
+      ctx.fillRect(chartArea.left, top, chartArea.right - chartArea.left, height)
+
+      ctx.beginPath()
+      ctx.moveTo(chartArea.left, top)
+      ctx.lineTo(chartArea.right, top)
+      ctx.moveTo(chartArea.left, bottom)
+      ctx.lineTo(chartArea.right, bottom)
+      ctx.strokeStyle = zone.stroke
+      ctx.lineWidth = 1
+      ctx.setLineDash([6, 4])
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      drawLabel(ctx, zone.label, chartArea.left + 10, clamp(top + 6, chartArea.top + 4, chartArea.bottom - 24), zone.stroke)
+    })
+    ctx.restore()
+  },
+}
+
 const currentPricePlugin = {
   id: 'currentPriceLine',
   afterDraw(chart, _args, options) {
@@ -740,12 +781,15 @@ const measurementPlugin = {
   },
 }
 
+const priceCrosshairPlugin = createCrosshairPlugin('priceCrosshair')
+
 export default function PriceChart({
   ohlcv,
   indicators,
   showSMA,
   showEMA,
   showBB,
+  showVWAP,
   chartType = 'line',
   patterns,
   gaps,
@@ -759,7 +803,10 @@ export default function PriceChart({
   technicalAnalysis,
   interval,
   visibleBars,
+  viewOffset = 0,
   measurementEnabled = false,
+  hoveredIndex = null,
+  onHoverIndexChange,
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
@@ -769,11 +816,10 @@ export default function PriceChart({
     if (!canvasRef.current || !ohlcv?.length) return
     measurementRef.current = { active: false, start: null, end: null }
 
-    const viewSize = Math.min(ohlcv.length, Math.max(20, visibleBars ?? ohlcv.length))
-    const viewStart = Math.max(0, ohlcv.length - viewSize)
-    const viewEnd = ohlcv.length - 1
-    const visibleOhlcv = ohlcv.slice(viewStart)
-    const visibleIndicators = sliceIndicatorTree(indicators, viewStart)
+    const { start: viewStart, end: viewSliceEnd } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
+    const viewEnd = viewSliceEnd - 1
+    const visibleOhlcv = ohlcv.slice(viewStart, viewSliceEnd)
+    const visibleIndicators = sliceIndicatorTree(indicators, viewStart, viewSliceEnd)
     const patternSource = patterns?.patterns?.filter(pattern => (
       (showPatterns && !isTrianglePattern(pattern)) || (showTriangles && isTrianglePattern(pattern))
     )) ?? []
@@ -787,8 +833,31 @@ export default function PriceChart({
       : ''
     const datasets = []
     const isCandlestick = chartType === 'candlestick'
+    const isArea = chartType === 'area'
     const lastBar = visibleOhlcv[visibleOhlcv.length - 1]
     const priceRange = buildPriceRange(visibleOhlcv, visibleIndicators, showSMA, showEMA, showBB, visiblePatterns, visibleGaps, fibonacci)
+    const breakoutLevel = technicalAnalysis?.keyLevels?.breakoutLevels?.[0] ?? null
+    const invalidationLevel = technicalAnalysis?.riskAssessment?.stopLoss ?? technicalAnalysis?.keyLevels?.stopLossDangerZones?.[0] ?? null
+    const zoneCandidates = [
+      breakoutLevel != null
+        ? {
+            low: breakoutLevel * 0.997,
+            high: breakoutLevel * 1.003,
+            fill: 'rgba(56, 189, 248, 0.08)',
+            stroke: 'rgba(56, 189, 248, 0.9)',
+            label: 'Breakout zone',
+          }
+        : null,
+      invalidationLevel != null
+        ? {
+            low: invalidationLevel * 0.994,
+            high: invalidationLevel * 1.006,
+            fill: 'rgba(244, 63, 94, 0.08)',
+            stroke: 'rgba(244, 63, 94, 0.88)',
+            label: 'Invalidation',
+          }
+        : null,
+    ].filter(Boolean)
     const levelCandidates = showLevels
       ? [
           { price: decision?.support, color: '#22c55e' },
@@ -817,11 +886,12 @@ export default function PriceChart({
         type: 'line',
         label: 'Price',
         data: seriesFromBars(visibleOhlcv, 'c'),
-        borderColor: CHART_COLORS.price,
-        backgroundColor: 'transparent',
-        borderWidth: 2,
+        borderColor: isArea ? 'rgba(96, 165, 250, 0.95)' : '#60a5fa',
+        backgroundColor: isArea ? 'rgba(59, 130, 246, 0.18)' : 'transparent',
+        fill: isArea,
+        borderWidth: isArea ? 2.2 : 2,
         pointRadius: 0,
-        tension: 0.1,
+        tension: isArea ? 0.22 : 0.1,
         yAxisID: 'y',
       })
     }
@@ -925,6 +995,19 @@ export default function PriceChart({
       })
     }
 
+    if (showVWAP && visibleIndicators?.vwap) {
+      datasets.push({
+        type: 'line',
+        label: 'VWAP',
+        data: seriesFromIndicator(visibleIndicators.vwap),
+        borderColor: 'rgba(45, 212, 191, 0.95)',
+        borderWidth: 1.3,
+        pointRadius: 0,
+        tension: 0.1,
+        yAxisID: 'y',
+      })
+    }
+
     if (chartRef.current) chartRef.current.destroy()
 
     chartRef.current = new Chart(canvasRef.current, {
@@ -935,19 +1018,38 @@ export default function PriceChart({
         maintainAspectRatio: false,
         layout: { padding: { top: 8, right: 72, bottom: 2, left: 4 } },
         interaction: { mode: 'index', intersect: false },
+        onHover: (event, _elements, activeChart) => {
+          if (!onHoverIndexChange) return
+          const elements = activeChart.getElementsAtEventForMode(event, 'index', { intersect: false }, false)
+          onHoverIndexChange(elements[0]?.index ?? null)
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
             mode: 'index',
+            backgroundColor: 'rgba(2, 6, 23, 0.96)',
+            borderColor: 'rgba(148, 163, 184, 0.16)',
+            borderWidth: 1,
+            titleColor: '#f8fafc',
+            bodyColor: '#cbd5e1',
+            displayColors: true,
+            padding: 12,
             callbacks: {
+              title: items => {
+                const bar = visibleOhlcv[items[0]?.dataIndex]
+                return bar ? formatTooltipDate(bar.t, interval) : ''
+              },
               label: context => {
                 const bar = visibleOhlcv[context.dataIndex]
                 if (isCandlestick && context.dataset.label === 'OHLC' && bar) {
+                  const changePct = bar.o ? ((bar.c - bar.o) / bar.o) * 100 : 0
                   return [
                     `Open ${formatOverlayPrice(bar.o)}`,
                     `High ${formatOverlayPrice(bar.h)}`,
                     `Low ${formatOverlayPrice(bar.l)}`,
                     `Close ${formatOverlayPrice(bar.c)}`,
+                    `Volume ${(bar.v ?? 0).toLocaleString('en-US')}`,
+                    `Change ${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`,
                   ]
                 }
                 return `${context.dataset.label}: ${formatOverlayPrice(context.parsed.y)}`
@@ -955,7 +1057,7 @@ export default function PriceChart({
             },
           },
           volumeOverlay: {
-            show: isCandlestick,
+            show: false,
             bars: visibleOhlcv,
           },
           gapOverlay: {
@@ -975,6 +1077,9 @@ export default function PriceChart({
           priceLevels: {
             levels: levelCandidates,
           },
+          zoneOverlay: {
+            zones: showLevels ? zoneCandidates : [],
+          },
           currentPriceLine: {
             price: lastBar?.c,
             open: lastBar?.o,
@@ -982,6 +1087,9 @@ export default function PriceChart({
           },
           dateRangeLabel: {
             text: dateRangeText,
+          },
+          priceCrosshair: {
+            index: hoveredIndex,
           },
           measurementOverlay: {
             enabled: measurementEnabled,
@@ -1000,9 +1108,11 @@ export default function PriceChart({
         candlestickPlugin,
         patternOverlayPlugin,
         fibonacciPlugin,
+        zoneOverlayPlugin,
         priceLevelsPlugin,
         currentPricePlugin,
         dateRangePlugin,
+        priceCrosshairPlugin,
         measurementPlugin,
       ],
     })
@@ -1063,7 +1173,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showBB, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, technicalAnalysis, interval, visibleBars, measurementEnabled])
+  }, [ohlcv, indicators, showSMA, showEMA, showBB, showVWAP, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }
