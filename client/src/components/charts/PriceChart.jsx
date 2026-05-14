@@ -7,6 +7,7 @@ const TV_GREEN = '#089981'
 const TV_RED = '#f23645'
 const TV_GRID = 'rgba(15, 23, 42, 0.08)'
 const TV_TEXT = '#0f172a'
+const CHART_FONT = "Heebo, Inter, system-ui, sans-serif"
 
 const PATTERN_COLORS = {
   bullish: { stroke: '#22c55e', fill: 'rgba(34, 197, 94, 0.08)' },
@@ -248,7 +249,7 @@ function tradingViewYAxis(range) {
 
 function drawLabel(ctx, text, x, y, color) {
   ctx.save()
-  ctx.font = '800 12px Arial'
+  ctx.font = `800 12px ${CHART_FONT}`
   ctx.textBaseline = 'middle'
   const paddingX = 8
   const width = ctx.measureText(text).width + paddingX * 2
@@ -272,7 +273,7 @@ function drawLabel(ctx, text, x, y, color) {
 }
 
 function drawPriceTag(ctx, text, x, y, color, chartArea) {
-  ctx.font = '700 11px Arial'
+  ctx.font = `700 11px ${CHART_FONT}`
   const height = 20
   const width = ctx.measureText(text).width + 10
   const tagY = clamp(y - height / 2, chartArea.top + 2, chartArea.bottom - height - 2)
@@ -285,7 +286,7 @@ function drawPriceTag(ctx, text, x, y, color, chartArea) {
 
 function drawMeasurementBubble(ctx, text, x, y, chartArea) {
   ctx.save()
-  ctx.font = '800 12px Arial'
+  ctx.font = `800 12px ${CHART_FONT}`
   ctx.textBaseline = 'middle'
   const paddingX = 9
   const width = ctx.measureText(text).width + paddingX * 2
@@ -671,7 +672,7 @@ const dateRangePlugin = {
 
     const { ctx, chartArea } = chart
     ctx.save()
-    ctx.font = '800 12px Arial'
+    ctx.font = `800 12px ${CHART_FONT}`
     const paddingX = 8
     const width = ctx.measureText(options.text).width + paddingX * 2
     const height = 22
@@ -755,6 +756,7 @@ export default function PriceChart({
   showLevels = true,
   ticker,
   decision,
+  technicalAnalysis,
   interval,
   visibleBars,
   measurementEnabled = false,
@@ -789,9 +791,12 @@ export default function PriceChart({
     const priceRange = buildPriceRange(visibleOhlcv, visibleIndicators, showSMA, showEMA, showBB, visiblePatterns, visibleGaps, fibonacci)
     const levelCandidates = showLevels
       ? [
-          { price: decision?.support, color: '#f23645' },
-          { price: decision?.resistance, color: '#f23645' },
-        ].filter(level => level.price != null)
+          { price: decision?.support, color: '#22c55e' },
+          { price: decision?.resistance, color: '#ef4444' },
+          ...((technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(34, 197, 94, 0.9)' }))),
+          ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(239, 68, 68, 0.9)' }))),
+          ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
+        ].filter((level, index, levels) => level.price != null && levels.findIndex(item => item.price === level.price && item.color === level.color) === index)
       : []
 
     if (isCandlestick) {
@@ -832,9 +837,45 @@ export default function PriceChart({
         tension: 0.1,
         yAxisID: 'y',
       })
+      if (visibleIndicators?.sma50) {
+        datasets.push({
+          type: 'line',
+          label: 'SMA 50',
+          data: seriesFromIndicator(visibleIndicators.sma50),
+          borderColor: 'rgba(234, 179, 8, 0.95)',
+          borderWidth: 1.2,
+          pointRadius: 0,
+          tension: 0.1,
+          yAxisID: 'y',
+        })
+      }
+      if (visibleIndicators?.sma200) {
+        datasets.push({
+          type: 'line',
+          label: 'SMA 200',
+          data: seriesFromIndicator(visibleIndicators.sma200),
+          borderColor: 'rgba(99, 102, 241, 0.92)',
+          borderWidth: 1.2,
+          pointRadius: 0,
+          tension: 0.1,
+          yAxisID: 'y',
+        })
+      }
     }
 
     if (showEMA && visibleIndicators?.ema50) {
+      if (visibleIndicators?.ema20) {
+        datasets.push({
+          type: 'line',
+          label: 'EMA 20',
+          data: seriesFromIndicator(visibleIndicators.ema20),
+          borderColor: 'rgba(56, 189, 248, 0.92)',
+          borderWidth: 1.2,
+          pointRadius: 0,
+          tension: 0.1,
+          yAxisID: 'y',
+        })
+      }
       datasets.push({
         type: 'line',
         label: 'EMA 50',
@@ -845,6 +886,18 @@ export default function PriceChart({
         tension: 0.1,
         yAxisID: 'y',
       })
+      if (visibleIndicators?.ema200) {
+        datasets.push({
+          type: 'line',
+          label: 'EMA 200',
+          data: seriesFromIndicator(visibleIndicators.ema200),
+          borderColor: 'rgba(167, 139, 250, 0.92)',
+          borderWidth: 1.2,
+          pointRadius: 0,
+          tension: 0.1,
+          yAxisID: 'y',
+        })
+      }
     }
 
     if (showBB && visibleIndicators?.bb20) {
@@ -1010,7 +1063,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showBB, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, interval, visibleBars, measurementEnabled])
+  }, [ohlcv, indicators, showSMA, showEMA, showBB, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, technicalAnalysis, interval, visibleBars, measurementEnabled])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

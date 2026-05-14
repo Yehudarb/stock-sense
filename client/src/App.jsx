@@ -23,6 +23,7 @@ import MarketTradeAlert from './components/analysis/MarketTradeAlert'
 import SignalPanel from './components/analysis/SignalPanel'
 import AdvancedTrendsPanel from './components/analysis/AdvancedTrendsPanel'
 import AnalysisResultCard from './components/analysis/AnalysisResultCard'
+import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import Badge from './components/ui/Badge'
@@ -36,6 +37,7 @@ import Spinner from './components/ui/Spinner'
 import { fmtVolume, fmtPercent, fmtPrice } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
+import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
 
 const FG_COLOR = value => (
   value >= 75 ? 'text-green-400'
@@ -238,6 +240,7 @@ export default function App() {
   const { isConnected } = useSocket()
   const { data: multiTimeframe, isLoading: isMultiTimeframeLoading } = useMultiTimeframe(currentTicker)
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
+  const { data: technicalAnalysis, isLoading: isTechnicalAnalysisLoading, error: technicalAnalysisError } = useTechnicalAnalysis(currentTicker)
 
   const [showSMA, setShowSMA] = useState(false)
   const [showEMA, setShowEMA] = useState(false)
@@ -552,6 +555,12 @@ export default function App() {
                 />
               )}
 
+              <TechnicalAnalysisPanel
+                analysis={technicalAnalysis}
+                isLoading={isTechnicalAnalysisLoading}
+                error={technicalAnalysisError}
+              />
+
               {error && snapshot && (
                 <ErrorState
                   title="Analysis loaded with warnings"
@@ -699,6 +708,7 @@ export default function App() {
                       showLevels={chartShowLevels}
                       ticker={currentTicker}
                       decision={signal?.decision}
+                      technicalAnalysis={technicalAnalysis}
                       interval={interval}
                       visibleBars={activeVisibleBars}
                       measurementEnabled={measureMode}
