@@ -5,6 +5,22 @@ import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getWindowBound
 
 const macdCrosshairPlugin = createCrosshairPlugin('macdCrosshair')
 
+function buildMacdCrossMarkers(line, signal, direction) {
+  return line.map((value, index) => {
+    if (index === 0 || value == null || signal[index] == null) return null
+    const prevLine = line[index - 1]
+    const prevSignal = signal[index - 1]
+    if (prevLine == null || prevSignal == null) return null
+
+    const bullishCross = prevLine <= prevSignal && value > signal[index]
+    const bearishCross = prevLine >= prevSignal && value < signal[index]
+
+    if (direction === 'bullish' && bullishCross) return value
+    if (direction === 'bearish' && bearishCross) return value
+    return null
+  })
+}
+
 export default function MacdChart({
   ohlcv,
   indicators,
@@ -30,6 +46,8 @@ export default function MacdChart({
 
     if (chartRef.current) chartRef.current.destroy()
     const labels = labelsFromBars(visibleOhlcv, interval)
+    const bullishCrosses = buildMacdCrossMarkers(macd.line, macd.signal, 'bullish')
+    const bearishCrosses = buildMacdCrossMarkers(macd.line, macd.signal, 'bearish')
 
     chartRef.current = new Chart(canvasRef.current, {
       type: 'bar',
@@ -63,6 +81,31 @@ export default function MacdChart({
             borderWidth: 1.4,
             pointRadius: 0,
             tension: 0.18,
+          },
+          {
+            type: 'line',
+            label: 'Bullish cross',
+            data: seriesFromIndicator(bullishCrosses),
+            borderColor: 'transparent',
+            pointBackgroundColor: '#22c55e',
+            pointBorderColor: '#052e16',
+            pointBorderWidth: 1.5,
+            pointRadius: bullishCrosses.map(value => (value == null ? 0 : 4)),
+            pointStyle: 'triangle',
+            showLine: false,
+          },
+          {
+            type: 'line',
+            label: 'Bearish cross',
+            data: seriesFromIndicator(bearishCrosses),
+            borderColor: 'transparent',
+            pointBackgroundColor: '#ef4444',
+            pointBorderColor: '#450a0a',
+            pointBorderWidth: 1.5,
+            pointRadius: bearishCrosses.map(value => (value == null ? 0 : 4)),
+            pointStyle: 'triangle',
+            pointRotation: 180,
+            showLine: false,
           },
         ],
       },

@@ -86,7 +86,7 @@ function pushRangeValues(values, source) {
   values.push(...(source ?? []).filter(value => value != null))
 }
 
-function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci) {
+function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci, decision) {
   const values = []
 
   ohlcv?.forEach(bar => {
@@ -125,6 +125,18 @@ function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci)
   })
 
   fibonacci?.levels?.forEach(level => values.push(level.price))
+
+  ;[
+    decision?.entryLow,
+    decision?.entryHigh,
+    decision?.invalidation,
+    decision?.stopLoss,
+    decision?.takeProfit,
+    decision?.support,
+    decision?.resistance,
+  ].forEach(value => {
+    if (value != null) values.push(value)
+  })
 
   const min = Math.min(...values)
   const max = Math.max(...values)
@@ -660,9 +672,12 @@ const priceLevelsPlugin = {
       ctx.moveTo(chartArea.left, y)
       ctx.lineTo(chartArea.right, y)
       ctx.strokeStyle = level.color
-      ctx.lineWidth = 1.2
+      ctx.lineWidth = level.width ?? 1.2
+      ctx.setLineDash(level.dash ?? [])
       ctx.stroke()
-      drawPriceTag(ctx, formatOverlayPrice(level.price), chartArea.right + 4, y, level.color, chartArea)
+      ctx.setLineDash([])
+      const label = level.label ? `${level.label} ${formatOverlayPrice(level.price)}` : formatOverlayPrice(level.price)
+      drawPriceTag(ctx, label, chartArea.right + 4, y, level.color, chartArea)
     })
     ctx.restore()
   },
@@ -835,6 +850,7 @@ export default function PriceChart({
   showLevels = true,
   ticker,
   decision,
+  language = 'en',
   technicalAnalysis,
   interval,
   visibleBars,
@@ -879,10 +895,19 @@ export default function PriceChart({
       showIchimoku,
       showKeltner,
       showDonchian,
-    }, visiblePatterns, visibleGaps, fibonacci)
+    }, visiblePatterns, visibleGaps, fibonacci, decision)
     const breakoutLevel = technicalAnalysis?.keyLevels?.breakoutLevels?.[0] ?? null
     const invalidationLevel = technicalAnalysis?.riskAssessment?.stopLoss ?? technicalAnalysis?.keyLevels?.stopLossDangerZones?.[0] ?? null
     const zoneCandidates = [
+      decision?.entryLow != null && decision?.entryHigh != null
+        ? {
+            low: decision.entryLow,
+            high: decision.entryHigh,
+            fill: 'rgba(16, 185, 129, 0.12)',
+            stroke: 'rgba(16, 185, 129, 0.72)',
+            label: language === 'he' ? 'אזור כניסה' : 'Entry zone',
+          }
+        : null,
       breakoutLevel != null
         ? {
             low: breakoutLevel * 0.997,
@@ -907,6 +932,8 @@ export default function PriceChart({
           ...(showLevels ? [
             { price: decision?.support, color: TRADER_COLORS.support },
             { price: decision?.resistance, color: TRADER_COLORS.resistance },
+            { price: decision?.invalidation ?? decision?.stopLoss, color: TRADER_COLORS.stopLoss, label: 'SL', dash: [5, 5], width: 1.8 },
+            { price: decision?.takeProfit, color: TRADER_COLORS.takeProfit, label: 'TP', dash: [5, 5], width: 1.8 },
             ...((technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(6, 182, 212, 0.9)' }))),
             ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(249, 115, 22, 0.9)' }))),
             ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
@@ -1352,7 +1379,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

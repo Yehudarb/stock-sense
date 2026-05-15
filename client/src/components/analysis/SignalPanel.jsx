@@ -301,8 +301,8 @@ function DetailTab({ signal, gates, patterns, risk, copy, isEnglish, language })
             <span>{copy.confidence}</span>
             <span>{signal.confidence}%</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-slate-700">
-            <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${signal.confidence}%`, backgroundColor: signal.score >= 0 ? '#22c55e' : '#ef4444' }} />
+          <div className="h-1 w-full rounded-full bg-slate-700 sm:h-2 md:h-3">
+            <div className="h-1 rounded-full transition-all duration-500 sm:h-2 md:h-3" style={{ width: `${signal.confidence}%`, backgroundColor: signal.score >= 0 ? '#22c55e' : '#ef4444' }} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">

@@ -12,6 +12,8 @@ export default function StochChart({ ohlcv, indicators, interval, visibleBars })
     const start = Math.max(0, ohlcv.length - (visibleBars ?? ohlcv.length))
     const visibleOhlcv = ohlcv.slice(start)
     const { k, d } = indicators.stoch
+    const visibleK = k.slice(start)
+    const visibleD = d.slice(start)
 
     if (chartRef.current) chartRef.current.destroy()
     const labels = labelsFromBars(visibleOhlcv, interval)
@@ -23,13 +25,33 @@ export default function StochChart({ ohlcv, indicators, interval, visibleBars })
         datasets: [
           {
             label: '%K',
-            data: seriesFromIndicator(k.slice(start)),
+            data: seriesFromIndicator(visibleK),
             borderColor: '#378add', borderWidth: 1.5, pointRadius: 0, tension: 0.1,
           },
           {
             label: '%D',
-            data: seriesFromIndicator(d.slice(start)),
+            data: seriesFromIndicator(visibleD),
             borderColor: '#E24B4A', borderWidth: 1, pointRadius: 0, tension: 0.1,
+          },
+          {
+            type: 'line',
+            label: 'Overbought (80)',
+            data: new Array(visibleK.length).fill(80),
+            borderColor: 'rgba(239, 68, 68, 0.5)',
+            borderDash: [3, 3],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            type: 'line',
+            label: 'Oversold (20)',
+            data: new Array(visibleK.length).fill(20),
+            borderColor: 'rgba(34, 197, 94, 0.5)',
+            borderDash: [3, 3],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
           },
         ],
       },

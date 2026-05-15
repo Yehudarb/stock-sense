@@ -66,6 +66,7 @@ export default function Header({ isConnected }) {
   }
 
   const changeColor = snapshot?.change >= 0 ? 'text-green-400' : 'text-red-400'
+  const isUpdateStale = Boolean(lastUpdateTime && Date.now() - lastUpdateTime > 30000)
   const watchlistItems = useMemo(() => (
     watchlist?.length ? watchlist : [{ ticker: currentTicker }]
   ), [currentTicker, watchlist])
@@ -209,9 +210,11 @@ export default function Header({ isConnected }) {
               </button>
             ))}
 
-            <span className="hidden text-xs text-slate-500 xl:inline">
-              {copy.lastUpdate}: {updateLabel}
-            </span>
+            <div className="flex items-center gap-1 text-xs text-slate-500">
+              <span className="hidden sm:inline">{copy.lastUpdate}:</span>
+              <span className={isUpdateStale ? 'text-orange-400' : 'text-slate-400'}>{updateLabel}</span>
+              {isUpdateStale && <span className="text-orange-400">!</span>}
+            </div>
           </div>
 
           {intervalRefreshing && (

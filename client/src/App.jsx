@@ -30,6 +30,7 @@ import { fmtVolume, fmtPercent } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
 import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
+import { TRADER_TEXT } from './lib/traderColors'
 
 const FG_COLOR = value => (
   value >= 75 ? 'text-green-400'
@@ -201,9 +202,9 @@ export default function App() {
   }[language]?.[regime] ?? (isHebrew ? 'לא ידוע' : 'Unknown')
 
   const regimeColor = {
-    uptrend: 'text-green-400',
-    downtrend: 'text-red-400',
-    sideways: 'text-yellow-400',
+    uptrend: TRADER_TEXT.bullish,
+    downtrend: TRADER_TEXT.bearish,
+    sideways: TRADER_TEXT.neutral,
   }[regime] ?? 'text-slate-400'
 
   const copy = {
@@ -319,26 +320,43 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-                <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? 'text-green-400' : 'text-red-400'} />
-                <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
-                <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
-                <KpiCard label="Volume" value={fmtVolume(snapshot.volume)} />
-                <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? 'text-green-400' : rsiLast > 70 ? 'text-red-400' : 'text-white'} />
-                <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? 'text-green-400' : stochLast > 80 ? 'text-red-400' : 'text-white'} />
-                <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
-                {fearGreed?.value != null ? (
-                  <KpiCard label="Fear & Greed" value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
-                ) : (
-                  <KpiCard
-                    label={copy.vsSma20}
-                    value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
-                    color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? 'text-green-400' : 'text-red-400') : ''}
-                  />
+              <div className="relative">
+                <div className={`space-y-4 transition-opacity duration-300 ${intervalRefreshing ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
+                  <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4">
+                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                      {isHebrew ? 'החלטה מיידית' : 'Immediate Action'}
+                    </div>
+                    <TradeActionCard decision={signal?.decision} language={language} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
+                    <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
+                    <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
+                    <KpiCard label="Volume" value={fmtVolume(snapshot.volume)} />
+                    <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                    <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                    <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
+                    {fearGreed?.value != null ? (
+                      <KpiCard label="Fear & Greed" value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
+                    ) : (
+                      <KpiCard
+                        label={copy.vsSma20}
+                        value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
+                        color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish) : ''}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {intervalRefreshing && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-surface/50 backdrop-blur-sm">
+                    <div className="rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm text-slate-300">
+                      {isHebrew ? 'מחשב מחדש...' : 'Recalculating...'}
+                    </div>
+                  </div>
                 )}
               </div>
-
-              <TradeActionCard decision={signal?.decision} language={language} />
 
               {analysisResult && (
                 <AnalysisResultCard

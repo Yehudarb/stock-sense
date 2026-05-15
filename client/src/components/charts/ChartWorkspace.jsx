@@ -42,6 +42,31 @@ const INTRADAY_PRESETS = [
   { id: '4H', label: '4H', interval: '4h', visibleBars: 180 },
 ]
 
+const INTERVAL_LABELS = {
+  he: {
+    '1m': '1 דק׳',
+    '5m': '5 דק׳',
+    '15m': '15 דק׳',
+    '1h': 'שעה',
+    '4h': '4 שעות',
+    '1d': 'יום',
+    '1mo': 'חודש',
+    '1y': 'שנה',
+    '5y': '5 שנים',
+  },
+  en: {
+    '1m': '1m',
+    '5m': '5m',
+    '15m': '15m',
+    '1h': '1H',
+    '4h': '4H',
+    '1d': '1D',
+    '1mo': '1M',
+    '1y': '1Y',
+    '5y': '5Y',
+  },
+}
+
 function SafeChart({ isLoading, resetKey, children }) {
   if (isLoading) {
     return (
@@ -226,7 +251,7 @@ export default function ChartWorkspace({
   technicalAnalysis,
   isLoading,
 }) {
-  const { setInterval } = useStore()
+  const { setInterval, language } = useStore()
   const n = ohlcv.length
   const lastBar = ohlcv[n - 1]
   const lastClose = lastBar?.c ?? snapshot?.price ?? null
@@ -722,6 +747,10 @@ export default function ChartWorkspace({
             </div>
           )}
         >
+          <div className="mb-2 flex items-center gap-2 text-sm text-slate-400 md:hidden">
+            <span>{language === 'he' ? 'צופה ב-' : 'Viewing:'}</span>
+            <strong className="text-white">{INTERVAL_LABELS[language]?.[interval] ?? interval}</strong>
+          </div>
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
             <PriceChart
               ohlcv={ohlcv}
@@ -749,6 +778,7 @@ export default function ChartWorkspace({
               showLevels={showLevels}
               ticker={currentTicker}
               decision={signal?.decision}
+              language={language}
               technicalAnalysis={technicalAnalysis}
               interval={interval}
               visibleBars={activeVisibleBars}

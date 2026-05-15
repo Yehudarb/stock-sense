@@ -12,20 +12,43 @@ export default function WilliamsRChart({ ohlcv, indicators, interval, visibleBar
     if (chartRef.current) chartRef.current.destroy()
     const start = Math.max(0, ohlcv.length - (visibleBars ?? ohlcv.length))
     const visibleOhlcv = ohlcv.slice(start)
+    const visibleWillR = indicators.willR.slice(start)
     const labels = labelsFromBars(visibleOhlcv, interval)
 
     chartRef.current = new Chart(canvasRef.current, {
       type: 'line',
       data: {
         labels,
-        datasets: [{
-          label: 'Williams %R',
-          data: seriesFromIndicator(indicators.willR.slice(start)),
-          borderColor: '#f59e0b',
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.1,
-        }],
+        datasets: [
+          {
+            label: 'Williams %R',
+            data: seriesFromIndicator(visibleWillR),
+            borderColor: '#f59e0b',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.1,
+          },
+          {
+            type: 'line',
+            label: 'Overbought (-20)',
+            data: new Array(visibleWillR.length).fill(-20),
+            borderColor: 'rgba(239, 68, 68, 0.5)',
+            borderDash: [3, 3],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            type: 'line',
+            label: 'Oversold (-80)',
+            data: new Array(visibleWillR.length).fill(-80),
+            borderColor: 'rgba(34, 197, 94, 0.5)',
+            borderDash: [3, 3],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          },
+        ],
       },
       options: {
         responsive: true,
