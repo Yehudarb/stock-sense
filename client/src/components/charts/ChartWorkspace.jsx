@@ -4,6 +4,7 @@ import { fmtPercent, fmtPrice, fmtVolume } from '../../lib/formatters'
 import Badge from '../ui/Badge'
 import ChartContainer from './ChartContainer'
 import ChartErrorBoundary from './ChartErrorBoundary'
+import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
 import PriceChart from './PriceChart'
 import RsiChart from './RsiChart'
@@ -101,7 +102,8 @@ function PanelToggle({ label, value, onToggle }) {
 }
 
 function PatternSummaryCard({ patterns = [] }) {
-  const topPatterns = patterns.slice(0, 3)
+  const topPatterns = [...patterns].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)).slice(0, 3)
+  const strongest = topPatterns[0]
 
   return (
     <div className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
@@ -118,6 +120,25 @@ function PatternSummaryCard({ patterns = [] }) {
         </div>
       ) : (
         <div className="mt-4 space-y-3">
+          {strongest && (
+            <div className="rounded-2xl border border-cyan-400/14 bg-cyan-400/8 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-cyan-200/70">Strongest pattern</div>
+                  <div className="mt-1 text-base font-semibold text-white">{strongest.name}</div>
+                </div>
+                <Badge tone={strongest.direction === 'Bullish' ? 'positive' : strongest.direction === 'Bearish' ? 'danger' : 'balanced'}>
+                  {strongest.confidence}%
+                </Badge>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
+                <span>Breakout: {strongest.breakoutLevel ?? '-'}</span>
+                <span>Invalidation: {strongest.invalidationLevel ?? '-'}</span>
+                <span>Volume: {strongest.volumeConfirmed ? 'Confirmed' : 'Mixed'}</span>
+                <span>{strongest.status ?? 'Developing'}</span>
+              </div>
+            </div>
+          )}
           {topPatterns.map(pattern => (
             <div key={`${pattern.name}-${pattern.priceZone}`} className="rounded-2xl border border-white/6 bg-white/4 p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -128,6 +149,7 @@ function PatternSummaryCard({ patterns = [] }) {
               </div>
               <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-300">
                 <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">Confidence {pattern.confidence}%</span>
+                <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{pattern.category ?? 'Pattern'}</span>
                 <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{pattern.priceZone}</span>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-400">{pattern.explanation}</p>
@@ -135,6 +157,50 @@ function PatternSummaryCard({ patterns = [] }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function IndicatorSummaryCard({ analysis }) {
+  const interpretations = analysis?.indicatorInterpretations?.slice(0, 8) ?? []
+  const scores = [
+    ['Technical', analysis?.technicalScore],
+    ['Trend', analysis?.trendScore],
+    ['Momentum', analysis?.momentumScore],
+    ['Volatility', analysis?.volatilityScore],
+    ['Volume', analysis?.volumeScore],
+    ['Patterns', analysis?.patternScore],
+    ['Levels', analysis?.levelsScore],
+  ].filter(([, value]) => value != null)
+
+  if (!analysis) return null
+
+  return (
+    <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Technical score</div>
+          <div className="mt-1 text-sm text-slate-300">Indicator and pattern readout</div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {scores.map(([label, value]) => (
+            <span key={label} className="rounded-full border border-white/8 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-200">
+              {label} {value}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {interpretations.map(item => (
+          <div key={item.label} className="rounded-2xl border border-white/6 bg-white/4 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold text-white">{item.label}</div>
+              <Badge tone={item.tone ?? 'balanced'} className="px-2 py-0.5 text-xs">{item.value}</Badge>
+            </div>
+            <div className="mt-2 text-xs leading-5 text-slate-400">{item.interpretation}</div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -177,14 +243,34 @@ export default function ChartWorkspace({
   const [chartType, setChartType] = useState('candlestick')
   const [showSMA, setShowSMA] = useState(true)
   const [showEMA, setShowEMA] = useState(true)
+  const [showWMA, setShowWMA] = useState(false)
   const [showBB, setShowBB] = useState(false)
   const [showVWAP, setShowVWAP] = useState(false)
+  const [showSupertrend, setShowSupertrend] = useState(false)
+  const [showIchimoku, setShowIchimoku] = useState(false)
+  const [showATR, setShowATR] = useState(false)
+  const [showStochRsi, setShowStochRsi] = useState(false)
+  const [showADX, setShowADX] = useState(false)
+  const [showOBV, setShowOBV] = useState(false)
+  const [showCCI, setShowCCI] = useState(false)
+  const [showMomentum, setShowMomentum] = useState(false)
+  const [showWilliamsR, setShowWilliamsR] = useState(false)
+  const [showKeltner, setShowKeltner] = useState(false)
+  const [showDonchian, setShowDonchian] = useState(false)
+  const [showMFI, setShowMFI] = useState(false)
+  const [showCMF, setShowCMF] = useState(false)
+  const [showADL, setShowADL] = useState(false)
+  const [showVolumeMA, setShowVolumeMA] = useState(true)
+  const [showPivotPoints, setShowPivotPoints] = useState(false)
+  const [showPrevHighLow, setShowPrevHighLow] = useState(false)
+  const [showHighLow52, setShowHighLow52] = useState(false)
   const [showVolume, setShowVolume] = useState(true)
   const [showRSI, setShowRSI] = useState(true)
   const [showMACD, setShowMACD] = useState(true)
   const [showPatterns, setShowPatterns] = useState(true)
   const [showTriangles, setShowTriangles] = useState(true)
   const [showFibonacci, setShowFibonacci] = useState(false)
+  const [showFibExtension, setShowFibExtension] = useState(false)
   const [showGaps, setShowGaps] = useState(true)
   const [showLevels, setShowLevels] = useState(true)
   const [chartExpanded, setChartExpanded] = useState(false)
@@ -248,14 +334,34 @@ export default function ChartWorkspace({
     setChartType('candlestick')
     setShowSMA(true)
     setShowEMA(true)
+    setShowWMA(false)
     setShowBB(false)
     setShowVWAP(false)
+    setShowSupertrend(false)
+    setShowIchimoku(false)
+    setShowATR(false)
+    setShowStochRsi(false)
+    setShowADX(false)
+    setShowOBV(false)
+    setShowCCI(false)
+    setShowMomentum(false)
+    setShowWilliamsR(false)
+    setShowKeltner(false)
+    setShowDonchian(false)
+    setShowMFI(false)
+    setShowCMF(false)
+    setShowADL(false)
+    setShowVolumeMA(true)
+    setShowPivotPoints(false)
+    setShowPrevHighLow(false)
+    setShowHighLow52(false)
     setShowVolume(true)
     setShowRSI(true)
     setShowMACD(true)
     setShowPatterns(true)
     setShowTriangles(true)
     setShowFibonacci(false)
+    setShowFibExtension(false)
     setShowGaps(true)
     setShowLevels(true)
     setChartExpanded(false)
@@ -269,8 +375,12 @@ export default function ChartWorkspace({
     setShowPatterns(false)
     setShowTriangles(false)
     setShowFibonacci(false)
+    setShowFibExtension(false)
     setShowGaps(false)
     setShowLevels(false)
+    setShowPivotPoints(false)
+    setShowPrevHighLow(false)
+    setShowHighLow52(false)
     setMeasureMode(false)
   }
 
@@ -283,21 +393,178 @@ export default function ChartWorkspace({
     { label: 'Key level', value: keyLevel != null ? fmtPrice(keyLevel) : '-' },
   ]
 
+  const coreIndicators = [
+    ['SMA', showSMA, () => setShowSMA(value => !value)],
+    ['EMA', showEMA, () => setShowEMA(value => !value)],
+    ['RSI', showRSI, () => setShowRSI(value => !value)],
+    ['MACD', showMACD, () => setShowMACD(value => !value)],
+    ['Volume', showVolume, () => setShowVolume(value => !value)],
+    ['VWAP', showVWAP, () => setShowVWAP(value => !value)],
+    ['Bollinger Bands', showBB, () => setShowBB(value => !value)],
+    ['ATR', showATR, () => setShowATR(value => !value)],
+    ['Stoch RSI', showStochRsi, () => setShowStochRsi(value => !value)],
+    ['ADX', showADX, () => setShowADX(value => !value)],
+    ['OBV', showOBV, () => setShowOBV(value => !value)],
+    ['Supertrend', showSupertrend, () => setShowSupertrend(value => !value)],
+    ['Pivot Points', showPivotPoints, () => setShowPivotPoints(value => !value)],
+  ]
+
+  const advancedIndicatorGroups = [
+    {
+      label: 'Trend',
+      items: [
+        ['WMA', showWMA, () => setShowWMA(value => !value)],
+        ['Ichimoku Cloud', showIchimoku, () => setShowIchimoku(value => !value)],
+      ],
+    },
+    {
+      label: 'Momentum',
+      items: [
+        ['CCI', showCCI, () => setShowCCI(value => !value)],
+        ['Momentum', showMomentum, () => setShowMomentum(value => !value)],
+        ['Williams %R', showWilliamsR, () => setShowWilliamsR(value => !value)],
+      ],
+    },
+    {
+      label: 'Volatility',
+      items: [
+        ['Keltner Channels', showKeltner, () => setShowKeltner(value => !value)],
+        ['Donchian Channels', showDonchian, () => setShowDonchian(value => !value)],
+      ],
+    },
+    {
+      label: 'Volume',
+      items: [
+        ['Volume MA', showVolumeMA, () => setShowVolumeMA(value => !value)],
+        ['Money Flow Index', showMFI, () => setShowMFI(value => !value)],
+        ['Chaikin Money Flow', showCMF, () => setShowCMF(value => !value)],
+        ['A/D Line', showADL, () => setShowADL(value => !value)],
+      ],
+    },
+    {
+      label: 'Levels',
+      items: [
+        ['Fib Extension', showFibExtension, () => setShowFibExtension(value => !value)],
+        ['Previous High / Low', showPrevHighLow, () => setShowPrevHighLow(value => !value)],
+        ['52W High / Low', showHighLow52, () => setShowHighLow52(value => !value)],
+      ],
+    },
+  ]
+
   const activeLegend = [
     chartType === 'candlestick' ? { label: 'Candles', color: '#10b981', action: () => setChartType('line') } : null,
     chartType === 'line' ? { label: 'Line', color: '#38bdf8', action: () => setChartType('candlestick') } : null,
     chartType === 'area' ? { label: 'Area', color: '#60a5fa', action: () => setChartType('candlestick') } : null,
     showSMA ? { label: 'SMA 20/50/200', color: '#f59e0b', action: () => setShowSMA(false) } : null,
     showEMA ? { label: 'EMA 20/50/200', color: '#a78bfa', action: () => setShowEMA(false) } : null,
+    showWMA ? { label: 'WMA 20/50', color: '#fbbf24', action: () => setShowWMA(false) } : null,
     showBB ? { label: 'Bollinger Bands', color: '#84cc16', action: () => setShowBB(false) } : null,
     showVWAP ? { label: 'VWAP', color: '#2dd4bf', action: () => setShowVWAP(false) } : null,
+    showSupertrend ? { label: 'Supertrend', color: '#34d399', action: () => setShowSupertrend(false) } : null,
+    showIchimoku ? { label: 'Ichimoku', color: '#60a5fa', action: () => setShowIchimoku(false) } : null,
+    showKeltner ? { label: 'Keltner', color: '#fb7185', action: () => setShowKeltner(false) } : null,
+    showDonchian ? { label: 'Donchian', color: '#22d3ee', action: () => setShowDonchian(false) } : null,
     showLevels ? { label: 'Levels', color: '#f43f5e', action: () => setShowLevels(false) } : null,
+    showPivotPoints ? { label: 'Pivot Points', color: '#facc15', action: () => setShowPivotPoints(false) } : null,
+    showPrevHighLow ? { label: 'Prev H/L', color: '#fb923c', action: () => setShowPrevHighLow(false) } : null,
+    showHighLow52 ? { label: '52W H/L', color: '#f472b6', action: () => setShowHighLow52(false) } : null,
     showVolume ? { label: 'Volume', color: '#38bdf8', action: () => setShowVolume(false) } : null,
+    showVolumeMA ? { label: 'Volume MA', color: '#60a5fa', action: () => setShowVolumeMA(false) } : null,
     showRSI ? { label: 'RSI', color: '#60a5fa', action: () => setShowRSI(false) } : null,
+    showStochRsi ? { label: 'Stoch RSI', color: '#c084fc', action: () => setShowStochRsi(false) } : null,
+    showADX ? { label: 'ADX', color: '#f97316', action: () => setShowADX(false) } : null,
+    showOBV ? { label: 'OBV', color: '#10b981', action: () => setShowOBV(false) } : null,
+    showATR ? { label: 'ATR', color: '#f59e0b', action: () => setShowATR(false) } : null,
+    showCCI ? { label: 'CCI', color: '#38bdf8', action: () => setShowCCI(false) } : null,
+    showMomentum ? { label: 'Momentum', color: '#a3e635', action: () => setShowMomentum(false) } : null,
+    showWilliamsR ? { label: 'Williams %R', color: '#fb7185', action: () => setShowWilliamsR(false) } : null,
+    showMFI ? { label: 'MFI', color: '#2dd4bf', action: () => setShowMFI(false) } : null,
+    showCMF ? { label: 'CMF', color: '#22c55e', action: () => setShowCMF(false) } : null,
+    showADL ? { label: 'A/D Line', color: '#818cf8', action: () => setShowADL(false) } : null,
     showMACD ? { label: 'MACD', color: '#f472b6', action: () => setShowMACD(false) } : null,
   ].filter(Boolean)
 
-  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showBB}-${showVWAP}-${showPatterns}-${showTriangles}-${showLevels}-${showFibonacci}-${showGaps}`
+  const secondaryPanels = [
+    showStochRsi ? {
+      key: 'stoch-rsi',
+      title: 'Stochastic RSI',
+      subtitle: 'Fast momentum oscillator',
+      yMin: 0,
+      yMax: 100,
+      datasets: [
+        { label: 'Stoch RSI %K', values: indicators?.stochRsi?.k, color: '#c084fc' },
+        { label: 'Stoch RSI %D', values: indicators?.stochRsi?.d, color: '#f0abfc' },
+      ],
+    } : null,
+    showADX ? {
+      key: 'adx',
+      title: 'ADX / Directional Index',
+      subtitle: 'Trend strength with +DI and -DI',
+      yMin: 0,
+      yMax: 60,
+      datasets: [
+        { label: 'ADX', values: indicators?.adx?.adx, color: '#f97316' },
+        { label: '+DI', values: indicators?.adx?.pdi, color: '#22c55e' },
+        { label: '-DI', values: indicators?.adx?.mdi, color: '#f43f5e' },
+      ],
+    } : null,
+    showOBV ? {
+      key: 'obv',
+      title: 'OBV',
+      subtitle: 'On Balance Volume trend',
+      datasets: [{ label: 'OBV', values: indicators?.obv, color: '#10b981' }],
+    } : null,
+    showATR ? {
+      key: 'atr',
+      title: 'ATR',
+      subtitle: 'Volatility and risk range',
+      datasets: [{ label: 'ATR 14', values: indicators?.atr14, color: '#f59e0b' }],
+    } : null,
+    showCCI ? {
+      key: 'cci',
+      title: 'CCI',
+      subtitle: 'Commodity Channel Index',
+      datasets: [{ label: 'CCI 20', values: indicators?.cci20, color: '#38bdf8' }],
+    } : null,
+    showMomentum ? {
+      key: 'momentum',
+      title: 'Momentum',
+      subtitle: '10-bar price momentum',
+      datasets: [{ label: 'Momentum 10', values: indicators?.momentum10, color: '#a3e635' }],
+    } : null,
+    showWilliamsR ? {
+      key: 'williams-r',
+      title: 'Williams %R',
+      subtitle: 'Overbought / oversold pressure',
+      yMin: -100,
+      yMax: 0,
+      datasets: [{ label: 'Williams %R', values: indicators?.willR, color: '#fb7185' }],
+    } : null,
+    showMFI ? {
+      key: 'mfi',
+      title: 'Money Flow Index',
+      subtitle: 'Volume-weighted momentum',
+      yMin: 0,
+      yMax: 100,
+      datasets: [{ label: 'MFI 14', values: indicators?.mfi14, color: '#2dd4bf' }],
+    } : null,
+    showCMF ? {
+      key: 'cmf',
+      title: 'Chaikin Money Flow',
+      subtitle: 'Accumulation / distribution pressure',
+      yMin: -1,
+      yMax: 1,
+      datasets: [{ label: 'CMF 20', values: indicators?.cmf20, color: '#22c55e' }],
+    } : null,
+    showADL ? {
+      key: 'adl',
+      title: 'A/D Line',
+      subtitle: 'Accumulation / Distribution Line',
+      datasets: [{ label: 'A/D Line', values: indicators?.adl, color: '#818cf8' }],
+    } : null,
+  ].filter(Boolean)
+
+  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolumeMA}-${showPatterns}-${showTriangles}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}`
   const patternSummary = technicalAnalysis?.patterns ?? []
 
   return (
@@ -337,6 +604,8 @@ export default function ChartWorkspace({
         <PatternSummaryCard patterns={patternSummary} />
       </div>
 
+      <IndicatorSummaryCard analysis={technicalAnalysis} />
+
       <div className="grid gap-4">
         <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
           <Group label="Chart type">
@@ -352,19 +621,35 @@ export default function ChartWorkspace({
           </Group>
 
           <Group label="Indicators">
-            <PanelToggle label="SMA" value={showSMA} onToggle={() => setShowSMA(value => !value)} />
-            <PanelToggle label="EMA" value={showEMA} onToggle={() => setShowEMA(value => !value)} />
-            <PanelToggle label="RSI" value={showRSI} onToggle={() => setShowRSI(value => !value)} />
-            <PanelToggle label="MACD" value={showMACD} onToggle={() => setShowMACD(value => !value)} />
-            <PanelToggle label="Bands" value={showBB} onToggle={() => setShowBB(value => !value)} />
-            <PanelToggle label="Volume" value={showVolume} onToggle={() => setShowVolume(value => !value)} />
-            <PanelToggle label="VWAP" value={showVWAP} onToggle={() => setShowVWAP(value => !value)} />
+            {coreIndicators.map(([label, value, onToggle]) => (
+              <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
+            ))}
+            <details className="relative">
+              <summary className={`${quietControlClass(false)} list-none cursor-pointer`}>
+                More indicators
+              </summary>
+              <div className="absolute left-0 z-30 mt-2 w-[min(88vw,520px)] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-[0_24px_80px_rgba(2,6,23,0.55)]">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {advancedIndicatorGroups.map(group => (
+                    <div key={group.label} className="rounded-xl border border-white/6 bg-white/4 p-3">
+                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{group.label}</div>
+                      <div className="flex flex-wrap gap-2">
+                        {group.items.map(([label, value, onToggle]) => (
+                          <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </details>
           </Group>
 
           <Group label="Analysis tools">
             <PanelToggle label="Trendline" value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
             <PanelToggle label="Horizontal line" value={showLevels} onToggle={() => setShowLevels(value => !value)} />
             <PanelToggle label="Fibonacci" value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
+            <PanelToggle label="Fib extension" value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
             <PanelToggle label="Zone" value={showGaps} onToggle={() => setShowGaps(value => !value)} />
             <PanelToggle label="Pattern markers" value={showPatterns} onToggle={() => setShowPatterns(value => !value)} />
             <PanelToggle label="% ruler" value={measureMode} onToggle={() => setMeasureMode(value => !value)} />
@@ -443,12 +728,21 @@ export default function ChartWorkspace({
               indicators={indicators}
               showSMA={showSMA}
               showEMA={showEMA}
+              showWMA={showWMA}
               showBB={showBB}
               showVWAP={showVWAP}
+              showSupertrend={showSupertrend}
+              showIchimoku={showIchimoku}
+              showKeltner={showKeltner}
+              showDonchian={showDonchian}
+              showPivotPoints={showPivotPoints}
+              showPrevHighLow={showPrevHighLow}
+              showHighLow52={showHighLow52}
               chartType={chartType}
               patterns={signal?.patterns}
               gaps={signal?.pro?.gaps}
               showFibonacci={showFibonacci}
+              showFibExtension={showFibExtension}
               showGaps={showGaps}
               showPatterns={showPatterns}
               showTriangles={showTriangles}
@@ -476,6 +770,7 @@ export default function ChartWorkspace({
               <VolumeChart
                 ohlcv={ohlcv}
                 indicators={indicators}
+                showVolumeMA={showVolumeMA}
                 interval={interval}
                 visibleBars={activeVisibleBars}
                 viewOffset={viewOffset}
@@ -527,6 +822,33 @@ export default function ChartWorkspace({
                 </SafeChart>
               </ChartContainer>
             )}
+          </div>
+        )}
+
+        {secondaryPanels.length > 0 && (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {secondaryPanels.map(panel => (
+              <ChartContainer
+                key={panel.key}
+                title={panel.title}
+                subtitle={panel.subtitle}
+                height="h-[180px]"
+              >
+                <SafeChart isLoading={isLoading} resetKey={`${panel.key}-${chartResetKey}`}>
+                  <IndicatorLineChart
+                    ohlcv={ohlcv}
+                    interval={interval}
+                    visibleBars={activeVisibleBars}
+                    viewOffset={viewOffset}
+                    hoveredIndex={hoveredIndex}
+                    onHoverIndexChange={setHoveredIndex}
+                    datasets={panel.datasets}
+                    yMin={panel.yMin}
+                    yMax={panel.yMax}
+                  />
+                </SafeChart>
+              </ChartContainer>
+            ))}
           </div>
         )}
 

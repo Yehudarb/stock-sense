@@ -81,7 +81,11 @@ function candleMetrics(xScale, count, chartArea) {
   }
 }
 
-function buildPriceRange(ohlcv, indicators, showSMA, showEMA, showBB, patterns, gaps, fibonacci) {
+function pushRangeValues(values, source) {
+  values.push(...(source ?? []).filter(value => value != null))
+}
+
+function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci) {
   const values = []
 
   ohlcv?.forEach(bar => {
@@ -89,11 +93,25 @@ function buildPriceRange(ohlcv, indicators, showSMA, showEMA, showBB, patterns, 
     if (bar?.l != null) values.push(bar.l)
   })
 
-  if (showSMA) values.push(...(indicators?.sma20 ?? []).filter(value => value != null))
-  if (showEMA) values.push(...(indicators?.ema50 ?? []).filter(value => value != null))
-  if (showBB) {
-    values.push(...(indicators?.bb20?.upper ?? []).filter(value => value != null))
-    values.push(...(indicators?.bb20?.lower ?? []).filter(value => value != null))
+  if (overlays.showSMA) pushRangeValues(values, indicators?.sma20)
+  if (overlays.showEMA) pushRangeValues(values, indicators?.ema50)
+  if (overlays.showWMA) pushRangeValues(values, indicators?.wma20)
+  if (overlays.showSupertrend) pushRangeValues(values, indicators?.supertrend?.line)
+  if (overlays.showBB) {
+    pushRangeValues(values, indicators?.bb20?.upper)
+    pushRangeValues(values, indicators?.bb20?.lower)
+  }
+  if (overlays.showKeltner) {
+    pushRangeValues(values, indicators?.keltner?.upper)
+    pushRangeValues(values, indicators?.keltner?.lower)
+  }
+  if (overlays.showDonchian) {
+    pushRangeValues(values, indicators?.donchian?.upper)
+    pushRangeValues(values, indicators?.donchian?.lower)
+  }
+  if (overlays.showIchimoku) {
+    pushRangeValues(values, indicators?.ichimoku?.spanA)
+    pushRangeValues(values, indicators?.ichimoku?.spanB)
   }
 
   patterns?.patterns?.forEach(pattern => {
@@ -183,7 +201,7 @@ function normalizeGapsForView(gapResult, viewStart, viewEnd) {
     .slice(0, 10)
 }
 
-function computeFibonacci(ohlcv) {
+function computeFibonacci(ohlcv, includeExtensions = false) {
   if (!ohlcv?.length || ohlcv.length < 5) return null
 
   const highPoint = ohlcv.reduce((best, bar, index) => (
@@ -197,7 +215,13 @@ function computeFibonacci(ohlcv) {
   if (!Number.isFinite(range) || range <= 0) return null
 
   const trend = lowPoint.index < highPoint.index ? 'up' : 'down'
-  const levels = FIB_LEVELS.map(level => {
+  const extensionLevels = includeExtensions
+    ? [
+        { ratio: 1.272, label: '127.2%' },
+        { ratio: 1.618, label: '161.8%' },
+      ]
+    : []
+  const levels = [...FIB_LEVELS, ...extensionLevels].map(level => {
     const price = trend === 'up'
       ? highPoint.price - range * level.ratio
       : lowPoint.price + range * level.ratio
@@ -522,9 +546,10 @@ const patternOverlayPlugin = {
         ctx.stroke()
       })
 
-      const labelX = Math.min(chartArea.right - 140, left + 6)
+      const labelX = Math.min(chartArea.right - 170, left + 6)
       const labelY = Math.max(chartArea.top + 4, top + 6 + index * 20)
-      drawLabel(ctx, pattern.label, labelX, labelY, color.stroke)
+      const confidence = Math.min(96, Math.max(40, Math.round(55 + Math.abs(pattern.weight ?? 0) * 0.4 + (pattern.status === 'confirmed' ? 12 : 0))))
+      drawLabel(ctx, `${pattern.label} ${confidence}%`, labelX, labelY, color.stroke)
 
       if (pattern.targetPrice != null) {
         const targetY = yScale.getPixelForValue(pattern.targetPrice)
@@ -788,12 +813,21 @@ export default function PriceChart({
   indicators,
   showSMA,
   showEMA,
+  showWMA = false,
   showBB,
   showVWAP,
+  showSupertrend = false,
+  showIchimoku = false,
+  showKeltner = false,
+  showDonchian = false,
+  showPivotPoints = false,
+  showPrevHighLow = false,
+  showHighLow52 = false,
   chartType = 'line',
   patterns,
   gaps,
   showFibonacci = false,
+  showFibExtension = false,
   showGaps = true,
   showPatterns = true,
   showTriangles = true,
@@ -826,7 +860,7 @@ export default function PriceChart({
     const filteredPatternResult = { ...patterns, patterns: patternSource }
     const visiblePatterns = patternSource.length ? normalizePatternsForView(filteredPatternResult, viewStart, viewEnd) : { patterns: [], score: 0, best: null }
     const visibleGaps = showGaps ? normalizeGapsForView(gaps, viewStart, viewEnd) : []
-    const fibonacci = showFibonacci ? computeFibonacci(visibleOhlcv) : null
+    const fibonacci = showFibonacci || showFibExtension ? computeFibonacci(visibleOhlcv, showFibExtension) : null
     const labels = labelsFromBars(visibleOhlcv, interval)
     const dateRangeText = visibleOhlcv.length
       ? `${formatRangeDate(visibleOhlcv[0].t, interval)} - ${formatRangeDate(visibleOhlcv[visibleOhlcv.length - 1].t, interval)}`
@@ -835,7 +869,16 @@ export default function PriceChart({
     const isCandlestick = chartType === 'candlestick'
     const isArea = chartType === 'area'
     const lastBar = visibleOhlcv[visibleOhlcv.length - 1]
-    const priceRange = buildPriceRange(visibleOhlcv, visibleIndicators, showSMA, showEMA, showBB, visiblePatterns, visibleGaps, fibonacci)
+    const priceRange = buildPriceRange(visibleOhlcv, visibleIndicators, {
+      showSMA,
+      showEMA,
+      showWMA,
+      showBB,
+      showSupertrend,
+      showIchimoku,
+      showKeltner,
+      showDonchian,
+    }, visiblePatterns, visibleGaps, fibonacci)
     const breakoutLevel = technicalAnalysis?.keyLevels?.breakoutLevels?.[0] ?? null
     const invalidationLevel = technicalAnalysis?.riskAssessment?.stopLoss ?? technicalAnalysis?.keyLevels?.stopLossDangerZones?.[0] ?? null
     const zoneCandidates = [
@@ -858,13 +901,28 @@ export default function PriceChart({
           }
         : null,
     ].filter(Boolean)
-    const levelCandidates = showLevels
+    const levelCandidates = (showLevels || showPivotPoints || showPrevHighLow || showHighLow52)
       ? [
-          { price: decision?.support, color: '#22c55e' },
-          { price: decision?.resistance, color: '#ef4444' },
-          ...((technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(34, 197, 94, 0.9)' }))),
-          ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(239, 68, 68, 0.9)' }))),
-          ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
+          ...(showLevels ? [
+            { price: decision?.support, color: '#22c55e' },
+            { price: decision?.resistance, color: '#ef4444' },
+            ...((technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(34, 197, 94, 0.9)' }))),
+            ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(239, 68, 68, 0.9)' }))),
+            ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
+          ] : []),
+          ...(showPivotPoints && indicators?.pivotPoints ? [
+            { price: indicators.pivotPoints.pivot, color: 'rgba(250, 204, 21, 0.9)' },
+            { price: indicators.pivotPoints.r1, color: 'rgba(248, 113, 113, 0.82)' },
+            { price: indicators.pivotPoints.s1, color: 'rgba(52, 211, 153, 0.82)' },
+          ] : []),
+          ...(showPrevHighLow && indicators?.priceLevels ? [
+            { price: indicators.priceLevels.previousHigh, color: 'rgba(251, 146, 60, 0.82)' },
+            { price: indicators.priceLevels.previousLow, color: 'rgba(45, 212, 191, 0.82)' },
+          ] : []),
+          ...(showHighLow52 && indicators?.priceLevels ? [
+            { price: indicators.priceLevels.high52Week, color: 'rgba(244, 114, 182, 0.88)' },
+            { price: indicators.priceLevels.low52Week, color: 'rgba(129, 140, 248, 0.88)' },
+          ] : []),
         ].filter((level, index, levels) => level.price != null && levels.findIndex(item => item.price === level.price && item.color === level.color) === index)
       : []
 
@@ -970,6 +1028,31 @@ export default function PriceChart({
       }
     }
 
+    if (showWMA && visibleIndicators?.wma20) {
+      datasets.push({
+        type: 'line',
+        label: 'WMA 20',
+        data: seriesFromIndicator(visibleIndicators.wma20),
+        borderColor: 'rgba(251, 191, 36, 0.86)',
+        borderWidth: 1.2,
+        pointRadius: 0,
+        tension: 0.12,
+        yAxisID: 'y',
+      })
+      if (visibleIndicators?.wma50) {
+        datasets.push({
+          type: 'line',
+          label: 'WMA 50',
+          data: seriesFromIndicator(visibleIndicators.wma50),
+          borderColor: 'rgba(245, 158, 11, 0.72)',
+          borderWidth: 1,
+          pointRadius: 0,
+          tension: 0.12,
+          yAxisID: 'y',
+        })
+      }
+    }
+
     if (showBB && visibleIndicators?.bb20) {
       datasets.push({
         type: 'line',
@@ -995,6 +1078,88 @@ export default function PriceChart({
       })
     }
 
+    if (showKeltner && visibleIndicators?.keltner) {
+      datasets.push({
+        type: 'line',
+        label: 'Keltner Upper',
+        data: seriesFromIndicator(visibleIndicators.keltner.upper),
+        borderColor: 'rgba(251, 113, 133, 0.72)',
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.1,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Keltner Lower',
+        data: seriesFromIndicator(visibleIndicators.keltner.lower),
+        borderColor: 'rgba(251, 113, 133, 0.72)',
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.1,
+        yAxisID: 'y',
+      })
+    }
+
+    if (showDonchian && visibleIndicators?.donchian) {
+      datasets.push({
+        type: 'line',
+        label: 'Donchian High',
+        data: seriesFromIndicator(visibleIndicators.donchian.upper),
+        borderColor: 'rgba(34, 211, 238, 0.68)',
+        borderDash: [7, 5],
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Donchian Low',
+        data: seriesFromIndicator(visibleIndicators.donchian.lower),
+        borderColor: 'rgba(34, 211, 238, 0.68)',
+        borderDash: [7, 5],
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0,
+        yAxisID: 'y',
+      })
+    }
+
+    if (showIchimoku && visibleIndicators?.ichimoku) {
+      datasets.push({
+        type: 'line',
+        label: 'Ichimoku Span A',
+        data: seriesFromIndicator(visibleIndicators.ichimoku.spanA),
+        borderColor: 'rgba(16, 185, 129, 0.68)',
+        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.08,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Ichimoku Span B',
+        data: seriesFromIndicator(visibleIndicators.ichimoku.spanB),
+        borderColor: 'rgba(248, 113, 113, 0.68)',
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.08,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Tenkan / Kijun',
+        data: seriesFromIndicator(visibleIndicators.ichimoku.conversion),
+        borderColor: 'rgba(96, 165, 250, 0.68)',
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.08,
+        yAxisID: 'y',
+      })
+    }
+
     if (showVWAP && visibleIndicators?.vwap) {
       datasets.push({
         type: 'line',
@@ -1004,6 +1169,19 @@ export default function PriceChart({
         borderWidth: 1.3,
         pointRadius: 0,
         tension: 0.1,
+        yAxisID: 'y',
+      })
+    }
+
+    if (showSupertrend && visibleIndicators?.supertrend?.line) {
+      datasets.push({
+        type: 'line',
+        label: 'Supertrend',
+        data: seriesFromIndicator(visibleIndicators.supertrend.line),
+        borderColor: 'rgba(52, 211, 153, 0.95)',
+        borderWidth: 1.6,
+        pointRadius: 0,
+        tension: 0,
         yAxisID: 'y',
       })
     }
@@ -1173,7 +1351,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showBB, showVWAP, chartType, patterns, gaps, showFibonacci, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

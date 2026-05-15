@@ -71,18 +71,35 @@ function PatternCard({ pattern }) {
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge sentiment={pattern.direction}>{pattern.direction}</Badge>
             <Badge tone="balanced">{pattern.confidence}% confidence</Badge>
+            <Badge tone="default">{pattern.category ?? 'Pattern'}</Badge>
           </div>
         </div>
         <div className="text-right text-xs text-slate-500">
-          <div>Zone</div>
+          <div>{pattern.timeframe ?? 'TF'} zone</div>
           <div className="mt-1 text-sm font-semibold text-slate-200">{pattern.priceZone}</div>
         </div>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-300">{pattern.explanation}</p>
-      <div className="mt-3 text-xs text-slate-500">
+      <div className="mt-3 grid gap-1 text-xs text-slate-500 sm:grid-cols-2">
+        <div>Breakout: {pattern.breakoutLevel ?? '-'}</div>
+        <div>Invalidation: {pattern.invalidationLevel ?? pattern.invalidatedBelow ?? pattern.invalidatedAbove ?? '-'}</div>
+        <div>Volume: {pattern.volumeConfirmed ? 'Confirmed' : 'Mixed'}</div>
+        <div>Status: {pattern.status ?? 'Developing'}</div>
         {pattern.invalidatedBelow != null && <div>Invalidated below {pattern.invalidatedBelow}</div>}
         {pattern.invalidatedAbove != null && <div>Invalidated above {pattern.invalidatedAbove}</div>}
       </div>
+    </div>
+  )
+}
+
+function InterpretationCard({ item }) {
+  return (
+    <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-bold text-white">{item.label}</div>
+        <Badge tone={item.tone ?? 'balanced'}>{item.value}</Badge>
+      </div>
+      <p className="mt-3 text-sm leading-6 text-slate-300">{item.interpretation}</p>
     </div>
   )
 }
@@ -132,13 +149,14 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
           <ScoreTile label="Technical score" value={analysis.technicalScore} tone="positive" />
           <ScoreTile label="Trend score" value={analysis.trendScore} />
           <ScoreTile label="Momentum score" value={analysis.momentumScore} />
+          <ScoreTile label="Volatility score" value={analysis.volatilityScore ?? '-'} />
           <ScoreTile label="Volume score" value={analysis.volumeScore} />
           <ScoreTile label="Pattern score" value={analysis.patternScore} />
-          <ScoreTile label="Risk / reward score" value={analysis.riskRewardScore} />
+          <ScoreTile label="Levels score" value={analysis.levelsScore ?? '-'} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -153,14 +171,26 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
             <div className="text-sm font-bold text-white">Indicator snapshot</div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <ScoreTile label="RSI 14" value={analysis.indicators.rsi14 ?? '-'} />
+              <ScoreTile label="Stoch RSI" value={analysis.indicators.stochRsi ?? '-'} />
+              <ScoreTile label="ADX" value={analysis.indicators.adx ?? '-'} />
               <ScoreTile label="MACD signal" value={analysis.indicators.macdSignal} tone={analysis.indicators.macdSignal === 'Bullish' ? 'positive' : 'danger'} />
-              <ScoreTile label="ATR" value={analysis.indicators.atr ?? '-'} />
+              <ScoreTile label="ATR" value={analysis.indicators.atrPct != null ? `${analysis.indicators.atr} / ${analysis.indicators.atrPct}%` : analysis.indicators.atr ?? '-'} />
               <ScoreTile label="Price vs SMA200" value={analysis.indicators.priceVsSma200} tone={analysis.indicators.priceVsSma200 === 'Above' ? 'positive' : 'danger'} />
               <ScoreTile label="VWAP" value={analysis.indicators.vwap ?? '-'} />
               <ScoreTile label="OBV" value={analysis.indicators.obv ?? '-'} />
+              <ScoreTile label="Supertrend" value={analysis.indicators.supertrend?.state ?? '-'} tone={analysis.indicators.supertrend?.state === 'Bullish' ? 'positive' : 'danger'} />
             </div>
           </div>
         </div>
+
+        {analysis.indicatorInterpretations?.length > 0 && (
+          <div className="space-y-4">
+            <div className="text-sm font-bold text-white">Indicator interpretation</div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {analysis.indicatorInterpretations.map(item => <InterpretationCard key={item.label} item={item} />)}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">

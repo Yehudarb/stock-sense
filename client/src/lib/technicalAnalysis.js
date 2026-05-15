@@ -24,6 +24,35 @@ const PATTERN_NAMES = {
   CUP_HANDLE: 'Cup and Handle',
   INVERSE_CUP_HANDLE: 'Inverse Cup and Handle',
   ISLAND_REVERSAL_BULL: 'Bullish Island Reversal',
+  ROUNDED_BOTTOM: 'Rounded Bottom',
+  ROUNDED_TOP: 'Rounded Top',
+  CHANNEL_UP: 'Channel Up',
+  CHANNEL_DOWN: 'Channel Down',
+  RESISTANCE_BREAKOUT: 'Resistance Breakout',
+  SUPPORT_BREAKDOWN: 'Support Breakdown',
+  GAP_UP: 'Gap Up',
+  GAP_DOWN: 'Gap Down',
+  BREAKAWAY_GAP: 'Breakaway Gap',
+  EXHAUSTION_GAP: 'Exhaustion Gap',
+  VOLUME_BREAKOUT: 'Volume Breakout',
+  FAILED_BREAKOUT: 'Failed Breakout',
+  RETEST_AFTER_BREAKOUT: 'Retest After Breakout',
+  HAMMER: 'Hammer',
+  INVERTED_HAMMER: 'Inverted Hammer',
+  SHOOTING_STAR: 'Shooting Star',
+  DOJI: 'Doji',
+  DRAGONFLY_DOJI: 'Dragonfly Doji',
+  GRAVESTONE_DOJI: 'Gravestone Doji',
+  BULLISH_ENGULFING: 'Bullish Engulfing',
+  BEARISH_ENGULFING: 'Bearish Engulfing',
+  MORNING_STAR: 'Morning Star',
+  EVENING_STAR: 'Evening Star',
+  THREE_WHITE_SOLDIERS: 'Three White Soldiers',
+  THREE_BLACK_CROWS: 'Three Black Crows',
+  PIERCING_PATTERN: 'Piercing Pattern',
+  DARK_CLOUD_COVER: 'Dark Cloud Cover',
+  INSIDE_BAR: 'Inside Bar',
+  OUTSIDE_BAR: 'Outside Bar',
 }
 
 function round(value, digits = 2) {
@@ -41,6 +70,11 @@ function latest(values, index) {
 
 function normalizePrice(value) {
   return value >= 100 ? round(value, 2) : round(value, 3)
+}
+
+function formatDollar(value) {
+  const normalized = normalizePrice(value)
+  return normalized == null ? null : `$${normalized}`
 }
 
 function uniqueRounded(values) {
@@ -134,6 +168,9 @@ function deriveSupportResistance(ohlcv, indicators) {
     latest(indicators.ema20, ohlcv.length - 1),
     latest(indicators.ema50, ohlcv.length - 1),
     latest(indicators.ema200, ohlcv.length - 1),
+    latest(indicators.wma20, ohlcv.length - 1),
+    latest(indicators.supertrend?.line, ohlcv.length - 1),
+    indicators.pivotPoints?.pivot,
   ])
 
   const recent = ohlcv.slice(-25)
@@ -148,6 +185,8 @@ function deriveSupportResistance(ohlcv, indicators) {
     breakoutZones: breakoutLevel != null ? [normalizePrice(breakoutLevel)] : [],
     breakdownZones: breakdownLevel != null ? [normalizePrice(breakdownLevel)] : [],
     stopLossDangerZones: stopLossZone != null ? [stopLossZone] : [],
+    pivotPoints: indicators.pivotPoints,
+    previousHighLow: indicators.priceLevels,
   }
 }
 
@@ -203,29 +242,53 @@ function deriveVolumeAnalysis(ohlcv, indicators, levels) {
   }
 }
 
-function summarizePattern(pattern, bars, levels) {
+function summarizePattern(pattern, bars, levels, timeframe = '1D', volumeAnalysis = {}) {
   const lastPrice = bars.at(-1)?.c ?? 0
   const zoneLow = pattern.visual?.low ?? Math.min(...bars.slice(-12).map(bar => bar.l))
   const zoneHigh = pattern.visual?.high ?? Math.max(...bars.slice(-12).map(bar => bar.h))
   const direction = pattern.weight > 0 ? 'Bullish' : pattern.weight < 0 ? 'Bearish' : 'Neutral'
   const baseConfidence = clamp(55 + Math.abs(pattern.weight) * 0.4 + (pattern.status === 'confirmed' ? 12 : 0), 40, 96)
+  const breakoutLevel = pattern.meta?.breakoutLevel
+    ?? (direction === 'Bullish' ? levels.resistance?.[0] : direction === 'Bearish' ? levels.support?.[0] : null)
+  const invalidationLevel = pattern.meta?.invalidationLevel
+    ?? (direction === 'Bullish'
+      ? levels.support?.[0] ?? normalizePrice(zoneLow * 0.985)
+      : direction === 'Bearish'
+        ? levels.resistance?.[0] ?? normalizePrice(zoneHigh * 1.015)
+        : null)
   const invalidatedBelow = direction === 'Bullish'
-    ? levels.support?.[0] ?? normalizePrice(zoneLow * 0.985)
+    ? invalidationLevel
     : null
   const invalidatedAbove = direction === 'Bearish'
-    ? levels.resistance?.[0] ?? normalizePrice(zoneHigh * 1.015)
+    ? invalidationLevel
     : null
+  const volumeConfirmed = pattern.meta?.volumeConfirmed ?? (
+    direction === 'Bullish'
+      ? volumeAnalysis.breakoutWithHighVolume || volumeAnalysis.accumulation
+      : direction === 'Bearish'
+        ? volumeAnalysis.breakdownWithHighVolume || volumeAnalysis.distribution
+        : false
+  )
 
   return {
     name: PATTERN_NAMES[pattern.key] ?? pattern.label,
+    category: pattern.category ?? 'Pattern',
     direction,
     confidence: Math.round(baseConfidence),
-    priceZone: `${normalizePrice(zoneLow)}-${normalizePrice(zoneHigh)}`,
-    explanation: `${pattern.label} is shaping between ${normalizePrice(zoneLow)} and ${normalizePrice(zoneHigh)} while price trades near ${normalizePrice(lastPrice)}.`,
+    timeframe,
+    priceZone: `${formatDollar(zoneLow)} - ${formatDollar(zoneHigh)}`,
+    breakoutLevel: breakoutLevel != null ? normalizePrice(breakoutLevel) : null,
+    invalidationLevel: invalidationLevel != null ? normalizePrice(invalidationLevel) : null,
+    volumeConfirmed,
+    status: pattern.status === 'confirmed'
+      ? 'Confirmed'
+      : pattern.status === 'near breakout' || pattern.status === 'near breakdown'
+        ? pattern.status
+        : 'Developing',
+    explanation: `${PATTERN_NAMES[pattern.key] ?? pattern.label} is shaping between ${formatDollar(zoneLow)} and ${formatDollar(zoneHigh)} while price trades near ${formatDollar(lastPrice)}.`,
     invalidatedBelow,
     invalidatedAbove,
     targetPrice: pattern.targetPrice != null ? normalizePrice(pattern.targetPrice) : null,
-    status: pattern.status,
   }
 }
 
@@ -335,7 +398,27 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     })
   }
 
-  return patterns
+  return patterns.map(pattern => {
+    const invalidationLevel = pattern.invalidatedBelow ?? pattern.invalidatedAbove ?? null
+    const category = pattern.name.includes('Breakout') || pattern.name.includes('Breakdown') || pattern.name.includes('Gap')
+      ? 'Breakout / Breakdown'
+      : pattern.name.includes('Flag') || pattern.name.includes('Channel')
+        ? 'Continuation'
+        : 'Pattern'
+
+    return {
+      category,
+      timeframe: 'Daily',
+      breakoutLevel: pattern.breakoutLevel ?? levels.breakoutZones?.[0] ?? null,
+      invalidationLevel,
+      volumeConfirmed: volumeAnalysis.confirmation,
+      status: pattern.status ?? (category === 'Breakout / Breakdown' ? 'Near breakout' : 'Developing'),
+      ...pattern,
+      priceZone: pattern.priceZone?.includes('$')
+        ? pattern.priceZone
+        : pattern.priceZone?.split('-').map(value => `$${value.trim()}`).join(' - '),
+    }
+  })
 }
 
 function scoreTimeframe(bars, indicators, levels, volumeAnalysis) {
@@ -403,6 +486,42 @@ function determineBiasFromFrames(timeframes) {
   return raw > 0.75 ? 'Bullish' : raw < -0.75 ? 'Bearish' : 'Neutral'
 }
 
+function buildIndicatorInterpretations(indicators, bars, index) {
+  const price = bars[index]?.c
+  const rsi = latest(indicators.rsi14, index)
+  const macdLine = latest(indicators.macd.line, index)
+  const macdSignal = latest(indicators.macd.signal, index)
+  const adx = latest(indicators.adx?.adx, index)
+  const pdi = latest(indicators.adx?.pdi, index)
+  const mdi = latest(indicators.adx?.mdi, index)
+  const atr = latest(indicators.atr14, index)
+  const bbUpper = latest(indicators.bb20?.upper, index)
+  const bbLower = latest(indicators.bb20?.lower, index)
+  const bbWidth = latest(indicators.bb20?.width, index)
+  const percentB = latest(indicators.bb20?.percentB, index)
+  const stochRsi = latest(indicators.stochRsi?.k, index)
+  const obvSlope = computeSlope(indicators.obv ?? [], 10)
+  const supertrendDirection = latest(indicators.supertrend?.direction, index)
+  const supertrendLine = latest(indicators.supertrend?.line, index)
+  const mfi = latest(indicators.mfi14, index)
+  const cmf = latest(indicators.cmf20, index)
+  const atrPct = price && atr != null ? (atr / price) * 100 : null
+
+  const items = []
+  if (rsi != null) items.push({ label: 'RSI 14', value: round(rsi, 1), interpretation: rsi >= 70 ? 'Overbought risk' : rsi <= 30 ? 'Oversold rebound zone' : rsi >= 55 ? 'Positive momentum' : rsi <= 45 ? 'Soft momentum' : 'Balanced momentum', tone: rsi >= 70 ? 'warning' : rsi <= 30 ? 'positive' : 'balanced' })
+  if (macdLine != null && macdSignal != null) items.push({ label: 'MACD', value: macdLine > macdSignal ? 'Bullish' : 'Bearish', interpretation: macdLine > macdSignal ? 'MACD line is above signal' : 'MACD line is below signal', tone: macdLine > macdSignal ? 'positive' : 'danger' })
+  if (adx != null) items.push({ label: 'ADX', value: round(adx, 1), interpretation: adx < 20 ? 'Weak / no clear trend' : adx < 25 ? 'Developing trend' : `Strong trend, ${pdi > mdi ? '+DI leads' : '-DI leads'}`, tone: adx >= 25 ? 'positive' : adx >= 20 ? 'warning' : 'balanced' })
+  if (bbUpper != null && bbLower != null) items.push({ label: 'Bollinger Bands', value: percentB != null ? `${round(percentB * 100, 0)}%B` : '-', interpretation: percentB >= 0.9 ? 'Price near upper band' : percentB <= 0.1 ? 'Price near lower band' : bbWidth != null && bbWidth < 0.06 ? 'Squeeze detected' : bbWidth != null && bbWidth > 0.16 ? 'Volatility expansion' : 'Inside normal band range', tone: percentB >= 0.9 || percentB <= 0.1 ? 'warning' : 'balanced' })
+  if (atr != null) items.push({ label: 'ATR 14', value: `${round(atr, 2)} (${round(atrPct, 2)}%)`, interpretation: atrPct > 4 ? 'High volatility' : atrPct > 2 ? 'Medium volatility' : 'Low volatility', tone: atrPct > 4 ? 'danger' : atrPct > 2 ? 'warning' : 'positive' })
+  if (stochRsi != null) items.push({ label: 'Stochastic RSI', value: round(stochRsi, 1), interpretation: stochRsi >= 80 ? 'Momentum stretched' : stochRsi <= 20 ? 'Momentum washed out' : 'Momentum in range', tone: stochRsi >= 80 ? 'warning' : stochRsi <= 20 ? 'positive' : 'balanced' })
+  if (supertrendLine != null) items.push({ label: 'Supertrend', value: supertrendDirection === 'bullish' ? 'Bullish' : 'Bearish', interpretation: price >= supertrendLine ? 'Price is above the Supertrend line' : 'Price is below the Supertrend line', tone: price >= supertrendLine ? 'positive' : 'danger' })
+  if (obvSlope !== 0) items.push({ label: 'OBV', value: obvSlope > 0 ? 'Rising' : 'Falling', interpretation: obvSlope > 0 ? 'Volume trend supports price move' : 'Volume trend is diverging or weakening', tone: obvSlope > 0 ? 'positive' : 'warning' })
+  if (mfi != null) items.push({ label: 'Money Flow Index', value: round(mfi, 1), interpretation: mfi >= 80 ? 'Money flow is stretched' : mfi <= 20 ? 'Money flow is washed out' : 'Money flow is balanced', tone: mfi >= 80 ? 'warning' : mfi <= 20 ? 'positive' : 'balanced' })
+  if (cmf != null) items.push({ label: 'Chaikin Money Flow', value: round(cmf, 2), interpretation: cmf > 0.05 ? 'Accumulation pressure' : cmf < -0.05 ? 'Distribution pressure' : 'Neutral money flow', tone: cmf > 0.05 ? 'positive' : cmf < -0.05 ? 'danger' : 'balanced' })
+
+  return items
+}
+
 export function computeTechnicalAnalysis(ticker, timeframeBars) {
   const dailyBars = timeframeBars.daily ?? []
   if (dailyBars.length < 30) return null
@@ -417,7 +536,8 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     if (!indicators) return
     const levels = deriveSupportResistance(bars, indicators)
     const volumeAnalysis = deriveVolumeAnalysis(bars, indicators, levels)
-    const basePatterns = detectPatterns(bars).patterns.map(pattern => summarizePattern(pattern, bars, levels))
+    const timeframeLabel = { daily: '1D', weekly: '1W', monthly: '1M', h4: '4H' }[key] ?? key
+    const basePatterns = detectPatterns(bars).patterns.map(pattern => summarizePattern(pattern, bars, levels, timeframeLabel, volumeAnalysis))
     const extraPatterns = deriveAdditionalPatterns(bars, indicators, levels, volumeAnalysis)
     analyzedFrames[key] = scoreTimeframe(bars, indicators, levels, volumeAnalysis)
     frameIndicators[key] = indicators
@@ -433,6 +553,8 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     .filter((pattern, index, array) => array.findIndex(item => item.name === pattern.name && item.priceZone === pattern.priceZone) === index)
     .slice(0, 8)
 
+  const primaryIndex = dailyBars.length - 1
+  const lastDailyPrice = dailyBars.at(-1)?.c ?? 0
   const trendScore = Math.round(Object.values(analyzedFrames).reduce((sum, frame) => sum + frame.trendScore, 0) / Object.keys(analyzedFrames).length)
   const momentumScore = Math.round(Object.values(analyzedFrames).reduce((sum, frame) => sum + frame.momentumScore, 0) / Object.keys(analyzedFrames).length)
   const volumeScore = Math.round(clamp(
@@ -459,19 +581,43 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     25,
     92,
   ))
+  const atrPct = lastDailyPrice ? (latest(dailyIndicators.atr14, primaryIndex) / lastDailyPrice) * 100 : null
+  const bbWidth = latest(dailyIndicators.bb20.width, primaryIndex)
+  const volatilityScore = Math.round(clamp(
+    68 -
+    (atrPct != null && atrPct > 4 ? 16 : atrPct != null && atrPct > 2.5 ? 7 : 0) +
+    (bbWidth != null && bbWidth < 0.08 ? 5 : 0) -
+    (bbWidth != null && bbWidth > 0.18 ? 8 : 0),
+    25,
+    92,
+  ))
+  const supportDistance = dailyLevels.support?.[0] != null && lastDailyPrice
+    ? Math.abs(lastDailyPrice - dailyLevels.support[0]) / lastDailyPrice
+    : null
+  const resistanceDistance = dailyLevels.resistance?.[0] != null && lastDailyPrice
+    ? Math.abs(dailyLevels.resistance[0] - lastDailyPrice) / lastDailyPrice
+    : null
+  const levelsScore = Math.round(clamp(
+    58 +
+    (supportDistance != null && supportDistance <= 0.035 ? 10 : 0) +
+    (resistanceDistance != null && resistanceDistance >= 0.04 ? 8 : 0) -
+    (resistanceDistance != null && resistanceDistance <= 0.015 ? 10 : 0),
+    25,
+    92,
+  ))
   const alignmentScore = overallTechnicalBias === 'Neutral' ? 55 : 76
   const technicalScore = Math.round(clamp(
-    trendScore * 0.24 +
-    momentumScore * 0.2 +
-    volumeScore * 0.16 +
-    patternScore * 0.18 +
-    riskRewardScore * 0.12 +
-    alignmentScore * 0.1,
+    trendScore * 0.22 +
+    momentumScore * 0.18 +
+    volatilityScore * 0.12 +
+    volumeScore * 0.15 +
+    patternScore * 0.16 +
+    levelsScore * 0.1 +
+    alignmentScore * 0.07,
     20,
     95,
   ))
 
-  const primaryIndex = dailyBars.length - 1
   const rsi14 = latest(dailyIndicators.rsi14, primaryIndex)
   const macdSignal = latest(dailyIndicators.macd.line, primaryIndex) > latest(dailyIndicators.macd.signal, primaryIndex) ? 'Bullish' : 'Bearish'
   const priceVsSma200 = dailyBars.at(-1)?.c > latest(dailyIndicators.sma200, primaryIndex) ? 'Above' : 'Below'
@@ -501,8 +647,10 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     technicalScore,
     trendScore,
     momentumScore,
+    volatilityScore,
     volumeScore,
     patternScore,
+    levelsScore,
     riskRewardScore,
     timeframes: {
       daily: analyzedFrames.daily,
@@ -518,14 +666,50 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
       ema20: normalizePrice(latest(dailyIndicators.ema20, primaryIndex)),
       ema50: normalizePrice(latest(dailyIndicators.ema50, primaryIndex)),
       ema200: normalizePrice(latest(dailyIndicators.ema200, primaryIndex)),
+      wma20: normalizePrice(latest(dailyIndicators.wma20, primaryIndex)),
+      wma50: normalizePrice(latest(dailyIndicators.wma50, primaryIndex)),
       rsi14: round(rsi14, 1),
+      stochRsi: round(latest(dailyIndicators.stochRsi?.k, primaryIndex), 1),
       macdSignal,
       priceVsSma200,
       atr: round(latest(dailyIndicators.atr14, primaryIndex), 2),
+      atrPct: round(lastDailyPrice ? (latest(dailyIndicators.atr14, primaryIndex) / lastDailyPrice) * 100 : null, 2),
+      adx: round(latest(dailyIndicators.adx?.adx, primaryIndex), 1),
+      plusDI: round(latest(dailyIndicators.adx?.pdi, primaryIndex), 1),
+      minusDI: round(latest(dailyIndicators.adx?.mdi, primaryIndex), 1),
+      cci20: round(latest(dailyIndicators.cci20, primaryIndex), 1),
+      momentum10: round(latest(dailyIndicators.momentum10, primaryIndex), 2),
+      williamsR: round(latest(dailyIndicators.willR, primaryIndex), 1),
       vwap: normalizePrice(latest(dailyIndicators.vwap, primaryIndex)),
+      supertrend: {
+        state: latest(dailyIndicators.supertrend?.direction, primaryIndex) === 'bullish' ? 'Bullish' : 'Bearish',
+        line: normalizePrice(latest(dailyIndicators.supertrend?.line, primaryIndex)),
+        flip: Boolean(latest(dailyIndicators.supertrend?.flipped, primaryIndex)),
+      },
+      bollingerBands: {
+        upper: normalizePrice(latest(dailyIndicators.bb20?.upper, primaryIndex)),
+        middle: normalizePrice(latest(dailyIndicators.bb20?.middle, primaryIndex)),
+        lower: normalizePrice(latest(dailyIndicators.bb20?.lower, primaryIndex)),
+        width: round(latest(dailyIndicators.bb20?.width, primaryIndex), 4),
+        percentB: round(latest(dailyIndicators.bb20?.percentB, primaryIndex), 2),
+      },
+      keltnerChannels: {
+        upper: normalizePrice(latest(dailyIndicators.keltner?.upper, primaryIndex)),
+        middle: normalizePrice(latest(dailyIndicators.keltner?.middle, primaryIndex)),
+        lower: normalizePrice(latest(dailyIndicators.keltner?.lower, primaryIndex)),
+      },
+      donchianChannels: {
+        upper: normalizePrice(latest(dailyIndicators.donchian?.upper, primaryIndex)),
+        middle: normalizePrice(latest(dailyIndicators.donchian?.middle, primaryIndex)),
+        lower: normalizePrice(latest(dailyIndicators.donchian?.lower, primaryIndex)),
+      },
+      mfi14: round(latest(dailyIndicators.mfi14, primaryIndex), 1),
+      cmf20: round(latest(dailyIndicators.cmf20, primaryIndex), 2),
+      adl: round(latest(dailyIndicators.adl, primaryIndex), 0),
       volumeMovingAverage: round(latest(dailyIndicators.avgVol, primaryIndex), 0),
       obv: round(latest(dailyIndicators.obv, primaryIndex), 0),
     },
+    indicatorInterpretations: buildIndicatorInterpretations(dailyIndicators, dailyBars, primaryIndex),
     patterns,
     volumeAnalysis: dailyVolume,
     keyLevels: {
@@ -533,7 +717,10 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
       resistance: keyResistance,
       dynamicSupportResistance: dailyLevels.dynamicSupportResistance.slice(0, 6),
       breakoutLevels: dailyLevels.breakoutZones,
+      breakdownLevels: dailyLevels.breakdownZones,
       stopLossDangerZones: dailyLevels.stopLossDangerZones,
+      pivotPoints: dailyLevels.pivotPoints,
+      previousHighLow: dailyLevels.previousHighLow,
     },
     riskAssessment: {
       riskLevel,

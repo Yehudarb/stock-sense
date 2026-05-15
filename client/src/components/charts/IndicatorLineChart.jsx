@@ -1,62 +1,46 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
-import { CHART_COLORS } from '../../../../shared/constants'
-import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, rightYAxis, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
 
-const volumeCrosshairPlugin = createCrosshairPlugin('volumeCrosshair')
+const indicatorCrosshairPlugin = createCrosshairPlugin('indicatorCrosshair')
 
-function compactVolume(value) {
-  if (value == null) return '-'
-  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`
-  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`
-  if (value >= 1e3) return `${(value / 1e3).toFixed(0)}K`
-  return `${Math.round(value)}`
-}
-
-export default function VolumeChart({
+export default function IndicatorLineChart({
   ohlcv,
-  indicators,
-  showVolumeMA = true,
   interval,
   visibleBars,
   viewOffset = 0,
   hoveredIndex = null,
   onHoverIndexChange,
+  datasets,
+  yMin,
+  yMax,
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
 
   useEffect(() => {
-    if (!canvasRef.current || !ohlcv?.length) return
+    if (!canvasRef.current || !ohlcv?.length || !datasets?.length) return
 
     if (chartRef.current) chartRef.current.destroy()
     const { start, end } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const visibleOhlcv = ohlcv.slice(start, end)
     const labels = labelsFromBars(visibleOhlcv, interval)
-    const avgVol = showVolumeMA ? indicators?.avgVol?.slice(start, end) ?? [] : []
 
     chartRef.current = new Chart(canvasRef.current, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Volume',
-            data: seriesFromBars(visibleOhlcv, 'v'),
-            backgroundColor: visibleOhlcv.map(bar => bar.c >= bar.o ? CHART_COLORS.volBull : CHART_COLORS.volBear),
-            borderRadius: 2,
-            maxBarThickness: 10,
-          },
-          ...(showVolumeMA ? [{
-            type: 'line',
-            label: 'Avg volume',
-            data: seriesFromIndicator(avgVol),
-            borderColor: 'rgba(96, 165, 250, 0.95)',
-            borderWidth: 1.2,
-            pointRadius: 0,
-            tension: 0.2,
-          }] : []),
-        ],
+        datasets: datasets.map(dataset => ({
+          type: dataset.type ?? 'line',
+          label: dataset.label,
+          data: seriesFromIndicator(dataset.values?.slice(start, end)),
+          borderColor: dataset.color,
+          backgroundColor: dataset.backgroundColor ?? dataset.color,
+          borderWidth: dataset.borderWidth ?? 1.5,
+          pointRadius: 0,
+          tension: dataset.tension ?? 0.16,
+          fill: dataset.fill ?? false,
+        })),
       },
       options: {
         responsive: true,
@@ -81,23 +65,19 @@ export default function VolumeChart({
                 const bar = visibleOhlcv[items[0]?.dataIndex]
                 return bar ? formatTooltipDate(bar.t, interval) : ''
               },
-              label: context => `${context.dataset.label}: ${compactVolume(context.parsed.y)}`,
+              label: context => `${context.dataset.label}: ${Number(context.parsed.y).toFixed(2)}`,
             },
           },
-          volumeCrosshair: {
+          indicatorCrosshair: {
             index: hoveredIndex,
           },
         },
         scales: {
           x: categoryXAxis(8),
-          y: rightYAxis({
-            ticks: {
-              callback: value => compactVolume(Number(value)),
-            },
-          }),
+          y: rightYAxis({ min: yMin, max: yMax }),
         },
       },
-      plugins: [volumeCrosshairPlugin],
+      plugins: [indicatorCrosshairPlugin],
     })
 
     return () => {
@@ -106,7 +86,7 @@ export default function VolumeChart({
         chartRef.current = null
       }
     }
-  }, [hoveredIndex, indicators, interval, ohlcv, onHoverIndexChange, showVolumeMA, viewOffset, visibleBars])
+  }, [datasets, hoveredIndex, interval, ohlcv, onHoverIndexChange, viewOffset, visibleBars, yMax, yMin])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }
