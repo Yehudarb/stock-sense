@@ -80,25 +80,25 @@ function SafeChart({ isLoading, resetKey, children }) {
 }
 
 function controlClass(active) {
-  return `rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+  return `rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
     active
-      ? 'border-cyan-400/30 bg-cyan-400/14 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.16)]'
-      : 'border-white/8 bg-slate-900/80 text-slate-400 hover:border-white/14 hover:bg-slate-900 hover:text-white'
+      ? 'border-cyan-400 bg-cyan-500 text-white shadow-lg shadow-cyan-500/40'
+      : 'border-slate-600 bg-transparent text-slate-300 hover:border-cyan-400 hover:bg-slate-900/70 hover:text-white'
   }`
 }
 
 function quietControlClass(active) {
-  return `rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+  return `rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
     active
-      ? 'border-emerald-400/30 bg-emerald-400/12 text-emerald-100'
-      : 'border-white/8 bg-slate-950/70 text-slate-500 hover:border-white/14 hover:text-slate-200'
+      ? 'border-emerald-400 bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/30'
+      : 'border-slate-600 bg-transparent text-slate-300 hover:border-emerald-400 hover:bg-slate-900/70 hover:text-white'
   }`
 }
 
 function Group({ label, children }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-white/6 bg-slate-950/65 p-3">
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{label}</div>
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/85 p-4 shadow-[0_16px_40px_rgba(2,6,23,0.35)]">
+      <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">{label}</div>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   )
