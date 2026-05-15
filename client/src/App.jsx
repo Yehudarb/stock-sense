@@ -208,35 +208,40 @@ export default function App() {
   }[regime] ?? 'text-slate-400'
 
   const copy = {
-    changePct: isHebrew ? 'Change %' : 'Change %',
-    high20: isHebrew ? '20-bar high' : '20-bar high',
-    low20: isHebrew ? '20-bar low' : '20-bar low',
-    trend: isHebrew ? 'Trend' : 'Trend',
-    vsSma20: 'vs SMA20',
+    changePct: isHebrew ? 'שינוי %' : 'Change %',
+    high20: isHebrew ? 'שיא 20 נרות' : '20-bar high',
+    low20: isHebrew ? 'שפל 20 נרות' : '20-bar low',
+    trend: isHebrew ? 'מגמה' : 'Trend',
+    vsSma20: isHebrew ? 'מול SMA20' : 'vs SMA20',
+    volume: isHebrew ? 'מחזור' : 'Volume',
+    fearGreed: isHebrew ? 'פחד וחמדנות' : 'Fear & Greed',
+    refresh: isHebrew ? 'רענן ניתוח' : 'Refresh analysis',
+    share: isHebrew ? 'דוח לשיתוף' : 'Shareable report',
+    copied: isHebrew ? 'הדוח הועתק' : 'Report copied',
   }
 
   const loadingSteps = useMemo(() => ([
     {
-      label: 'Fetching market data...',
-      detail: `Loading price history and snapshot for ${currentTicker}.`,
+      label: isHebrew ? 'טוען נתוני שוק...' : 'Fetching market data...',
+      detail: isHebrew ? `טוען היסטוריית מחירים ותמונת מצב עבור ${currentTicker}.` : `Loading price history and snapshot for ${currentTicker}.`,
       state: snapshot ? 'done' : 'active',
     },
     {
-      label: 'Analyzing news sentiment...',
-      detail: 'Inferring event tone from earnings timing and broad market context.',
+      label: isHebrew ? 'מנתח סנטימנט חדשות...' : 'Analyzing news sentiment...',
+      detail: isHebrew ? 'מעריך את טון האירועים לפי דוחות, חדשות והקשר שוק רחב.' : 'Inferring event tone from earnings timing and broad market context.',
       state: !isMarketContextLoading && !isEarningsLoading ? 'done' : snapshot ? 'active' : 'queued',
     },
     {
-      label: 'Comparing bullish and bearish signals...',
-      detail: 'Scoring indicators, patterns, and multi-timeframe agreement.',
+      label: isHebrew ? 'משווה בין איתותים שוריים ודוביים...' : 'Comparing bullish and bearish signals...',
+      detail: isHebrew ? 'מדרג אינדיקטורים, תבניות והסכמה בין כמה טווחי זמן.' : 'Scoring indicators, patterns, and multi-timeframe agreement.',
       state: signal && forecast ? 'done' : (!isLoading ? 'active' : 'queued'),
     },
     {
-      label: 'Generating final outlook...',
-      detail: 'Structuring the final TL;DR, confidence, risk, and action summary.',
+      label: isHebrew ? 'בונה תמונת מצב סופית...' : 'Generating final outlook...',
+      detail: isHebrew ? 'מסדר את הסיכום, רמת הביטחון, הסיכון והפעולה המומלצת.' : 'Structuring the final TL;DR, confidence, risk, and action summary.',
       state: analysisResult ? 'done' : (signal ? 'active' : 'queued'),
     },
-  ]), [analysisResult, currentTicker, forecast, isEarningsLoading, isLoading, isMarketContextLoading, signal, snapshot])
+  ]), [analysisResult, currentTicker, forecast, isEarningsLoading, isHebrew, isLoading, isMarketContextLoading, signal, snapshot])
 
   function handleAnalyzeTicker(nextTicker) {
     if (!nextTicker) return
@@ -313,9 +318,9 @@ export default function App() {
                   subtitle="The dashboard below keeps the tactical detail, while the structured AI result at the top makes the output easier to trust, question, and act on."
                 />
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" onClick={handleRetry}>Refresh analysis</Button>
+                  <Button variant="secondary" onClick={handleRetry}>{copy.refresh}</Button>
                   <Button variant="ghost" className="border border-white/10" onClick={handleShareReport}>
-                    {copiedReport ? 'Report copied' : 'Shareable report'}
+                    {copiedReport ? copy.copied : copy.share}
                   </Button>
                 </div>
               </div>
@@ -333,12 +338,12 @@ export default function App() {
                     <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
                     <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
                     <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
-                    <KpiCard label="Volume" value={fmtVolume(snapshot.volume)} />
+                    <KpiCard label={copy.volume} value={fmtVolume(snapshot.volume)} />
                     <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
                     <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
                     <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
                     {fearGreed?.value != null ? (
-                      <KpiCard label="Fear & Greed" value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
+                      <KpiCard label={copy.fearGreed} value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
                     ) : (
                       <KpiCard
                         label={copy.vsSma20}

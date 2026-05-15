@@ -126,7 +126,141 @@ function PanelToggle({ label, value, onToggle }) {
   )
 }
 
-function PatternSummaryCard({ patterns = [] }) {
+function ChartControls({
+  chartType,
+  setChartType,
+  coreIndicators,
+  advancedIndicatorGroups,
+  chartCopy,
+  showTriangles,
+  setShowTriangles,
+  showLevels,
+  setShowLevels,
+  showFibonacci,
+  setShowFibonacci,
+  showFibExtension,
+  setShowFibExtension,
+  showGaps,
+  setShowGaps,
+  showPatterns,
+  setShowPatterns,
+  measureMode,
+  setMeasureMode,
+  chartExpanded,
+  setChartExpanded,
+  handleResetChart,
+  handleClearDrawings,
+  changeVisibleBars,
+  canZoom,
+  canPan,
+  setViewOffset,
+}) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+      <Group label={chartCopy.chartType}>
+        {[
+          ['candlestick', chartCopy.candles],
+          ['line', chartCopy.line],
+          ['area', chartCopy.area],
+        ].map(([value, label]) => (
+          <button key={value} type="button" className={controlClass(chartType === value)} onClick={() => setChartType(value)}>
+            {label}
+          </button>
+        ))}
+      </Group>
+
+      <Group label={chartCopy.indicators}>
+        {coreIndicators.map(([label, value, onToggle]) => (
+          <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
+        ))}
+        <details className="relative">
+          <summary className={`${quietControlClass(false)} list-none cursor-pointer`}>
+            {chartCopy.moreIndicators}
+          </summary>
+          <div className="absolute left-0 z-30 mt-2 w-[min(88vw,520px)] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-[0_24px_80px_rgba(2,6,23,0.55)]">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {advancedIndicatorGroups.map(group => (
+                <div key={group.label} className="rounded-xl border border-white/6 bg-white/4 p-3">
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{group.label}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {group.items.map(([label, value, onToggle]) => (
+                      <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </details>
+      </Group>
+
+      <Group label={chartCopy.analysisTools}>
+        <PanelToggle label={chartCopy.trendline} value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
+        <PanelToggle label={chartCopy.horizontalLine} value={showLevels} onToggle={() => setShowLevels(value => !value)} />
+        <PanelToggle label={chartCopy.fibonacci} value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
+        <PanelToggle label={chartCopy.fibExtension} value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
+        <PanelToggle label={chartCopy.zone} value={showGaps} onToggle={() => setShowGaps(value => !value)} />
+        <PanelToggle label={chartCopy.patternMarkers} value={showPatterns} onToggle={() => setShowPatterns(value => !value)} />
+        <PanelToggle label={chartCopy.ruler} value={measureMode} onToggle={() => setMeasureMode(value => !value)} />
+      </Group>
+
+      <Group label={chartCopy.view}>
+        <button type="button" className={controlClass(chartExpanded)} onClick={() => setChartExpanded(value => !value)}>
+          {chartExpanded ? chartCopy.collapse : chartCopy.expand}
+        </button>
+        <button type="button" className={controlClass(false)} onClick={handleResetChart}>{chartCopy.resetChart}</button>
+        <button type="button" className={controlClass(false)} onClick={handleClearDrawings}>{chartCopy.clearDrawings}</button>
+        <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(0.65)} disabled={!canZoom}>{chartCopy.zoomIn}</button>
+        <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(1.55)} disabled={!canZoom}>{chartCopy.zoomOut}</button>
+        <button type="button" className={controlClass(false)} onClick={() => setViewOffset(0)} disabled={!canPan}>{chartCopy.fitLatest}</button>
+      </Group>
+    </div>
+  )
+}
+
+function PresetControls({
+  chartCopy,
+  selectedPresetId,
+  handleSelectPreset,
+  canPan,
+  panBy,
+  viewOffset,
+  activeLegend,
+  activeVisibleBars,
+  totalBars,
+  interval,
+}) {
+  return (
+    <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
+      <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
+        {PRIMARY_PRESETS.map(preset => (
+          <button key={preset.id} type="button" className={controlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
+            {preset.label}
+          </button>
+        ))}
+        <div className="mx-1 min-h-6 border-l border-white/10" />
+        {INTRADAY_PRESETS.map(preset => (
+          <button key={preset.id} type="button" className={quietControlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
+            {preset.label}
+          </button>
+        ))}
+        <button type="button" className={quietControlClass(false)} onClick={() => panBy(20)} disabled={!canPan}>{chartCopy.older}</button>
+        <button type="button" className={quietControlClass(false)} onClick={() => panBy(-20)} disabled={viewOffset === 0}>{chartCopy.newer}</button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {activeLegend.map(item => (
+          <LegendPill key={item.label} label={item.label} color={item.color} onRemove={item.action} />
+        ))}
+        <span className="ml-auto text-xs text-slate-500">
+          {Math.min(activeVisibleBars, totalBars)}/{totalBars} {chartCopy.barsFeed} {interval}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function PatternSummaryCard({ patterns = [], copy }) {
   const topPatterns = [...patterns].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)).slice(0, 3)
   const strongest = topPatterns[0]
 
@@ -134,14 +268,14 @@ function PatternSummaryCard({ patterns = [] }) {
     <div className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Pattern read</div>
-          <div className="mt-1 text-sm font-semibold text-white">Active chart structures</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{copy.patternRead}</div>
+          <div className="mt-1 text-sm font-semibold text-white">{copy.activeStructures}</div>
         </div>
-        <span className="rounded-full border border-white/8 bg-white/5 px-2.5 py-1 text-xs text-slate-300">{patterns.length} found</span>
+        <span className="rounded-full border border-white/8 bg-white/5 px-2.5 py-1 text-xs text-slate-300">{patterns.length} {copy.found}</span>
       </div>
       {topPatterns.length === 0 ? (
         <div className="mt-4 rounded-2xl border border-dashed border-white/8 bg-white/3 px-4 py-5 text-sm text-slate-400">
-          No dominant pattern is active right now. Use the chart for level-by-level price inspection.
+          {copy.noPattern}
         </div>
       ) : (
         <div className="mt-4 space-y-3">
@@ -149,7 +283,7 @@ function PatternSummaryCard({ patterns = [] }) {
             <div className="rounded-2xl border border-cyan-400/14 bg-cyan-400/8 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-cyan-200/70">Strongest pattern</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-cyan-200/70">{copy.strongestPattern}</div>
                   <div className="mt-1 text-base font-semibold text-white">{strongest.name}</div>
                 </div>
                 <Badge tone={strongest.direction === 'Bullish' ? 'positive' : strongest.direction === 'Bearish' ? 'danger' : 'balanced'}>
@@ -157,10 +291,10 @@ function PatternSummaryCard({ patterns = [] }) {
                 </Badge>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
-                <span>Breakout: {strongest.breakoutLevel ?? '-'}</span>
-                <span>Invalidation: {strongest.invalidationLevel ?? '-'}</span>
-                <span>Volume: {strongest.volumeConfirmed ? 'Confirmed' : 'Mixed'}</span>
-                <span>{strongest.status ?? 'Developing'}</span>
+                <span>{copy.breakout}: {strongest.breakoutLevel ?? '-'}</span>
+                <span>{copy.invalidation}: {strongest.invalidationLevel ?? '-'}</span>
+                <span>{copy.volume}: {strongest.volumeConfirmed ? copy.confirmed : copy.mixed}</span>
+                <span>{strongest.status ?? copy.developing}</span>
               </div>
             </div>
           )}
@@ -173,8 +307,8 @@ function PatternSummaryCard({ patterns = [] }) {
                 </Badge>
               </div>
               <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-300">
-                <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">Confidence {pattern.confidence}%</span>
-                <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{pattern.category ?? 'Pattern'}</span>
+                <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{copy.confidence} {pattern.confidence}%</span>
+                <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{pattern.category ?? copy.pattern}</span>
                 <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{pattern.priceZone}</span>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-400">{pattern.explanation}</p>
@@ -186,7 +320,7 @@ function PatternSummaryCard({ patterns = [] }) {
   )
 }
 
-function IndicatorSummaryCard({ analysis }) {
+function IndicatorSummaryCard({ analysis, copy }) {
   const interpretations = analysis?.indicatorInterpretations?.slice(0, 8) ?? []
   const scores = [
     ['Technical', analysis?.technicalScore],
@@ -204,8 +338,8 @@ function IndicatorSummaryCard({ analysis }) {
     <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Technical score</div>
-          <div className="mt-1 text-sm text-slate-300">Indicator and pattern readout</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{copy.technicalScore}</div>
+          <div className="mt-1 text-sm text-slate-300">{copy.indicatorReadout}</div>
         </div>
         <div className="flex flex-wrap gap-2">
           {scores.map(([label, value]) => (
@@ -579,10 +713,117 @@ export default function ChartWorkspace({
   const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolumeMA}-${showPatterns}-${showTriangles}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}`
   const patternSummary = technicalAnalysis?.patterns ?? []
   const signalCount = technicalAnalysis?.indicatorInterpretations?.length ?? 0
+  const chartCopy = language === 'he'
+    ? {
+        activeStructures: 'מבני גרף פעילים',
+        patternRead: 'קריאת תבניות',
+        found: 'נמצאו',
+        noPattern: 'אין כרגע תבנית דומיננטית. אפשר להשתמש בגרף כדי לבדוק רמות מחיר בצורה ידנית.',
+        strongestPattern: 'התבנית החזקה',
+        breakout: 'פריצה',
+        invalidation: 'ביטול',
+        volume: 'מחזור',
+        confirmed: 'מאושר',
+        mixed: 'מעורב',
+        developing: 'מתפתח',
+        confidence: 'ביטחון',
+        pattern: 'תבנית',
+        technicalScore: 'ציון טכני',
+        indicatorReadout: 'קריאת אינדיקטורים ותבניות',
+        chartType: 'סוג גרף',
+        candles: 'נרות',
+        line: 'קו',
+        area: 'שטח',
+        indicators: 'אינדיקטורים',
+        moreIndicators: 'עוד אינדיקטורים',
+        analysisTools: 'כלי ניתוח',
+        view: 'תצוגה',
+        trendline: 'קו מגמה',
+        horizontalLine: 'קו אופקי',
+        fibonacci: 'פיבונאצ׳י',
+        fibExtension: 'הרחבת פיבו',
+        zone: 'אזור',
+        patternMarkers: 'סימוני תבניות',
+        ruler: 'סרגל %',
+        collapse: 'צמצם',
+        expand: 'הרחב',
+        resetChart: 'איפוס גרף',
+        clearDrawings: 'נקה סימונים',
+        zoomIn: 'הגדל',
+        zoomOut: 'הקטן',
+        fitLatest: 'התאם לאחרון',
+        older: 'ישן יותר',
+        newer: 'חדש יותר',
+        summary: 'סיכום',
+        patternsWord: 'תבניות',
+        signalsWord: 'איתותים',
+        priceChart: 'גרף מחיר',
+        priceChartSubtitle: `${currentTicker} · ${chartType === 'candlestick' ? 'נרות' : chartType === 'area' ? 'שטח' : 'קו'}`,
+        measuringHint: 'גרור על גבי הגרף כדי למדוד אחוז שינוי ומרחק במספר נרות.',
+        barsFeed: 'נרות · פיד',
+        volumeSubtitle: 'אישור מהמחזור עם עמודות צבועות וממוצע מחזור',
+        rsiPanel: 'פאנל RSI',
+        macdPanel: 'פאנל MACD',
+        disclaimerFoot: 'השתמש בהסתברות ובניהול סיכון, לא בוודאות.',
+        risk: 'סיכון',
+      }
+    : {
+        activeStructures: 'Active chart structures',
+        patternRead: 'Pattern read',
+        found: 'found',
+        noPattern: 'No dominant pattern is active right now. Use the chart for level-by-level price inspection.',
+        strongestPattern: 'Strongest pattern',
+        breakout: 'Breakout',
+        invalidation: 'Invalidation',
+        volume: 'Volume',
+        confirmed: 'Confirmed',
+        mixed: 'Mixed',
+        developing: 'Developing',
+        confidence: 'Confidence',
+        pattern: 'Pattern',
+        technicalScore: 'Technical score',
+        indicatorReadout: 'Indicator and pattern readout',
+        chartType: 'Chart type',
+        candles: 'Candles',
+        line: 'Line',
+        area: 'Area',
+        indicators: 'Indicators',
+        moreIndicators: 'More indicators',
+        analysisTools: 'Analysis tools',
+        view: 'View',
+        trendline: 'Trendline',
+        horizontalLine: 'Horizontal line',
+        fibonacci: 'Fibonacci',
+        fibExtension: 'Fib extension',
+        zone: 'Zone',
+        patternMarkers: 'Pattern markers',
+        ruler: '% ruler',
+        collapse: 'Collapse',
+        expand: 'Expand',
+        resetChart: 'Reset chart',
+        clearDrawings: 'Clear drawings',
+        zoomIn: 'Zoom in',
+        zoomOut: 'Zoom out',
+        fitLatest: 'Fit latest',
+        older: 'Older',
+        newer: 'Newer',
+        summary: 'Summary',
+        patternsWord: 'patterns',
+        signalsWord: 'signals',
+        priceChart: 'Price chart',
+        priceChartSubtitle: `${currentTicker} · ${chartType === 'candlestick' ? 'Candlestick' : chartType === 'area' ? 'Area' : 'Line'} view`,
+        measuringHint: 'Drag on the price panel to measure percentage move and distance in bars.',
+        barsFeed: 'bars · feed',
+        volumeSubtitle: 'Confirmation panel with color-coded bars and average volume',
+        rsiPanel: 'RSI panel',
+        macdPanel: 'MACD panel',
+        disclaimerFoot: 'Use probability and risk, not certainty.',
+        risk: 'Risk',
+      }
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="hidden items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-semibold text-slate-300">{currentTicker} technical chart</div>
           <Badge tone={activeTrend === 'Bullish' ? 'positive' : activeTrend === 'Bearish' ? 'danger' : 'balanced'}>
@@ -704,9 +945,52 @@ export default function ChartWorkspace({
           </div>
         )}
 
+        <ChartControls
+          chartType={chartType}
+          setChartType={setChartType}
+          coreIndicators={coreIndicators}
+          advancedIndicatorGroups={advancedIndicatorGroups}
+          chartCopy={chartCopy}
+          showTriangles={showTriangles}
+          setShowTriangles={setShowTriangles}
+          showLevels={showLevels}
+          setShowLevels={setShowLevels}
+          showFibonacci={showFibonacci}
+          setShowFibonacci={setShowFibonacci}
+          showFibExtension={showFibExtension}
+          setShowFibExtension={setShowFibExtension}
+          showGaps={showGaps}
+          setShowGaps={setShowGaps}
+          showPatterns={showPatterns}
+          setShowPatterns={setShowPatterns}
+          measureMode={measureMode}
+          setMeasureMode={setMeasureMode}
+          chartExpanded={chartExpanded}
+          setChartExpanded={setChartExpanded}
+          handleResetChart={handleResetChart}
+          handleClearDrawings={handleClearDrawings}
+          changeVisibleBars={changeVisibleBars}
+          canZoom={canZoom}
+          canPan={canPan}
+          setViewOffset={setViewOffset}
+        />
+
+        <PresetControls
+          chartCopy={chartCopy}
+          selectedPresetId={selectedPresetId}
+          handleSelectPreset={handleSelectPreset}
+          canPan={canPan}
+          panBy={panBy}
+          viewOffset={viewOffset}
+          activeLegend={activeLegend}
+          activeVisibleBars={activeVisibleBars}
+          totalBars={n}
+          interval={interval}
+        />
+
         <ChartContainer
-          title="Price chart"
-          subtitle={`${currentTicker} · ${chartType === 'candlestick' ? 'Candlestick' : chartType === 'area' ? 'Area' : 'Line'} view`}
+          title={chartCopy.priceChart}
+          subtitle={chartCopy.priceChartSubtitle}
           height={chartExpanded ? 'h-[72vh]' : 'h-[360px] sm:h-[460px] xl:h-[620px]'}
           onWheel={handlePriceChartWheel}
           headerRight={(
@@ -763,23 +1047,23 @@ export default function ChartWorkspace({
 
         {measureMode && (
           <div className="rounded-2xl border border-cyan-400/18 bg-cyan-400/10 px-4 py-3 text-xs font-medium text-cyan-100">
-            Drag on the price panel to measure percentage move and distance in bars.
+            {chartCopy.measuringHint}
           </div>
         )}
 
         <details className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
           <summary className="cursor-pointer list-none font-semibold text-white transition-colors hover:text-slate-200">
             <span className="select-none">
-              Summary ({patternSummary.length} patterns, {signalCount} signals)
+              {chartCopy.summary} ({patternSummary.length} {chartCopy.patternsWord}, {signalCount} {chartCopy.signalsWord})
             </span>
           </summary>
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <PatternSummaryCard patterns={patternSummary} />
-            <IndicatorSummaryCard analysis={technicalAnalysis} />
+            <PatternSummaryCard patterns={patternSummary} copy={chartCopy} />
+            <IndicatorSummaryCard analysis={technicalAnalysis} copy={chartCopy} />
           </div>
         </details>
 
-        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+        <div className="hidden grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
           <Group label="Chart type">
             {[
               ['candlestick', 'Candles'],
@@ -839,7 +1123,7 @@ export default function ChartWorkspace({
           </Group>
         </div>
 
-        <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
+        <div className="hidden rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
           <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
             {PRIMARY_PRESETS.map(preset => (
               <button key={preset.id} type="button" className={controlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
@@ -868,8 +1152,8 @@ export default function ChartWorkspace({
 
         {showVolume && (
           <ChartContainer
-            title="Volume"
-            subtitle="Confirmation panel with color-coded bars and average volume"
+            title={chartCopy.volume}
+            subtitle={chartCopy.volumeSubtitle}
             height="h-[170px] sm:h-[190px]"
           >
             <SafeChart isLoading={isLoading} resetKey={`volume-${chartResetKey}`}>
@@ -891,7 +1175,7 @@ export default function ChartWorkspace({
           <div className={`grid gap-4 ${showRSI && showMACD ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
             {showRSI && (
               <ChartContainer
-                title="RSI panel"
+                title={chartCopy.rsiPanel}
                 subtitle={`RSI (14)${rsiLast != null ? ` · ${rsiLast.toFixed(1)}` : ''}`}
                 height="h-[190px]"
               >
@@ -911,7 +1195,7 @@ export default function ChartWorkspace({
 
             {showMACD && (
               <ChartContainer
-                title="MACD panel"
+                title={chartCopy.macdPanel}
                 subtitle={`MACD (12, 26, 9)${macdLine != null && macdSignal != null ? ` · ${macdLine.toFixed(2)} / ${macdSignal.toFixed(2)}` : ''}`}
                 height="h-[190px]"
               >
@@ -960,10 +1244,12 @@ export default function ChartWorkspace({
 
         <div className="flex flex-col gap-2 rounded-[24px] border border-white/8 bg-slate-950/78 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-slate-300">
-            {technicalAnalysis?.disclaimer ?? 'This technical analysis is for educational and informational purposes only. It is not financial advice or a trading recommendation.'}
+            {technicalAnalysis?.disclaimer ?? (language === 'he'
+              ? 'הניתוח הטכני מיועד למטרות לימוד ומידע בלבד. הוא אינו ייעוץ פיננסי או המלצת מסחר.'
+              : 'This technical analysis is for educational and informational purposes only. It is not financial advice or a trading recommendation.')}
           </div>
           <div className="text-xs text-slate-500">
-            Use probability and risk, not certainty.
+            {chartCopy.disclaimerFoot}
           </div>
         </div>
       </div>

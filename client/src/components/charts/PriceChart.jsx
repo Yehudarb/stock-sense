@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
-import { createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import useStore from '../../store/useStore'
+import { createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 const TV_GREEN = TRADER_COLORS.entry
 const TV_RED = TRADER_COLORS.bearish
-const TV_GRID = 'rgba(148, 163, 184, 0.08)'
-const TV_TEXT = 'rgba(226, 232, 240, 0.92)'
 const CHART_FONT = "Heebo, Inter, system-ui, sans-serif"
 
 const PATTERN_COLORS = {
@@ -253,34 +252,36 @@ function computeFibonacci(ohlcv, includeExtensions = false) {
   }
 }
 
-function tradingViewXAxis(maxTicksLimit = 10) {
+function tradingViewXAxis(theme, maxTicksLimit = 10) {
+  const palette = getChartPalette(theme)
   return {
     type: 'category',
     ticks: {
-      color: TV_TEXT,
+      color: palette.tick,
       maxRotation: 0,
       autoSkip: true,
       maxTicksLimit,
       font: { size: 11 },
     },
-    grid: { color: TV_GRID, drawTicks: false },
-    border: { color: 'rgba(148, 163, 184, 0.14)' },
+    grid: { color: palette.grid, drawTicks: false },
+    border: { color: palette.border },
   }
 }
 
-function tradingViewYAxis(range) {
+function tradingViewYAxis(theme, range) {
+  const palette = getChartPalette(theme)
   return {
     position: 'right',
     min: range.min,
     max: range.max,
     ticks: {
-      color: TV_TEXT,
+      color: palette.tick,
       padding: 8,
       callback: value => Number(value).toFixed(Number(value) >= 100 ? 2 : 3),
       font: { size: 11 },
     },
-    grid: { color: TV_GRID, drawTicks: false },
-    border: { color: 'rgba(148, 163, 184, 0.14)' },
+    grid: { color: palette.grid, drawTicks: false },
+    border: { color: palette.border },
   }
 }
 
@@ -362,18 +363,21 @@ function drawPatternLine(ctx, xScale, yScale, line, color, chartArea) {
   ctx.stroke()
 }
 
-const chartBackgroundPlugin = {
-  id: 'chartBackground',
-  beforeDraw(chart) {
-    const { ctx, width, height } = chart
-    ctx.save()
-    const gradient = ctx.createLinearGradient(0, 0, 0, height)
-    gradient.addColorStop(0, '#07111f')
-    gradient.addColorStop(1, '#050c17')
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, width, height)
-    ctx.restore()
-  },
+function createChartBackgroundPlugin(theme) {
+  return {
+    id: 'chartBackground',
+    beforeDraw(chart) {
+      const palette = getChartPalette(theme)
+      const { ctx, width, height } = chart
+      ctx.save()
+      const gradient = ctx.createLinearGradient(0, 0, 0, height)
+      gradient.addColorStop(0, palette.panelTop)
+      gradient.addColorStop(1, palette.panelBottom)
+      ctx.fillStyle = gradient
+      ctx.fillRect(0, 0, width, height)
+      ctx.restore()
+    },
+  }
 }
 
 const volumeOverlayPlugin = {
@@ -862,10 +866,12 @@ export default function PriceChart({
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
   const measurementRef = useRef({ active: false, start: null, end: null })
+  const { theme } = useStore()
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length) return
     measurementRef.current = { active: false, start: null, end: null }
+    const palette = getChartPalette(theme)
 
     const { start: viewStart, end: viewSliceEnd } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const viewEnd = viewSliceEnd - 1
@@ -1233,11 +1239,11 @@ export default function PriceChart({
           legend: { display: false },
           tooltip: {
             mode: 'index',
-            backgroundColor: 'rgba(2, 6, 23, 0.96)',
-            borderColor: 'rgba(148, 163, 184, 0.16)',
+            backgroundColor: palette.tooltipBg,
+            borderColor: palette.tooltipBorder,
             borderWidth: 1,
-            titleColor: '#f8fafc',
-            bodyColor: '#cbd5e1',
+            titleColor: palette.tooltipTitle,
+            bodyColor: palette.tooltipBody,
             displayColors: true,
             padding: 12,
             callbacks: {
@@ -1296,6 +1302,7 @@ export default function PriceChart({
           },
           priceCrosshair: {
             index: hoveredIndex,
+            theme,
           },
           measurementOverlay: {
             enabled: measurementEnabled,
@@ -1303,12 +1310,12 @@ export default function PriceChart({
           },
         },
         scales: {
-          x: tradingViewXAxis(maxTicksForInterval(interval, visibleOhlcv.length)),
-          y: tradingViewYAxis(priceRange),
+          x: tradingViewXAxis(theme, maxTicksForInterval(interval, visibleOhlcv.length)),
+          y: tradingViewYAxis(theme, priceRange),
         },
       },
       plugins: [
-        chartBackgroundPlugin,
+        createChartBackgroundPlugin(theme),
         gapOverlayPlugin,
         volumeOverlayPlugin,
         candlestickPlugin,
@@ -1379,7 +1386,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange, theme])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

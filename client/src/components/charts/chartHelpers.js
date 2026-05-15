@@ -62,32 +62,64 @@ export function getWindowBounds(total, visibleBars, viewOffset = 0, minBars = 20
   }
 }
 
-export function categoryXAxis(maxTicksLimit = 8) {
+export function getChartPalette(theme = 'dark') {
+  if (theme === 'light') {
+    return {
+      tick: 'rgba(51, 65, 85, 0.92)',
+      grid: 'rgba(148, 163, 184, 0.18)',
+      border: 'rgba(148, 163, 184, 0.32)',
+      tooltipBg: 'rgba(255, 255, 255, 0.98)',
+      tooltipBorder: 'rgba(148, 163, 184, 0.28)',
+      tooltipTitle: '#0f172a',
+      tooltipBody: '#334155',
+      crosshair: 'rgba(71, 85, 105, 0.35)',
+      panelTop: '#f8fbff',
+      panelBottom: '#eef4fb',
+    }
+  }
+
+  return {
+    tick: 'rgba(148, 163, 184, 0.92)',
+    grid: 'rgba(148, 163, 184, 0.08)',
+    border: 'rgba(148, 163, 184, 0.14)',
+    tooltipBg: 'rgba(2, 6, 23, 0.96)',
+    tooltipBorder: 'rgba(148, 163, 184, 0.16)',
+    tooltipTitle: '#f8fafc',
+    tooltipBody: '#cbd5e1',
+    crosshair: 'rgba(148, 163, 184, 0.35)',
+    panelTop: '#07111f',
+    panelBottom: '#050c17',
+  }
+}
+
+export function categoryXAxis(maxTicksLimit = 8, theme = 'dark') {
+  const palette = getChartPalette(theme)
   return {
     type: 'category',
     ticks: {
-      color: 'rgba(148, 163, 184, 0.9)',
+      color: palette.tick,
       maxTicksLimit,
       font: { size: 11 },
       autoSkip: true,
       maxRotation: 0,
     },
-    grid: { color: 'rgba(148, 163, 184, 0.08)', drawTicks: false },
-    border: { color: 'rgba(148, 163, 184, 0.14)' },
+    grid: { color: palette.grid, drawTicks: false },
+    border: { color: palette.border },
   }
 }
 
-export function rightYAxis(extra = {}) {
+export function rightYAxis(extra = {}, theme = 'dark') {
+  const palette = getChartPalette(theme)
   return {
     position: 'right',
     ticks: {
-      color: 'rgba(148, 163, 184, 0.92)',
+      color: palette.tick,
       font: { size: 11 },
       padding: 6,
       ...(extra.ticks ?? {}),
     },
-    grid: { color: 'rgba(148, 163, 184, 0.08)', drawTicks: false },
-    border: { color: 'rgba(148, 163, 184, 0.14)' },
+    grid: { color: palette.grid, drawTicks: false },
+    border: { color: palette.border },
     ...extra,
   }
 }
@@ -97,6 +129,7 @@ export function createCrosshairPlugin(id = 'syncedCrosshair') {
     id,
     afterDraw(chart, _args, options) {
       const index = options?.index
+      const palette = getChartPalette(options?.theme)
       if (index == null) return
 
       const xScale = chart.scales?.x
@@ -109,7 +142,7 @@ export function createCrosshairPlugin(id = 'syncedCrosshair') {
       ctx.beginPath()
       ctx.moveTo(x, chartArea.top)
       ctx.lineTo(x, chartArea.bottom)
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)'
+      ctx.strokeStyle = palette.crosshair
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
       ctx.stroke()

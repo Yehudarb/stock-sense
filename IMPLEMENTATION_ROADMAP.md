@@ -25,9 +25,10 @@
   ├─ Dark/Light mode toggle (45 דק׳)
   └─ DisclaimerBanner + LegalFooter (already done ✅)
 
-שלב 2: P1 - Important (1-2 שעות)
+שלב 2: P1 - Important (1.5-2 שעות)
   ├─ Mobile timestamp visibility (3 דק׳)
   ├─ Timeframe switching feedback (5 דק׳)
+  ├─ Move controls above chart (10 דק׳) ⭐ ELEVATED
   ├─ Hebrew translations (30 דק׳)
   ├─ Color consistency (10 דק׳)
   └─ Font size improvements (5 דק׳)
@@ -144,7 +145,7 @@
 | 4 | Chart theme support | All chart files | MODIFY | 15 |
 | 5 | Test dark/light | N/A | MANUAL | 12 |
 
-### **Part C: Important Fixes (P1) — 40 minutes**
+### **Part C: Important Fixes (P1) — 55 minutes**
 
 | # | Task | File | Time |
 |---|------|------|------|
@@ -154,15 +155,15 @@
 | 4 | KPI color consistency | App.jsx | 5 |
 | 5 | FactorRow readability | FactorRow.jsx | 2 |
 | 6 | S/R lines on chart | PriceChart.jsx | 5 |
-| 7 | Hebrew translations | 6 files | 30 |
+| 7 | Move controls above chart | ChartWorkspace.jsx | 10 |
+| 8 | Hebrew translations | 6 files | 30 |
 
-### **Part D: Cleanliness Fixes (P3) — 15 minutes**
+### **Part D: Cleanliness Fixes (P3) — 10 minutes**
 
 | # | Task | File | Time |
 |---|------|------|------|
 | 1 | Remove header section | ChartWorkspace.jsx | 5 |
 | 2 | Collapse summaries | ChartWorkspace.jsx | 5 |
-| 3 | Reorganize controls | ChartWorkspace.jsx | 5 |
 
 ### **Part E: Testing (Manual) — 30 minutes**
 
@@ -277,12 +278,13 @@ After completing all tasks:
 ## 🎯 **Summary**
 
 **Total Tasks:** 40+  
-**Total Time:** 4-5 hours  
-**Priority Order:** P0 → P1 → P3 → Testing  
+**Total Time:** 4.5-5.5 hours  
+**Priority Order:** P0 → P1 (with newly elevated P1.7) → P3 → Testing  
+**Latest Update:** P1.7 (Move controls above chart) elevated from P3 for better UX accessibility
 
 **Files to Reference:**
 1. `IMPROVEMENTS.md` — UI/UX basics
-2. `TECHNICAL_IMPROVEMENTS.md` — Technical deep dive
+2. `TECHNICAL_IMPROVEMENTS.md` — Technical deep dive (updated with P1.7)
 3. `THEME_AND_TRANSLATION.md` — Theme + Hebrew
 
 **Ready to implement? Start with Part A (P0 tasks) and work through the checklist!**

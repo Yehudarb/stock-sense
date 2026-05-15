@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
-import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, rightYAxis, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import useStore from '../../store/useStore'
+import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, labelsFromBars, rightYAxis, seriesFromBars, seriesFromIndicator } from './chartHelpers'
 
 const volumeCrosshairPlugin = createCrosshairPlugin('volumeCrosshair')
 
@@ -25,10 +26,12 @@ export default function VolumeChart({
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
+  const { theme } = useStore()
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length) return
 
+    const palette = getChartPalette(theme)
     if (chartRef.current) chartRef.current.destroy()
     const { start, end } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const visibleOhlcv = ohlcv.slice(start, end)
@@ -72,9 +75,11 @@ export default function VolumeChart({
           legend: { display: false },
           tooltip: {
             mode: 'index',
-            backgroundColor: 'rgba(2, 6, 23, 0.96)',
-            borderColor: 'rgba(148, 163, 184, 0.16)',
+            backgroundColor: palette.tooltipBg,
+            borderColor: palette.tooltipBorder,
             borderWidth: 1,
+            titleColor: palette.tooltipTitle,
+            bodyColor: palette.tooltipBody,
             padding: 12,
             callbacks: {
               title: items => {
@@ -86,15 +91,16 @@ export default function VolumeChart({
           },
           volumeCrosshair: {
             index: hoveredIndex,
+            theme,
           },
         },
         scales: {
-          x: categoryXAxis(8),
+          x: categoryXAxis(8, theme),
           y: rightYAxis({
             ticks: {
               callback: value => compactVolume(Number(value)),
             },
-          }),
+          }, theme),
         },
       },
       plugins: [volumeCrosshairPlugin],
@@ -106,7 +112,7 @@ export default function VolumeChart({
         chartRef.current = null
       }
     }
-  }, [hoveredIndex, indicators, interval, ohlcv, onHoverIndexChange, showVolumeMA, viewOffset, visibleBars])
+  }, [hoveredIndex, indicators, interval, ohlcv, onHoverIndexChange, showVolumeMA, theme, viewOffset, visibleBars])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

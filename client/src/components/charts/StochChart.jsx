@@ -1,14 +1,17 @@
 import { useRef, useEffect } from 'react'
 import { Chart } from 'chart.js'
-import { categoryXAxis, labelsFromBars, seriesFromIndicator } from './chartHelpers'
+import useStore from '../../store/useStore'
+import { categoryXAxis, getChartPalette, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
 
 export default function StochChart({ ohlcv, indicators, interval, visibleBars }) {
   const canvasRef = useRef(null)
   const chartRef  = useRef(null)
+  const { theme } = useStore()
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length || !indicators?.stoch) return
 
+    const palette = getChartPalette(theme)
     const start = Math.max(0, ohlcv.length - (visibleBars ?? ohlcv.length))
     const visibleOhlcv = ohlcv.slice(start)
     const { k, d } = indicators.stoch
@@ -59,22 +62,25 @@ export default function StochChart({ ohlcv, indicators, interval, visibleBars })
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          annotation: {
-            annotations: {
-              over80: { type: 'line', yMin: 80, yMax: 80, borderColor: 'rgba(226,75,74,0.5)', borderWidth: 1, borderDash: [4, 4] },
-              under20: { type: 'line', yMin: 20, yMax: 20, borderColor: 'rgba(99,153,34,0.5)', borderWidth: 1, borderDash: [4, 4] },
-            },
+          tooltip: {
+            mode: 'index',
+            backgroundColor: palette.tooltipBg,
+            borderColor: palette.tooltipBorder,
+            borderWidth: 1,
+            titleColor: palette.tooltipTitle,
+            bodyColor: palette.tooltipBody,
+            padding: 12,
           },
         },
         scales: {
-          x: categoryXAxis(6),
-          y: { position: 'right', min: 0, max: 100, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+          x: categoryXAxis(6, theme),
+          y: rightYAxis({ min: 0, max: 100 }, theme),
         },
       },
     })
 
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null } }
-  }, [ohlcv, indicators, interval, visibleBars])
+  }, [ohlcv, indicators, interval, theme, visibleBars])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

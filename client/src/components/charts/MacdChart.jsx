@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
-import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
+import useStore from '../../store/useStore'
+import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
 
 const macdCrosshairPlugin = createCrosshairPlugin('macdCrosshair')
 
@@ -32,10 +33,12 @@ export default function MacdChart({
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
+  const { theme } = useStore()
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length || !indicators?.macd) return
 
+    const palette = getChartPalette(theme)
     const { start, end } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const visibleOhlcv = ohlcv.slice(start, end)
     const macd = {
@@ -123,9 +126,11 @@ export default function MacdChart({
           legend: { display: false },
           tooltip: {
             mode: 'index',
-            backgroundColor: 'rgba(2, 6, 23, 0.96)',
-            borderColor: 'rgba(148, 163, 184, 0.16)',
+            backgroundColor: palette.tooltipBg,
+            borderColor: palette.tooltipBorder,
             borderWidth: 1,
+            titleColor: palette.tooltipTitle,
+            bodyColor: palette.tooltipBody,
             padding: 12,
             callbacks: {
               title: items => {
@@ -137,11 +142,12 @@ export default function MacdChart({
           },
           macdCrosshair: {
             index: hoveredIndex,
+            theme,
           },
         },
         scales: {
-          x: categoryXAxis(8),
-          y: rightYAxis(),
+          x: categoryXAxis(8, theme),
+          y: rightYAxis({}, theme),
         },
       },
       plugins: [
@@ -155,7 +161,7 @@ export default function MacdChart({
             ctx.beginPath()
             ctx.moveTo(chartArea.left, y)
             ctx.lineTo(chartArea.right, y)
-            ctx.strokeStyle = 'rgba(148, 163, 184, 0.26)'
+            ctx.strokeStyle = theme === 'light' ? 'rgba(100, 116, 139, 0.28)' : 'rgba(148, 163, 184, 0.26)'
             ctx.setLineDash([4, 4])
             ctx.stroke()
             ctx.restore()
@@ -170,7 +176,7 @@ export default function MacdChart({
         chartRef.current = null
       }
     }
-  }, [hoveredIndex, indicators, interval, ohlcv, onHoverIndexChange, viewOffset, visibleBars])
+  }, [hoveredIndex, indicators, interval, ohlcv, onHoverIndexChange, theme, viewOffset, visibleBars])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

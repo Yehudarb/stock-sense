@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
-import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
+import useStore from '../../store/useStore'
+import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
 
 const rsiCrosshairPlugin = createCrosshairPlugin('rsiCrosshair')
 
@@ -16,10 +17,12 @@ export default function RsiChart({
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
+  const { theme } = useStore()
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length || !indicators?.rsi14) return
 
+    const palette = getChartPalette(theme)
     if (chartRef.current) chartRef.current.destroy()
     const { start, end } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const visibleOhlcv = ohlcv.slice(start, end)
@@ -57,9 +60,11 @@ export default function RsiChart({
           legend: { display: false },
           tooltip: {
             mode: 'index',
-            backgroundColor: 'rgba(2, 6, 23, 0.96)',
-            borderColor: 'rgba(148, 163, 184, 0.16)',
+            backgroundColor: palette.tooltipBg,
+            borderColor: palette.tooltipBorder,
             borderWidth: 1,
+            titleColor: palette.tooltipTitle,
+            bodyColor: palette.tooltipBody,
             padding: 12,
             callbacks: {
               title: items => {
@@ -71,14 +76,15 @@ export default function RsiChart({
           },
           rsiCrosshair: {
             index: hoveredIndex,
+            theme,
           },
         },
         scales: {
-          x: categoryXAxis(8),
+          x: categoryXAxis(8, theme),
           y: rightYAxis({
             min: 0,
             max: 100,
-          }),
+          }, theme),
         },
       },
       plugins: [
@@ -91,9 +97,9 @@ export default function RsiChart({
             const oversoldY = scales.y.getPixelForValue(30)
 
             ctx.save()
-            ctx.fillStyle = 'rgba(244, 63, 94, 0.06)'
+            ctx.fillStyle = theme === 'light' ? 'rgba(244, 63, 94, 0.08)' : 'rgba(244, 63, 94, 0.06)'
             ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, overboughtY - chartArea.top)
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.05)'
+            ctx.fillStyle = theme === 'light' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.05)'
             ctx.fillRect(chartArea.left, oversoldY, chartArea.right - chartArea.left, chartArea.bottom - oversoldY)
             ctx.restore()
           },
@@ -101,7 +107,7 @@ export default function RsiChart({
             const { ctx, chartArea, scales } = chart
             ;[
               [70, 'rgba(244, 63, 94, 0.52)'],
-              [50, 'rgba(148, 163, 184, 0.22)'],
+              [50, theme === 'light' ? 'rgba(100, 116, 139, 0.28)' : 'rgba(148, 163, 184, 0.22)'],
               [30, 'rgba(16, 185, 129, 0.52)'],
             ].forEach(([value, color]) => {
               const y = scales.y.getPixelForValue(value)
@@ -125,7 +131,7 @@ export default function RsiChart({
         chartRef.current = null
       }
     }
-  }, [hoveredIndex, indicators, interval, ohlcv, onHoverIndexChange, viewOffset, visibleBars])
+  }, [hoveredIndex, indicators, interval, ohlcv, onHoverIndexChange, theme, viewOffset, visibleBars])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

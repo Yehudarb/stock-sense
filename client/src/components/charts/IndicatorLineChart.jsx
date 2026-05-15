@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
-import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
+import useStore from '../../store/useStore'
+import { categoryXAxis, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, labelsFromBars, rightYAxis, seriesFromIndicator } from './chartHelpers'
 
 const indicatorCrosshairPlugin = createCrosshairPlugin('indicatorCrosshair')
 
@@ -17,10 +18,12 @@ export default function IndicatorLineChart({
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
+  const { theme } = useStore()
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length || !datasets?.length) return
 
+    const palette = getChartPalette(theme)
     if (chartRef.current) chartRef.current.destroy()
     const { start, end } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const visibleOhlcv = ohlcv.slice(start, end)
@@ -56,9 +59,11 @@ export default function IndicatorLineChart({
           legend: { display: false },
           tooltip: {
             mode: 'index',
-            backgroundColor: 'rgba(2, 6, 23, 0.96)',
-            borderColor: 'rgba(148, 163, 184, 0.16)',
+            backgroundColor: palette.tooltipBg,
+            borderColor: palette.tooltipBorder,
             borderWidth: 1,
+            titleColor: palette.tooltipTitle,
+            bodyColor: palette.tooltipBody,
             padding: 12,
             callbacks: {
               title: items => {
@@ -70,11 +75,12 @@ export default function IndicatorLineChart({
           },
           indicatorCrosshair: {
             index: hoveredIndex,
+            theme,
           },
         },
         scales: {
-          x: categoryXAxis(8),
-          y: rightYAxis({ min: yMin, max: yMax }),
+          x: categoryXAxis(8, theme),
+          y: rightYAxis({ min: yMin, max: yMax }, theme),
         },
       },
       plugins: [indicatorCrosshairPlugin],
@@ -86,7 +92,7 @@ export default function IndicatorLineChart({
         chartRef.current = null
       }
     }
-  }, [datasets, hoveredIndex, interval, ohlcv, onHoverIndexChange, viewOffset, visibleBars, yMax, yMin])
+  }, [datasets, hoveredIndex, interval, ohlcv, onHoverIndexChange, theme, viewOffset, visibleBars, yMax, yMin])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

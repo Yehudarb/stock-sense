@@ -615,56 +615,68 @@
 
 ---
 
-### P3.3: Move Controls Below Chart (Not Before)
-**Issue:** All control buttons (Chart type, Indicators, Analysis tools, View, Presets) appear BEFORE the chart  
-**Better:** Controls should appear AFTER the chart for easy access to customize  
-**Location:** Lines 634-728
+### P1.7: Move Controls ABOVE Chart (Better UX) ⭐ ELEVATED PRIORITY
+**Issue:** All control buttons (Chart type, Indicators, Analysis tools, View, Presets) appear BELOW the chart  
+**Problem:** Trader must scroll DOWN past the full chart to access controls, then scroll back UP to see changes  
+**Target:** Controls at TOP before chart — trader can adjust settings, THEN see chart with chosen view  
+**UX Impact:** CRITICAL — accessibility for control panel  
+**Location:** ChartWorkspace.jsx, lines 782-867 (visible controls after chart)
 
 **What to do:**
 
-1. Find the section starting at line 634:
+1. In `client/src/components/charts/ChartWorkspace.jsx`, find the VISIBLE controls section starting around line 782:
    ```jsx
-   <div className="grid gap-4">
+   <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+     <Group label="Chart type">
+       {[
+         ['candlestick', 'Candles'],
+   ```
+
+2. **Cut** this entire section (lines 782-867) including:
+   - All `<Group>` components (Chart type, Indicators, Analysis tools, View)
+   - The Presets section
+   - The Measure mode notice
+
+3. Find where the chart section STARTS (around line 585 where `<section className="space-y-4">` begins)
+
+4. After the header/title section (around line 604), **PASTE** the cut controls section BEFORE the `<ChartContainer>`
+
+5. Result structure should be:
+   ```jsx
+   <section className="space-y-4">
+     {/* Header with summary */}
+     
+     {/* CONTROLS MOVE HERE - BEFORE CHART */}
      <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
-       <Group label="Chart type">
-   ```
-
-2. **Cut** everything from line 634 to line 728 (all control groups + presets)
-
-3. Find the end of ChartContainer (after line 793):
-   ```jsx
-   {/* ... chart content ends ... */}
-        </ChartContainer>
-      
-      {/* INSERT CONTROLS HERE */}
-   ```
-
-4. **Paste** the cut controls section after the chart closes
-
-5. Reorganize presets into a single row (currently split into two):
-   ```jsx
-   <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
-     <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
-       {/* PRIMARY_PRESETS */}
-       {PRIMARY_PRESETS.map(preset => (...))}
-       
-       {/* SPACER */}
-       <div className="ml-2 border-l border-white/10"></div>
-       
-       {/* INTRADAY_PRESETS */}
-       {INTRADAY_PRESETS.map(preset => (...))}
+       <Group label="Chart type">...</Group>
+       <Group label="Indicators">...</Group>
+       <Group label="Analysis tools">...</Group>
+       <Group label="View">...</Group>
      </div>
-   </div>
+     
+     {/* Presets section HERE */}
+     <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
+       {/* PRIMARY + INTRADAY presets */}
+     </div>
+     
+     {/* THEN the actual chart */}
+     <ChartContainer>...</ChartContainer>
+     
+     {/* Volume, RSI, MACD charts follow */}
+   </section>
    ```
 
 **Expected result:** 
-- Chart is now the hero (visible immediately)
-- Controls below for easy customization
-- Logical flow: See chart → Customize → See changes
+- User opens page → sees control panel at top
+- Trader adjusts Chart type, Indicators, View, Presets
+- Chart appears below with chosen settings applied
+- Logical flow: Adjust controls → View result → Good UX ✓
 
 ---
 
 ## Priority Execution Order (All Remaining)
+
+**CRITICAL PATH (Execute in this order):**
 
 1. **P0.1** → Move TradeActionCard to top (Visual hierarchy fix)
 2. **P0.2** → Draw Entry/SL/TP on chart (Trader decision support)
@@ -675,7 +687,8 @@
 7. **P1.4** → Fix KPI color consistency (Design system)
 8. **P1.5** → Improve indicator readability (Mobile UX)
 9. **P1.6** → Add S/R lines to chart (Technical analysis)
-10. **P2.x** → Pattern zones, MACD crossovers, etc.
+10. **P1.7** → Move controls ABOVE chart (UX accessibility) ⭐ ELEVATED FROM P3.3
+11. **P2.x** → Pattern zones, MACD crossovers, etc.
 
 ---
 
