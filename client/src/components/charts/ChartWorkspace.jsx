@@ -126,6 +126,15 @@ function PanelToggle({ label, value, onToggle }) {
   )
 }
 
+function LabelWithIcon({ icon, label }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span aria-hidden="true">{icon}</span>
+      <span>{label}</span>
+    </span>
+  )
+}
+
 function ChartControls({
   chartType,
   setChartType,
@@ -159,12 +168,12 @@ function ChartControls({
     <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
       <Group label={chartCopy.chartType}>
         {[
-          ['candlestick', chartCopy.candles],
-          ['line', chartCopy.line],
-          ['area', chartCopy.area],
-        ].map(([value, label]) => (
+          ['candlestick', '🕯️', chartCopy.candles],
+          ['line', '📈', chartCopy.line],
+          ['area', '🟦', chartCopy.area],
+        ].map(([value, icon, label]) => (
           <button key={value} type="button" className={controlClass(chartType === value)} onClick={() => setChartType(value)}>
-            {label}
+            <LabelWithIcon icon={icon} label={label} />
           </button>
         ))}
       </Group>
@@ -175,7 +184,7 @@ function ChartControls({
         ))}
         <details className="relative">
           <summary className={`${quietControlClass(false)} list-none cursor-pointer`}>
-            {chartCopy.moreIndicators}
+            <LabelWithIcon icon="➕" label={chartCopy.moreIndicators} />
           </summary>
           <div className="absolute left-0 z-30 mt-2 w-[min(88vw,520px)] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-[0_24px_80px_rgba(2,6,23,0.55)]">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -195,24 +204,24 @@ function ChartControls({
       </Group>
 
       <Group label={chartCopy.analysisTools}>
-        <PanelToggle label={chartCopy.trendline} value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
-        <PanelToggle label={chartCopy.horizontalLine} value={showLevels} onToggle={() => setShowLevels(value => !value)} />
-        <PanelToggle label={chartCopy.fibonacci} value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
-        <PanelToggle label={chartCopy.fibExtension} value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
-        <PanelToggle label={chartCopy.zone} value={showGaps} onToggle={() => setShowGaps(value => !value)} />
-        <PanelToggle label={chartCopy.patternMarkers} value={showPatterns} onToggle={() => setShowPatterns(value => !value)} />
-        <PanelToggle label={chartCopy.ruler} value={measureMode} onToggle={() => setMeasureMode(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="📏" label={chartCopy.trendline} />} value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="📍" label={chartCopy.horizontalLine} />} value={showLevels} onToggle={() => setShowLevels(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="🌀" label={chartCopy.fibonacci} />} value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="🧭" label={chartCopy.fibExtension} />} value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="🧱" label={chartCopy.zone} />} value={showGaps} onToggle={() => setShowGaps(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="🏷️" label={chartCopy.patternMarkers} />} value={showPatterns} onToggle={() => setShowPatterns(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="📐" label={chartCopy.ruler} />} value={measureMode} onToggle={() => setMeasureMode(value => !value)} />
       </Group>
 
       <Group label={chartCopy.view}>
         <button type="button" className={controlClass(chartExpanded)} onClick={() => setChartExpanded(value => !value)}>
-          {chartExpanded ? chartCopy.collapse : chartCopy.expand}
+          <LabelWithIcon icon={chartExpanded ? '🗕' : '🗖'} label={chartExpanded ? chartCopy.collapse : chartCopy.expand} />
         </button>
-        <button type="button" className={controlClass(false)} onClick={handleResetChart}>{chartCopy.resetChart}</button>
-        <button type="button" className={controlClass(false)} onClick={handleClearDrawings}>{chartCopy.clearDrawings}</button>
-        <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(0.65)} disabled={!canZoom}>{chartCopy.zoomIn}</button>
-        <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(1.55)} disabled={!canZoom}>{chartCopy.zoomOut}</button>
-        <button type="button" className={controlClass(false)} onClick={() => setViewOffset(0)} disabled={!canPan}>{chartCopy.fitLatest}</button>
+        <button type="button" className={controlClass(false)} onClick={handleResetChart}><LabelWithIcon icon="🔄" label={chartCopy.resetChart} /></button>
+        <button type="button" className={controlClass(false)} onClick={handleClearDrawings}><LabelWithIcon icon="🧹" label={chartCopy.clearDrawings} /></button>
+        <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(0.65)} disabled={!canZoom}><LabelWithIcon icon="＋" label={chartCopy.zoomIn} /></button>
+        <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(1.55)} disabled={!canZoom}><LabelWithIcon icon="－" label={chartCopy.zoomOut} /></button>
+        <button type="button" className={controlClass(false)} onClick={() => setViewOffset(0)} disabled={!canPan}><LabelWithIcon icon="🎯" label={chartCopy.fitLatest} /></button>
       </Group>
     </div>
   )
@@ -540,19 +549,19 @@ export default function ChartWorkspace({
   }
 
   const coreIndicators = [
-    ['SMA', showSMA, () => setShowSMA(value => !value)],
-    ['EMA', showEMA, () => setShowEMA(value => !value)],
-    ['RSI', showRSI, () => setShowRSI(value => !value)],
-    ['MACD', showMACD, () => setShowMACD(value => !value)],
-    ['Volume', showVolume, () => setShowVolume(value => !value)],
-    ['VWAP', showVWAP, () => setShowVWAP(value => !value)],
-    ['Bollinger Bands', showBB, () => setShowBB(value => !value)],
-    ['ATR', showATR, () => setShowATR(value => !value)],
-    ['Stoch RSI', showStochRsi, () => setShowStochRsi(value => !value)],
-    ['ADX', showADX, () => setShowADX(value => !value)],
-    ['OBV', showOBV, () => setShowOBV(value => !value)],
-    ['Supertrend', showSupertrend, () => setShowSupertrend(value => !value)],
-    ['Pivot Points', showPivotPoints, () => setShowPivotPoints(value => !value)],
+    ['📊 SMA', showSMA, () => setShowSMA(value => !value)],
+    ['📈 EMA', showEMA, () => setShowEMA(value => !value)],
+    ['⚡ RSI', showRSI, () => setShowRSI(value => !value)],
+    ['〰️ MACD', showMACD, () => setShowMACD(value => !value)],
+    ['📦 Volume', showVolume, () => setShowVolume(value => !value)],
+    ['🎯 VWAP', showVWAP, () => setShowVWAP(value => !value)],
+    ['🫧 Bands', showBB, () => setShowBB(value => !value)],
+    ['📏 ATR', showATR, () => setShowATR(value => !value)],
+    ['⚙️ Stoch RSI', showStochRsi, () => setShowStochRsi(value => !value)],
+    ['🧭 ADX', showADX, () => setShowADX(value => !value)],
+    ['📚 OBV', showOBV, () => setShowOBV(value => !value)],
+    ['🚦 Supertrend', showSupertrend, () => setShowSupertrend(value => !value)],
+    ['📍 Pivot Points', showPivotPoints, () => setShowPivotPoints(value => !value)],
   ]
 
   const advancedIndicatorGroups = [
@@ -823,6 +832,15 @@ export default function ChartWorkspace({
 
   return (
     <section className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-bold text-white">
+          {currentTicker} · {chartCopy.priceChart}
+        </div>
+        <div className="text-xs text-slate-500 lg:hidden">
+          {INTERVAL_LABELS[language]?.[interval] ?? interval}
+        </div>
+      </div>
+
       <div className="grid gap-4">
         {false && measureMode && (
           <div className="rounded-2xl border border-cyan-400/18 bg-cyan-400/10 px-4 py-3 text-xs font-medium text-cyan-100">
@@ -830,48 +848,50 @@ export default function ChartWorkspace({
           </div>
         )}
 
-        <ChartControls
-          chartType={chartType}
-          setChartType={setChartType}
-          coreIndicators={coreIndicators}
-          advancedIndicatorGroups={advancedIndicatorGroups}
-          chartCopy={chartCopy}
-          showTriangles={showTriangles}
-          setShowTriangles={setShowTriangles}
-          showLevels={showLevels}
-          setShowLevels={setShowLevels}
-          showFibonacci={showFibonacci}
-          setShowFibonacci={setShowFibonacci}
-          showFibExtension={showFibExtension}
-          setShowFibExtension={setShowFibExtension}
-          showGaps={showGaps}
-          setShowGaps={setShowGaps}
-          showPatterns={showPatterns}
-          setShowPatterns={setShowPatterns}
-          measureMode={measureMode}
-          setMeasureMode={setMeasureMode}
-          chartExpanded={chartExpanded}
-          setChartExpanded={setChartExpanded}
-          handleResetChart={handleResetChart}
-          handleClearDrawings={handleClearDrawings}
-          changeVisibleBars={changeVisibleBars}
-          canZoom={canZoom}
-          canPan={canPan}
-          setViewOffset={setViewOffset}
-        />
+        <div className="hidden gap-4 lg:grid">
+          <ChartControls
+            chartType={chartType}
+            setChartType={setChartType}
+            coreIndicators={coreIndicators}
+            advancedIndicatorGroups={advancedIndicatorGroups}
+            chartCopy={chartCopy}
+            showTriangles={showTriangles}
+            setShowTriangles={setShowTriangles}
+            showLevels={showLevels}
+            setShowLevels={setShowLevels}
+            showFibonacci={showFibonacci}
+            setShowFibonacci={setShowFibonacci}
+            showFibExtension={showFibExtension}
+            setShowFibExtension={setShowFibExtension}
+            showGaps={showGaps}
+            setShowGaps={setShowGaps}
+            showPatterns={showPatterns}
+            setShowPatterns={setShowPatterns}
+            measureMode={measureMode}
+            setMeasureMode={setMeasureMode}
+            chartExpanded={chartExpanded}
+            setChartExpanded={setChartExpanded}
+            handleResetChart={handleResetChart}
+            handleClearDrawings={handleClearDrawings}
+            changeVisibleBars={changeVisibleBars}
+            canZoom={canZoom}
+            canPan={canPan}
+            setViewOffset={setViewOffset}
+          />
 
-        <PresetControls
-          chartCopy={chartCopy}
-          selectedPresetId={selectedPresetId}
-          handleSelectPreset={handleSelectPreset}
-          canPan={canPan}
-          panBy={panBy}
-          viewOffset={viewOffset}
-          activeLegend={activeLegend}
-          activeVisibleBars={activeVisibleBars}
-          totalBars={n}
-          interval={interval}
-        />
+          <PresetControls
+            chartCopy={chartCopy}
+            selectedPresetId={selectedPresetId}
+            handleSelectPreset={handleSelectPreset}
+            canPan={canPan}
+            panBy={panBy}
+            viewOffset={viewOffset}
+            activeLegend={activeLegend}
+            activeVisibleBars={activeVisibleBars}
+            totalBars={n}
+            interval={interval}
+          />
+        </div>
 
         <ChartContainer
           title={chartCopy.priceChart}
@@ -936,6 +956,51 @@ export default function ChartWorkspace({
           </div>
         )}
 
+        <div className="grid gap-4 lg:hidden">
+          <ChartControls
+            chartType={chartType}
+            setChartType={setChartType}
+            coreIndicators={coreIndicators}
+            advancedIndicatorGroups={advancedIndicatorGroups}
+            chartCopy={chartCopy}
+            showTriangles={showTriangles}
+            setShowTriangles={setShowTriangles}
+            showLevels={showLevels}
+            setShowLevels={setShowLevels}
+            showFibonacci={showFibonacci}
+            setShowFibonacci={setShowFibonacci}
+            showFibExtension={showFibExtension}
+            setShowFibExtension={setShowFibExtension}
+            showGaps={showGaps}
+            setShowGaps={setShowGaps}
+            showPatterns={showPatterns}
+            setShowPatterns={setShowPatterns}
+            measureMode={measureMode}
+            setMeasureMode={setMeasureMode}
+            chartExpanded={chartExpanded}
+            setChartExpanded={setChartExpanded}
+            handleResetChart={handleResetChart}
+            handleClearDrawings={handleClearDrawings}
+            changeVisibleBars={changeVisibleBars}
+            canZoom={canZoom}
+            canPan={canPan}
+            setViewOffset={setViewOffset}
+          />
+
+          <PresetControls
+            chartCopy={chartCopy}
+            selectedPresetId={selectedPresetId}
+            handleSelectPreset={handleSelectPreset}
+            canPan={canPan}
+            panBy={panBy}
+            viewOffset={viewOffset}
+            activeLegend={activeLegend}
+            activeVisibleBars={activeVisibleBars}
+            totalBars={n}
+            interval={interval}
+          />
+        </div>
+
         <details className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
           <summary className="cursor-pointer list-none font-semibold text-white transition-colors hover:text-slate-200">
             <span className="select-none">
@@ -947,93 +1012,6 @@ export default function ChartWorkspace({
             <IndicatorSummaryCard analysis={technicalAnalysis} copy={chartCopy} />
           </div>
         </details>
-
-        <div className="hidden grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
-          <Group label="Chart type">
-            {[
-              ['candlestick', 'Candles'],
-              ['line', 'Line'],
-              ['area', 'Area'],
-            ].map(([value, label]) => (
-              <button key={value} type="button" className={controlClass(chartType === value)} onClick={() => setChartType(value)}>
-                {label}
-              </button>
-            ))}
-          </Group>
-
-          <Group label="Indicators">
-            {coreIndicators.map(([label, value, onToggle]) => (
-              <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
-            ))}
-            <details className="relative">
-              <summary className={`${quietControlClass(false)} list-none cursor-pointer`}>
-                More indicators
-              </summary>
-              <div className="absolute left-0 z-30 mt-2 w-[min(88vw,520px)] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-[0_24px_80px_rgba(2,6,23,0.55)]">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {advancedIndicatorGroups.map(group => (
-                    <div key={group.label} className="rounded-xl border border-white/6 bg-white/4 p-3">
-                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{group.label}</div>
-                      <div className="flex flex-wrap gap-2">
-                        {group.items.map(([label, value, onToggle]) => (
-                          <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </details>
-          </Group>
-
-          <Group label="Analysis tools">
-            <PanelToggle label="Trendline" value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
-            <PanelToggle label="Horizontal line" value={showLevels} onToggle={() => setShowLevels(value => !value)} />
-            <PanelToggle label="Fibonacci" value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
-            <PanelToggle label="Fib extension" value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
-            <PanelToggle label="Zone" value={showGaps} onToggle={() => setShowGaps(value => !value)} />
-            <PanelToggle label="Pattern markers" value={showPatterns} onToggle={() => setShowPatterns(value => !value)} />
-            <PanelToggle label="% ruler" value={measureMode} onToggle={() => setMeasureMode(value => !value)} />
-          </Group>
-
-          <Group label="View">
-            <button type="button" className={controlClass(chartExpanded)} onClick={() => setChartExpanded(value => !value)}>
-              {chartExpanded ? 'Collapse' : 'Expand'}
-            </button>
-            <button type="button" className={controlClass(false)} onClick={handleResetChart}>Reset chart</button>
-            <button type="button" className={controlClass(false)} onClick={handleClearDrawings}>Clear drawings</button>
-            <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(0.65)} disabled={!canZoom}>Zoom in</button>
-            <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(1.55)} disabled={!canZoom}>Zoom out</button>
-            <button type="button" className={controlClass(false)} onClick={() => setViewOffset(0)} disabled={!canPan}>Fit latest</button>
-          </Group>
-        </div>
-
-        <div className="hidden rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
-          <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
-            {PRIMARY_PRESETS.map(preset => (
-              <button key={preset.id} type="button" className={controlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
-                {preset.label}
-              </button>
-            ))}
-            <div className="mx-1 min-h-6 border-l border-white/10" />
-            {INTRADAY_PRESETS.map(preset => (
-              <button key={preset.id} type="button" className={quietControlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
-                {preset.label}
-              </button>
-            ))}
-            <button type="button" className={quietControlClass(false)} onClick={() => panBy(20)} disabled={!canPan}>Older</button>
-            <button type="button" className={quietControlClass(false)} onClick={() => panBy(-20)} disabled={viewOffset === 0}>Newer</button>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {activeLegend.map(item => (
-              <LegendPill key={item.label} label={item.label} color={item.color} onRemove={item.action} />
-            ))}
-            <span className="ml-auto text-xs text-slate-500">
-              {Math.min(activeVisibleBars, n)}/{n} bars · {interval} feed
-            </span>
-          </div>
-        </div>
 
         {showVolume && (
           <ChartContainer

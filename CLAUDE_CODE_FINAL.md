@@ -190,13 +190,150 @@ Read the code first, understand the current implementation, then make targeted f
 
 ---
 
-## ✨ **BONUS: After Claude Code Finishes**
+### **Task 9: Redesign Control Buttons - Make Them BOLD & CLEAR**
+**File:** `client/src/components/charts/ChartWorkspace.jsx`  
+**Time:** 15 minutes  
+**Why:** Current buttons are invisible/too subtle - traders can't see them easily
 
-If you want **enhanced UX for indicator selection**, you can then use:
-- **Frontend Design** to create a more intuitive indicator picker UI
-- Or keep it simple (current button interface is fine)
+**What to do:**
 
-Let me know after Claude Code completes!
+1. Find all button className definitions in control groups:
+   - Search for: `className={controlClass(...)`
+   - Search for: `className={quietControlClass(...)`
+
+2. Replace the button styling with BOLD design:
+   ```jsx
+   // OLD - subtle and hard to see:
+   className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-1 text-xs text-slate-400"
+   
+   // NEW - BOLD and CLEAR:
+   className={`
+     px-4 py-2.5 rounded-lg text-sm font-semibold transition-all
+     ${isActive 
+       ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50' 
+       : 'border-2 border-slate-600 bg-transparent text-slate-300 hover:border-cyan-400 hover:text-white'
+     }
+   `}
+   ```
+
+3. Add emoji icons to button labels for visual clarity:
+   ```jsx
+   // OLD: 'SMA'
+   // NEW: '📊 SMA'
+   
+   // Examples:
+   '📊 SMA' (Indicators)
+   '🔧 Trendline' (Analysis Tools)
+   '👁️ Expand' (View)
+   ```
+
+4. Apply to ALL buttons in:
+   - CHART TYPE group (Candles, Line, Area)
+   - INDICATORS group (SMA, EMA, RSI, MACD, Volume, VWAP, etc.)
+   - ANALYSIS TOOLS group (Trendline, Horizontal line, Fibonacci, etc.)
+   - VIEW group (Expand, Reset, Clear, Zoom in/out, Fit latest)
+
+**Result:**
+- Active buttons = BRIGHT CYAN with glow effect
+- Inactive buttons = Gray outline with white text on hover
+- Larger tap targets (44px height) for mobile
+- Clear visual feedback
+
+**Check:** 
+- [ ] Buttons are LARGE and VISIBLE (not tiny)
+- [ ] Active button = bright cyan with glow
+- [ ] Hover effect = border highlights
+- [ ] Mobile (375px) = easy to tap without mistakes
+
+---
+
+### **Task 10: Mobile Optimization - Fast Access to Chart**
+**File:** `client/src/components/charts/ChartWorkspace.jsx`  
+**Time:** 10 minutes  
+**Why:** On mobile, trader scrolls too far before seeing the actual chart
+
+**Current Problem (Mobile 375px):**
+- User opens site → sees controls at top
+- Scrolls down 400+ pixels → FINALLY sees chart
+- Too much scrolling before getting to main content
+
+**Solution - Reorder for Mobile:**
+
+1. **In ChartWorkspace return, reorganize render order:**
+
+   ```jsx
+   return (
+     <section className="space-y-4">
+       {/* SHOW ON ALL SIZES - Minimal header */}
+       <div className="text-sm font-bold">{ticker} chart</div>
+       
+       {/* DESKTOP ONLY - Controls before chart */}
+       <div className="hidden lg:block">
+         <ChartControls ... />
+         <PresetControls ... />
+       </div>
+       
+       {/* SHOW ON ALL - THE CHART (most important!) */}
+       <ChartContainer>
+         {/* candlestick chart here */}
+       </ChartContainer>
+       
+       {/* MOBILE ONLY - Controls after chart */}
+       <div className="lg:hidden">
+         <ChartControls ... />
+         <PresetControls ... />
+       </div>
+       
+       {/* Other sections (Volume, RSI, etc.) */}
+     </section>
+   )
+   ```
+
+2. **On DESKTOP (lg+):**
+   - Controls at TOP (as they are now)
+   - Then chart
+   - Trader can adjust, then see result ✓
+
+3. **On MOBILE (mobile to sm):**
+   - Minimal header
+   - Chart appears FIRST (within 1-2 scrolls)
+   - Controls BELOW (if trader wants to customize)
+
+**Result on Mobile:**
+- Open site → timeframe buttons visible
+- Scroll ~100px → see candlestick chart
+- Scroll more → control buttons to add indicators
+- Scroll more → detailed analysis panels
+
+**Check:**
+- [ ] Desktop (1280px): Controls top, chart below ✓
+- [ ] Mobile (375px): Chart visible within 2 scrolls ✓
+- [ ] Can toggle controls visibility on mobile ✓
+- [ ] No console errors ✓
+
+---
+
+## 📊 **UPDATED TASK SUMMARY**
+
+| # | Task | Time | Status |
+|---|------|------|--------|
+| 1 | TradeActionCard position | 5 min | ⏳ Ready |
+| 2 | KPI colors | 10 min | ⏳ Ready |
+| 3 | Remove header | 10 min | ⏳ Ready |
+| 4 | Collapse summaries | 5 min | ⏳ Ready |
+| 5-7 | Dark/Light, FactorRow, colors | 15 min | ⏳ Ready |
+| 8 | Clean chart (candlestick only) | 5 min | ⏳ Ready |
+| 9 | Bold control buttons | 15 min | ⏳ Ready |
+| 10 | Mobile chart optimization | 10 min | ⏳ Ready |
+| **TOTAL** | **All tasks** | **~75 min** | **✅ Complete list** |
+
+---
+
+## ✨ **BONUS: After Claude Code Finishes All 10 Tasks**
+
+If you want even **better UX for indicator selection**, you can then use:
+- **Frontend Design** to create a modal/popover indicator picker
+- Or keep simple button interface (which works fine after Task 9)
 
 ---
 
@@ -204,7 +341,7 @@ Let me know after Claude Code completes!
 
 Read the referenced files and understand the CURRENT implementation. The roadmap says what's needed, the code shows what's done. Compare them and implement only what's missing.
 
-Good luck! 🎯
+**All 10 tasks are ready to go! Good luck! 🎯**
 ---
 
 ### **Task 9: Redesign Control Buttons - Make Them BOLD & CLEAR**
