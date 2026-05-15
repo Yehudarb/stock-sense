@@ -591,48 +591,32 @@ export default function ChartWorkspace({
 
   const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolumeMA}-${showPatterns}-${showTriangles}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}`
   const patternSummary = technicalAnalysis?.patterns ?? []
+  const signalCount = technicalAnalysis?.indicatorInterpretations?.length ?? 0
 
   return (
     <section className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="rounded-[28px] border border-white/8 bg-slate-950/78 p-5 shadow-[0_28px_90px_rgba(2,6,23,0.42)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Chart workspace</div>
-                <Badge tone={activeTrend === 'Bullish' ? 'positive' : activeTrend === 'Bearish' ? 'danger' : 'balanced'}>
-                  {activeTrend}
-                </Badge>
-                <Badge tone={riskLevel === 'Low' ? 'positive' : riskLevel === 'High' ? 'danger' : 'balanced'}>
-                  Risk {riskLevel}
-                </Badge>
-              </div>
-              <div className="text-2xl font-semibold text-white sm:text-[2rem]">
-                {currentTicker} technical chart
-              </div>
-              <div className="max-w-3xl text-sm leading-6 text-slate-400">
-                Use the chart to inspect price structure, volume confirmation, trend alignment, and nearby risk levels without leaving the dashboard.
-              </div>
-            </div>
-
-            <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
-              {summaryMetrics.map(metric => (
-                <div key={metric.label} className="rounded-2xl border border-white/8 bg-slate-900/76 px-3 py-3">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">{metric.label}</div>
-                  <div className="mt-1 text-sm font-semibold text-white">{metric.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-sm font-semibold text-slate-300">{currentTicker} technical chart</div>
+          <Badge tone={activeTrend === 'Bullish' ? 'positive' : activeTrend === 'Bearish' ? 'danger' : 'balanced'}>
+            {activeTrend}
+          </Badge>
+          <Badge tone={riskLevel === 'Low' ? 'positive' : riskLevel === 'High' ? 'danger' : 'balanced'}>
+            Risk {riskLevel}
+          </Badge>
         </div>
-
-        <PatternSummaryCard patterns={patternSummary} />
+        <div className="text-xs text-slate-500">
+          {snapshot?.price != null ? fmtPrice(snapshot.price) : '--'}
+          {snapshot?.changePct != null && (
+            <span className={snapshot.changePct >= 0 ? 'ml-2 text-emerald-300' : 'ml-2 text-rose-300'}>
+              {fmtPercent(snapshot.changePct)}
+            </span>
+          )}
+        </div>
       </div>
 
-      <IndicatorSummaryCard analysis={technicalAnalysis} />
-
       <div className="grid gap-4">
-        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+        <div className="hidden">
           <Group label="Chart type">
             {[
               ['candlestick', 'Candles'],
@@ -692,7 +676,7 @@ export default function ChartWorkspace({
           </Group>
         </div>
 
-        <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
+        <div className="hidden">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="-mx-1 overflow-x-auto px-1">
               <div className="flex min-w-max flex-nowrap gap-2">
@@ -727,7 +711,7 @@ export default function ChartWorkspace({
           </div>
         </div>
 
-        {measureMode && (
+        {false && measureMode && (
           <div className="rounded-2xl border border-cyan-400/18 bg-cyan-400/10 px-4 py-3 text-xs font-medium text-cyan-100">
             Drag on the price panel to measure percentage move and distance in bars.
           </div>
@@ -789,6 +773,111 @@ export default function ChartWorkspace({
             />
           </SafeChart>
         </ChartContainer>
+
+        {measureMode && (
+          <div className="rounded-2xl border border-cyan-400/18 bg-cyan-400/10 px-4 py-3 text-xs font-medium text-cyan-100">
+            Drag on the price panel to measure percentage move and distance in bars.
+          </div>
+        )}
+
+        <details className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
+          <summary className="cursor-pointer list-none font-semibold text-white transition-colors hover:text-slate-200">
+            <span className="select-none">
+              Summary ({patternSummary.length} patterns, {signalCount} signals)
+            </span>
+          </summary>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <PatternSummaryCard patterns={patternSummary} />
+            <IndicatorSummaryCard analysis={technicalAnalysis} />
+          </div>
+        </details>
+
+        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+          <Group label="Chart type">
+            {[
+              ['candlestick', 'Candles'],
+              ['line', 'Line'],
+              ['area', 'Area'],
+            ].map(([value, label]) => (
+              <button key={value} type="button" className={controlClass(chartType === value)} onClick={() => setChartType(value)}>
+                {label}
+              </button>
+            ))}
+          </Group>
+
+          <Group label="Indicators">
+            {coreIndicators.map(([label, value, onToggle]) => (
+              <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
+            ))}
+            <details className="relative">
+              <summary className={`${quietControlClass(false)} list-none cursor-pointer`}>
+                More indicators
+              </summary>
+              <div className="absolute left-0 z-30 mt-2 w-[min(88vw,520px)] rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-[0_24px_80px_rgba(2,6,23,0.55)]">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {advancedIndicatorGroups.map(group => (
+                    <div key={group.label} className="rounded-xl border border-white/6 bg-white/4 p-3">
+                      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{group.label}</div>
+                      <div className="flex flex-wrap gap-2">
+                        {group.items.map(([label, value, onToggle]) => (
+                          <PanelToggle key={label} label={label} value={value} onToggle={onToggle} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </details>
+          </Group>
+
+          <Group label="Analysis tools">
+            <PanelToggle label="Trendline" value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
+            <PanelToggle label="Horizontal line" value={showLevels} onToggle={() => setShowLevels(value => !value)} />
+            <PanelToggle label="Fibonacci" value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
+            <PanelToggle label="Fib extension" value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
+            <PanelToggle label="Zone" value={showGaps} onToggle={() => setShowGaps(value => !value)} />
+            <PanelToggle label="Pattern markers" value={showPatterns} onToggle={() => setShowPatterns(value => !value)} />
+            <PanelToggle label="% ruler" value={measureMode} onToggle={() => setMeasureMode(value => !value)} />
+          </Group>
+
+          <Group label="View">
+            <button type="button" className={controlClass(chartExpanded)} onClick={() => setChartExpanded(value => !value)}>
+              {chartExpanded ? 'Collapse' : 'Expand'}
+            </button>
+            <button type="button" className={controlClass(false)} onClick={handleResetChart}>Reset chart</button>
+            <button type="button" className={controlClass(false)} onClick={handleClearDrawings}>Clear drawings</button>
+            <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(0.65)} disabled={!canZoom}>Zoom in</button>
+            <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(1.55)} disabled={!canZoom}>Zoom out</button>
+            <button type="button" className={controlClass(false)} onClick={() => setViewOffset(0)} disabled={!canPan}>Fit latest</button>
+          </Group>
+        </div>
+
+        <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
+          <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
+            {PRIMARY_PRESETS.map(preset => (
+              <button key={preset.id} type="button" className={controlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
+                {preset.label}
+              </button>
+            ))}
+            <div className="mx-1 min-h-6 border-l border-white/10" />
+            {INTRADAY_PRESETS.map(preset => (
+              <button key={preset.id} type="button" className={quietControlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
+                {preset.label}
+              </button>
+            ))}
+            <button type="button" className={quietControlClass(false)} onClick={() => panBy(20)} disabled={!canPan}>Older</button>
+            <button type="button" className={quietControlClass(false)} onClick={() => panBy(-20)} disabled={viewOffset === 0}>Newer</button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {activeLegend.map(item => (
+              <LegendPill key={item.label} label={item.label} color={item.color} onRemove={item.action} />
+            ))}
+            <span className="ml-auto text-xs text-slate-500">
+              {Math.min(activeVisibleBars, n)}/{n} bars · {interval} feed
+            </span>
+          </div>
+        </div>
 
         {showVolume && (
           <ChartContainer

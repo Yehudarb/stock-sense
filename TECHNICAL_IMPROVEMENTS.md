@@ -546,7 +546,125 @@
 
 ---
 
-## Priority Execution Order (Remaining)
+## 🟢 **P3 — Cleanliness (Information Architecture)**
+
+### P3.1: Remove Redundant "Chart Workspace" Header Section
+**Issue:** Title "TSLA technical chart" + description + summary metrics take up ~200px before actual chart  
+**Current problem:** Trader scrolls 400px+ just to see the chart  
+**Location:** `client/src/components/charts/ChartWorkspace.jsx` (lines 598-627)
+
+**What to do:**
+
+1. Find the section starting at line 598:
+   ```jsx
+   <div className="rounded-[28px] border border-white/8 bg-slate-950/78 p-5 shadow-[0_28px_90px_rgba(2,6,23,0.42)]">
+     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+   ```
+
+2. Replace the entire section (lines 598-627) with minimal title:
+   ```jsx
+   {/* REMOVE OLD SECTION, ADD THIS: */}
+   <div className="flex items-center justify-between">
+     <div className="text-sm font-semibold text-slate-300">
+       {currentTicker} technical chart
+     </div>
+     <div className="text-xs text-slate-500">
+       {snapshot?.price != null ? fmtPrice(snapshot.price) : '--'}
+       {snapshot?.changePct != null && (
+         <span className={snapshot.changePct >= 0 ? 'text-emerald-300 ml-2' : 'text-rose-300 ml-2'}>
+           {fmtPercent(snapshot.changePct)}
+         </span>
+       )}
+     </div>
+   </div>
+   ```
+
+3. Delete the old PatternSummaryCard integration (line 629) — move it to after chart
+
+**Expected result:** Instead of 200px header, now only 40px label. Trader sees chart immediately.
+
+---
+
+### P3.2: Collapse Pattern + Indicator Summaries into Tabs
+**Issue:** PatternSummaryCard + IndicatorSummaryCard appear before chart (wasteful)  
+**Location:** Lines 629-632
+
+**What to do:**
+
+1. Import `useState` at top (already imported):
+   ```jsx
+   const [showSummary, setShowSummary] = useState(false)
+   ```
+
+2. Replace lines 629-632 with:
+   ```jsx
+   <details className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
+     <summary className="cursor-pointer list-none font-semibold text-white hover:text-slate-200">
+       <span className="select-none">
+         📊 Summary ({patternSummary.length} patterns, {technicalAnalysis?.indicators?.length ?? 0} signals)
+       </span>
+     </summary>
+     <div className="mt-4 grid gap-4 lg:grid-cols-2">
+       <PatternSummaryCard patterns={patternSummary} />
+       <IndicatorSummaryCard analysis={technicalAnalysis} />
+     </div>
+   </details>
+   ```
+
+**Expected result:** Summary cards are collapsed by default, trader can expand if interested. Saves ~300px of vertical space.
+
+---
+
+### P3.3: Move Controls Below Chart (Not Before)
+**Issue:** All control buttons (Chart type, Indicators, Analysis tools, View, Presets) appear BEFORE the chart  
+**Better:** Controls should appear AFTER the chart for easy access to customize  
+**Location:** Lines 634-728
+
+**What to do:**
+
+1. Find the section starting at line 634:
+   ```jsx
+   <div className="grid gap-4">
+     <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
+       <Group label="Chart type">
+   ```
+
+2. **Cut** everything from line 634 to line 728 (all control groups + presets)
+
+3. Find the end of ChartContainer (after line 793):
+   ```jsx
+   {/* ... chart content ends ... */}
+        </ChartContainer>
+      
+      {/* INSERT CONTROLS HERE */}
+   ```
+
+4. **Paste** the cut controls section after the chart closes
+
+5. Reorganize presets into a single row (currently split into two):
+   ```jsx
+   <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
+     <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
+       {/* PRIMARY_PRESETS */}
+       {PRIMARY_PRESETS.map(preset => (...))}
+       
+       {/* SPACER */}
+       <div className="ml-2 border-l border-white/10"></div>
+       
+       {/* INTRADAY_PRESETS */}
+       {INTRADAY_PRESETS.map(preset => (...))}
+     </div>
+   </div>
+   ```
+
+**Expected result:** 
+- Chart is now the hero (visible immediately)
+- Controls below for easy customization
+- Logical flow: See chart → Customize → See changes
+
+---
+
+## Priority Execution Order (All Remaining)
 
 1. **P0.1** → Move TradeActionCard to top (Visual hierarchy fix)
 2. **P0.2** → Draw Entry/SL/TP on chart (Trader decision support)
