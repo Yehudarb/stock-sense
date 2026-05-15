@@ -891,7 +891,7 @@ export default function ChartWorkspace({
         <ChartContainer
           title={chartCopy.priceChart}
           subtitle={chartCopy.priceChartSubtitle}
-          height={chartExpanded ? 'h-[72vh]' : 'h-[360px] sm:h-[460px] xl:h-[620px]'}
+          height={chartExpanded ? 'h-[72vh]' : 'h-[400px] sm:h-[500px] md:h-[600px] xl:h-[700px]'}
           onWheel={handlePriceChartWheel}
           headerRight={(
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">

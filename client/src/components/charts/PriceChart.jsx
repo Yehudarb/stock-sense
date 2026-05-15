@@ -252,23 +252,24 @@ function computeFibonacci(ohlcv, includeExtensions = false) {
   }
 }
 
-function tradingViewXAxis(theme, maxTicksLimit = 10) {
+function tradingViewXAxis(theme, maxTicksLimit = 10, isMobileViewport = false) {
   const palette = getChartPalette(theme)
   return {
     type: 'category',
     ticks: {
       color: palette.tick,
-      maxRotation: 0,
+      maxRotation: isMobileViewport ? 45 : 0,
+      minRotation: isMobileViewport ? 45 : 0,
       autoSkip: true,
       maxTicksLimit,
-      font: { size: 11 },
+      font: { size: isMobileViewport ? 10 : 12 },
     },
     grid: { color: palette.grid, drawTicks: false },
     border: { color: palette.border },
   }
 }
 
-function tradingViewYAxis(theme, range) {
+function tradingViewYAxis(theme, range, isMobileViewport = false) {
   const palette = getChartPalette(theme)
   return {
     position: 'right',
@@ -278,7 +279,7 @@ function tradingViewYAxis(theme, range) {
       color: palette.tick,
       padding: 8,
       callback: value => Number(value).toFixed(Number(value) >= 100 ? 2 : 3),
-      font: { size: 11 },
+      font: { size: isMobileViewport ? 10 : 12 },
     },
     grid: { color: palette.grid, drawTicks: false },
     border: { color: palette.border },
@@ -867,6 +868,7 @@ export default function PriceChart({
   const chartRef = useRef(null)
   const measurementRef = useRef({ active: false, start: null, end: null })
   const { theme } = useStore()
+  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length) return
@@ -1228,7 +1230,14 @@ export default function PriceChart({
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 8, right: 72, bottom: 2, left: 4 } },
+        layout: {
+          padding: {
+            top: 10,
+            right: isMobileViewport ? 5 : 15,
+            left: isMobileViewport ? 5 : 10,
+            bottom: 10,
+          },
+        },
         interaction: { mode: 'index', intersect: false },
         onHover: (event, _elements, activeChart) => {
           if (!onHoverIndexChange) return
@@ -1310,8 +1319,8 @@ export default function PriceChart({
           },
         },
         scales: {
-          x: tradingViewXAxis(theme, maxTicksForInterval(interval, visibleOhlcv.length)),
-          y: tradingViewYAxis(theme, priceRange),
+          x: tradingViewXAxis(theme, maxTicksForInterval(interval, visibleOhlcv.length), isMobileViewport),
+          y: tradingViewYAxis(theme, priceRange, isMobileViewport),
         },
       },
       plugins: [
@@ -1386,7 +1395,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange, theme])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }
