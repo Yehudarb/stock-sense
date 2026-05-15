@@ -55,14 +55,14 @@ export default function Header({ isConnected }) {
   const copy = {
     loading: isHebrew ? 'טוען...' : 'Loading...',
     range: isHebrew ? 'טווח' : 'Range',
-    language: isHebrew ? 'EN' : 'עב',
+    language: isHebrew ? 'English' : 'עברית',
     switchLanguage: isHebrew ? 'Switch to English' : 'לעבור לעברית',
     switchTheme: isHebrew ? 'החלף ערכת נושא' : 'Toggle theme',
     watchlist: isHebrew ? 'רשימת מעקב' : 'Watchlist',
     live: isHebrew ? 'חי' : 'Live',
     noWatchlist: isHebrew ? 'אין עדיין סימבולים שמורים' : 'No saved symbols yet',
     lastUpdate: isHebrew ? 'עדכון אחרון' : 'Last update',
-    refreshHint: isHebrew ? 'הנתונים מתרעננים עבור הטווח שנבחר' : 'Refreshing data for the selected range',
+    refreshHint: isHebrew ? 'מחשב מחדש ניתוח לטווח החדש' : 'Recalculating analysis for the new timeframe',
   }
 
   const changeColor = snapshot?.change >= 0 ? 'text-green-400' : 'text-red-400'
@@ -91,8 +91,18 @@ export default function Header({ isConnected }) {
       }
     }
 
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setShowWatchlistDropdown(false)
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [showWatchlistDropdown])
 
   const updateLabel = lastUpdateTime
@@ -133,7 +143,7 @@ export default function Header({ isConnected }) {
         </div>
 
         <div className="-mx-1 overflow-x-auto px-1">
-          <div className="flex min-w-max flex-wrap items-center gap-2 pb-1">
+          <div className={`flex min-w-max flex-wrap items-center gap-2 pb-1 ${isHebrew ? 'flex-row-reverse' : ''}`}>
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"

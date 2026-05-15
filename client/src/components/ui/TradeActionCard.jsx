@@ -51,9 +51,9 @@ export default function TradeActionCard({ decision, language = 'he' }) {
     confidence: isEnglish ? 'Confidence' : 'ביטחון',
     currentPrice: isEnglish ? 'Current price' : 'מחיר נוכחי',
     entryZone: isEnglish ? 'Entry zone' : 'אזור כניסה',
-    ratio: isEnglish ? 'R/R' : 'סיכוי/סיכון',
-    stopLoss: 'Stop Loss',
-    takeProfit: 'Take Profit',
+    ratio: isEnglish ? 'R/R' : 'יחס סיכון/תשואה',
+    stopLoss: isEnglish ? 'Stop Loss' : 'סטופ לוס',
+    takeProfit: isEnglish ? 'Take Profit' : 'טייק פרופיט',
     risk: isEnglish ? 'Risk' : 'סיכון',
   }
 

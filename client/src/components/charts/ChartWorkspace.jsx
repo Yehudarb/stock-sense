@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import useStore from '../../store/useStore'
-import { fmtPercent, fmtPrice, fmtVolume } from '../../lib/formatters'
+import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
 import ChartContainer from './ChartContainer'
 import ChartErrorBoundary from './ChartErrorBoundary'
@@ -253,16 +253,12 @@ export default function ChartWorkspace({
 }) {
   const { setInterval, language } = useStore()
   const n = ohlcv.length
-  const lastBar = ohlcv[n - 1]
-  const lastClose = lastBar?.c ?? snapshot?.price ?? null
-  const lastVolume = lastBar?.v ?? snapshot?.volume ?? null
   const volumeRatio = indicators?.volRatio?.[n - 1]
   const rsiLast = indicators?.rsi14?.[n - 1]
   const macdLine = indicators?.macd?.line?.[n - 1]
   const macdSignal = indicators?.macd?.signal?.[n - 1]
   const activeTrend = technicalAnalysis?.overallTechnicalBias ?? 'Neutral'
   const riskLevel = technicalAnalysis?.riskAssessment?.riskLevel ?? 'Medium'
-  const keyLevel = technicalAnalysis?.keyLevels?.resistance?.[0] ?? technicalAnalysis?.keyLevels?.support?.[0] ?? null
 
   const [selectedPresetId, setSelectedPresetId] = useState('1D')
   const [chartType, setChartType] = useState('candlestick')
@@ -408,15 +404,6 @@ export default function ChartWorkspace({
     setShowHighLow52(false)
     setMeasureMode(false)
   }
-
-  const summaryMetrics = [
-    { label: 'Ticker', value: currentTicker },
-    { label: 'Last', value: lastClose != null ? fmtPrice(lastClose) : '-' },
-    { label: 'Daily change', value: snapshot?.changePct != null ? fmtPercent(snapshot.changePct) : '-' },
-    { label: 'Trend', value: activeTrend },
-    { label: 'Volume', value: volumeRatio ? `${volumeRatio.toFixed(1)}x avg` : (lastVolume ? fmtVolume(lastVolume) : '-') },
-    { label: 'Key level', value: keyLevel != null ? fmtPrice(keyLevel) : '-' },
-  ]
 
   const coreIndicators = [
     ['SMA', showSMA, () => setShowSMA(value => !value)],

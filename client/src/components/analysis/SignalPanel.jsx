@@ -3,14 +3,14 @@ import { SIGNAL_BADGES } from '../../../../shared/constants'
 import Badge from '../ui/Badge'
 import FactorRow from './FactorRow'
 import { fmtPrice } from '../../lib/formatters'
-import { TRADER_TEXT } from '../../lib/traderColors'
+import { TRADER_COLORS, TRADER_TEXT } from '../../lib/traderColors'
 
 const REGIME_LABEL = {
   he: { uptrend: 'מגמה עולה', downtrend: 'מגמה יורדת', sideways: 'שוק צדי', unknown: 'לא ידוע' },
   en: { uptrend: 'Uptrend', downtrend: 'Downtrend', sideways: 'Sideways', unknown: 'Unknown' },
 }
 
-const REGIME_COLOR = { uptrend: 'text-green-400', downtrend: 'text-red-400', sideways: 'text-yellow-400', unknown: 'text-slate-400' }
+const REGIME_COLOR = { uptrend: TRADER_TEXT.bullish, downtrend: TRADER_TEXT.bearish, sideways: TRADER_TEXT.neutral, unknown: 'text-slate-400' }
 
 const ACTION_EN = {
   STRONG_BUY: 'Strong buy',
@@ -38,13 +38,15 @@ function formatGapStatus(status, fillPct, language) {
   return '-'
 }
 
-function GateRow({ label, passed, detail }) {
+function GateRow({ label, passed, detail, copy }) {
   return (
-    <div className="flex items-center justify-between py-1 text-xs">
-      <span className="text-slate-400">{label}</span>
+    <div className="flex items-center justify-between gap-3 py-1.5 text-sm">
+      <span className="text-slate-300">{label}</span>
       <div className="flex items-center gap-2">
         {detail && <span className="text-slate-500">{detail}</span>}
-        <span className={passed ? 'text-green-400' : 'text-red-400'}>{passed ? 'Yes' : 'No'}</span>
+        <span className={passed ? TRADER_TEXT.bullish : TRADER_TEXT.bearish}>
+          {passed ? (copy?.yes ?? 'Yes') : (copy?.no ?? 'No')}
+        </span>
       </div>
     </div>
   )
@@ -215,10 +217,10 @@ function EnsembleCard({ ensemble, language }) {
   if (!ensemble) return null
   const isEnglish = language === 'en'
   const tone = {
-    bullish: { label: isEnglish ? 'Bullish' : 'שורי', color: TRADER_TEXT.bullish, bg: 'glass-panel border-green-500/20', bar: '#22c55e' },
-    bearish: { label: isEnglish ? 'Bearish' : 'דובי', color: TRADER_TEXT.bearish, bg: 'glass-panel border-red-500/20', bar: '#ef4444' },
-    neutral: { label: isEnglish ? 'Mixed' : 'מעורב', color: TRADER_TEXT.neutral, bg: 'glass-panel border-yellow-500/20', bar: '#eab308' },
-  }[ensemble.bias] ?? { label: isEnglish ? 'Mixed' : 'מעורב', color: TRADER_TEXT.neutral, bg: 'glass-panel border-yellow-500/20', bar: '#eab308' }
+    bullish: { label: isEnglish ? 'Bullish' : 'שורי', color: TRADER_TEXT.bullish, bg: 'glass-panel border-green-500/20', bar: TRADER_COLORS.bullish },
+    bearish: { label: isEnglish ? 'Bearish' : 'דובי', color: TRADER_TEXT.bearish, bg: 'glass-panel border-red-500/20', bar: TRADER_COLORS.bearish },
+    neutral: { label: isEnglish ? 'Mixed' : 'מעורב', color: TRADER_TEXT.neutral, bg: 'glass-panel border-yellow-500/20', bar: TRADER_COLORS.neutral },
+  }[ensemble.bias] ?? { label: isEnglish ? 'Mixed' : 'מעורב', color: TRADER_TEXT.neutral, bg: 'glass-panel border-yellow-500/20', bar: TRADER_COLORS.neutral }
 
   return (
     <div className={`rounded-xl border p-4 ${tone.bg}`}>
@@ -302,7 +304,7 @@ function DetailTab({ signal, gates, patterns, risk, copy, isEnglish, language })
             <span>{signal.confidence}%</span>
           </div>
           <div className="h-1 w-full rounded-full bg-slate-700 sm:h-2 md:h-3">
-            <div className="h-1 rounded-full transition-all duration-500 sm:h-2 md:h-3" style={{ width: `${signal.confidence}%`, backgroundColor: signal.score >= 0 ? '#22c55e' : '#ef4444' }} />
+            <div className="h-1 rounded-full transition-all duration-500 sm:h-2 md:h-3" style={{ width: `${signal.confidence}%`, backgroundColor: signal.score >= 0 ? TRADER_COLORS.bullish : TRADER_COLORS.bearish }} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -328,12 +330,13 @@ function DetailTab({ signal, gates, patterns, risk, copy, isEnglish, language })
               </span>
             </div>
           </div>
-          <GateRow label={copy.trendGate} passed={gates.trend?.passed} detail={gates.trend?.passed ? copy.passed : copy.blocked} />
-          <GateRow label={copy.buyConfluence} passed={gates.confluence?.passed} detail={`${gates.confluence?.active ?? 0}/${gates.confluence?.total ?? 0} ${copy.aligned}`} />
+          <GateRow label={copy.trendGate} passed={gates.trend?.passed} detail={gates.trend?.passed ? copy.passed : copy.blocked} copy={copy} />
+          <GateRow label={copy.buyConfluence} passed={gates.confluence?.passed} detail={`${gates.confluence?.active ?? 0}/${gates.confluence?.total ?? 0} ${copy.aligned}`} copy={copy} />
           <GateRow
             label={copy.bullishReversal}
             passed={gates.reversal?.passed}
             detail={gates.reversal?.trigger === 'both' ? copy.candleVolume : gates.reversal?.trigger === 'bullish_candle' ? copy.bullishCandle : copy.notConfirmed}
+            copy={copy}
           />
         </div>
       )}
@@ -365,10 +368,10 @@ function DetailTab({ signal, gates, patterns, risk, copy, isEnglish, language })
         <div className="glass-panel rounded-xl p-4">
           <h4 className="mb-2 text-xs font-bold text-slate-400">{copy.risk} (ATR={risk.atr})</h4>
           <div className="grid grid-cols-1 gap-2 text-xs">
-            <div className="flex justify-between"><span className="text-slate-400">Stop Loss</span><span className="font-mono text-red-400">${risk.stopLoss} <span className="text-slate-500">(-{risk.riskPct}%)</span></span></div>
-            <div className="flex justify-between"><span className="text-slate-400">Take Profit</span><span className="font-mono text-green-400">${risk.takeProfit} <span className="text-slate-500">(+{risk.rewardPct}%)</span></span></div>
-            <div className="flex justify-between"><span className="text-slate-400">Trailing Stop</span><span className="font-mono text-yellow-400">${risk.trailingStop}</span></div>
-            <div className="mt-1 flex justify-between border-t border-slate-700 pt-1"><span className="text-slate-400">{copy.riskReward}</span><span className={risk.rrRatio >= 1.5 ? 'text-green-400' : 'text-yellow-400'}>1:{risk.rrRatio}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">{copy.stopLoss}</span><span className={`font-mono ${TRADER_TEXT.stopLoss}`}>${risk.stopLoss} <span className="text-slate-500">(-{risk.riskPct}%)</span></span></div>
+            <div className="flex justify-between"><span className="text-slate-400">{copy.takeProfit}</span><span className={`font-mono ${TRADER_TEXT.takeProfit}`}>${risk.takeProfit} <span className="text-slate-500">(+{risk.rewardPct}%)</span></span></div>
+            <div className="flex justify-between"><span className="text-slate-400">{copy.trailingStop}</span><span className={`font-mono ${TRADER_TEXT.neutral}`}>${risk.trailingStop}</span></div>
+            <div className="mt-1 flex justify-between border-t border-slate-700 pt-1"><span className="text-slate-400">{copy.riskReward}</span><span className={risk.rrRatio >= 1.5 ? TRADER_TEXT.bullish : TRADER_TEXT.neutral}>1:{risk.rrRatio}</span></div>
           </div>
         </div>
       )}
@@ -398,6 +401,8 @@ export default function SignalPanel({ signal, language = 'he' }) {
     trendGate: isEnglish ? 'Trend gate' : 'שער מגמה',
     passed: isEnglish ? 'Passed' : 'עבר',
     blocked: isEnglish ? 'Blocked' : 'חסום',
+    yes: isEnglish ? 'Yes' : 'כן',
+    no: isEnglish ? 'No' : 'לא',
     buyConfluence: isEnglish ? 'Buy confluence' : 'Confluence קנייה',
     bullishReversal: isEnglish ? 'Bullish reversal' : 'אישור היפוך שורי',
     aligned: isEnglish ? 'aligned' : 'מיושרים',
@@ -410,6 +415,9 @@ export default function SignalPanel({ signal, language = 'he' }) {
     patternScore: isEnglish ? 'Pattern score' : 'ניקוד תבניות',
     risk: isEnglish ? 'Risk management' : 'ניהול סיכונים',
     riskReward: isEnglish ? 'Risk/reward ratio' : 'יחס סיכוי/סיכון',
+    stopLoss: isEnglish ? 'Stop Loss' : 'סטופ לוס',
+    takeProfit: isEnglish ? 'Take Profit' : 'טייק פרופיט',
+    trailingStop: isEnglish ? 'Trailing Stop' : 'סטופ נגרר',
     analysis: isEnglish ? 'Analysis' : 'ניתוח',
   }
 
