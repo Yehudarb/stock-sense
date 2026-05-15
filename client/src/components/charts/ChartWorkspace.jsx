@@ -832,14 +832,7 @@ export default function ChartWorkspace({
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-bold text-white">
-          {currentTicker} · {chartCopy.priceChart}
-        </div>
-        <div className="text-xs text-slate-500 lg:hidden">
-          {INTERVAL_LABELS[language]?.[interval] ?? interval}
-        </div>
-      </div>
+      <div className="text-sm font-bold text-white">{currentTicker} chart</div>
 
       <div className="grid gap-4">
         {false && measureMode && (
@@ -848,49 +841,51 @@ export default function ChartWorkspace({
           </div>
         )}
 
-        <div className="hidden gap-4 lg:grid">
-          <ChartControls
-            chartType={chartType}
-            setChartType={setChartType}
-            coreIndicators={coreIndicators}
-            advancedIndicatorGroups={advancedIndicatorGroups}
-            chartCopy={chartCopy}
-            showTriangles={showTriangles}
-            setShowTriangles={setShowTriangles}
-            showLevels={showLevels}
-            setShowLevels={setShowLevels}
-            showFibonacci={showFibonacci}
-            setShowFibonacci={setShowFibonacci}
-            showFibExtension={showFibExtension}
-            setShowFibExtension={setShowFibExtension}
-            showGaps={showGaps}
-            setShowGaps={setShowGaps}
-            showPatterns={showPatterns}
-            setShowPatterns={setShowPatterns}
-            measureMode={measureMode}
-            setMeasureMode={setMeasureMode}
-            chartExpanded={chartExpanded}
-            setChartExpanded={setChartExpanded}
-            handleResetChart={handleResetChart}
-            handleClearDrawings={handleClearDrawings}
-            changeVisibleBars={changeVisibleBars}
-            canZoom={canZoom}
-            canPan={canPan}
-            setViewOffset={setViewOffset}
-          />
+        <div className="hidden lg:block">
+          <div className="grid gap-4">
+            <ChartControls
+              chartType={chartType}
+              setChartType={setChartType}
+              coreIndicators={coreIndicators}
+              advancedIndicatorGroups={advancedIndicatorGroups}
+              chartCopy={chartCopy}
+              showTriangles={showTriangles}
+              setShowTriangles={setShowTriangles}
+              showLevels={showLevels}
+              setShowLevels={setShowLevels}
+              showFibonacci={showFibonacci}
+              setShowFibonacci={setShowFibonacci}
+              showFibExtension={showFibExtension}
+              setShowFibExtension={setShowFibExtension}
+              showGaps={showGaps}
+              setShowGaps={setShowGaps}
+              showPatterns={showPatterns}
+              setShowPatterns={setShowPatterns}
+              measureMode={measureMode}
+              setMeasureMode={setMeasureMode}
+              chartExpanded={chartExpanded}
+              setChartExpanded={setChartExpanded}
+              handleResetChart={handleResetChart}
+              handleClearDrawings={handleClearDrawings}
+              changeVisibleBars={changeVisibleBars}
+              canZoom={canZoom}
+              canPan={canPan}
+              setViewOffset={setViewOffset}
+            />
 
-          <PresetControls
-            chartCopy={chartCopy}
-            selectedPresetId={selectedPresetId}
-            handleSelectPreset={handleSelectPreset}
-            canPan={canPan}
-            panBy={panBy}
-            viewOffset={viewOffset}
-            activeLegend={activeLegend}
-            activeVisibleBars={activeVisibleBars}
-            totalBars={n}
-            interval={interval}
-          />
+            <PresetControls
+              chartCopy={chartCopy}
+              selectedPresetId={selectedPresetId}
+              handleSelectPreset={handleSelectPreset}
+              canPan={canPan}
+              panBy={panBy}
+              viewOffset={viewOffset}
+              activeLegend={activeLegend}
+              activeVisibleBars={activeVisibleBars}
+              totalBars={n}
+              interval={interval}
+            />
+          </div>
         </div>
 
         <ChartContainer
@@ -956,10 +951,11 @@ export default function ChartWorkspace({
           </div>
         )}
 
-        <div className="grid gap-4 lg:hidden">
-          <ChartControls
-            chartType={chartType}
-            setChartType={setChartType}
+        <div className="lg:hidden">
+          <div className="grid gap-4">
+            <ChartControls
+              chartType={chartType}
+              setChartType={setChartType}
             coreIndicators={coreIndicators}
             advancedIndicatorGroups={advancedIndicatorGroups}
             chartCopy={chartCopy}
@@ -994,11 +990,12 @@ export default function ChartWorkspace({
             canPan={canPan}
             panBy={panBy}
             viewOffset={viewOffset}
-            activeLegend={activeLegend}
-            activeVisibleBars={activeVisibleBars}
-            totalBars={n}
-            interval={interval}
-          />
+              activeLegend={activeLegend}
+              activeVisibleBars={activeVisibleBars}
+              totalBars={n}
+              interval={interval}
+            />
+          </div>
         </div>
 
         <details className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
