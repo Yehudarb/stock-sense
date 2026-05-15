@@ -1,11 +1,20 @@
+import { useEffect } from 'react'
 import Header from './Header'
 import Sidebar from './Sidebar'
 import useStore from '../../store/useStore'
 import LegalFooter from '../legal/LegalFooter'
 
 export default function Layout({ children, isConnected }) {
-  const { language } = useStore()
+  const { language, theme } = useStore()
   const isHebrew = language === 'he'
+
+  useEffect(() => {
+    const root = document.documentElement
+    const body = document.body
+    root.classList.toggle('theme-light', theme === 'light')
+    body.classList.toggle('theme-light', theme === 'light')
+    root.setAttribute('data-theme', theme)
+  }, [theme])
 
   return (
     <div className="flex min-h-screen flex-col bg-surface md:h-screen" dir={isHebrew ? 'rtl' : 'ltr'}>

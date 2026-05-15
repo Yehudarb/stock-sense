@@ -2,9 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-primary: 34 211 238;
+  --color-surface: 11 19 38;
+  --color-surface-muted: 30 41 59;
+  --color-surface-bright: 49 57 77;
+  --color-success: 16 185 129;
+  --color-danger: 244 63 94;
+  --color-accent: 99 102 241;
+  --body-bg: #0b1326;
+  --body-text: #dae2fd;
+  --panel-border: rgba(255, 255, 255, 0.05);
+  --panel-bg: rgba(30, 41, 59, 0.6);
+}
+
+.theme-light {
+  --color-primary: 8 145 178;
+  --color-surface: 241 245 249;
+  --color-surface-muted: 226 232 240;
+  --color-surface-bright: 203 213 225;
+  --color-success: 5 150 105;
+  --color-danger: 220 38 38;
+  --color-accent: 79 70 229;
+  --body-bg: #eef4fb;
+  --body-text: #0f172a;
+  --panel-border: rgba(148, 163, 184, 0.2);
+  --panel-bg: rgba(255, 255, 255, 0.8);
+}
+
 @layer components {
   .glass-panel {
-    @apply bg-surface-muted/60 backdrop-blur-md border border-white/5 shadow-glass rounded-xl;
+    @apply bg-surface-muted/60 backdrop-blur-md shadow-glass rounded-xl;
+    border: 1px solid var(--panel-border);
   }
 }
 
@@ -12,11 +41,12 @@
 
 body {
   margin: 0;
-  background: #0b1326;
-  color: #dae2fd;
+  background: var(--body-bg);
+  color: var(--body-text);
   font-family: 'Heebo', 'Inter', 'Geist', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  transition: background 200ms ease, color 200ms ease;
 }
 
 .live-dot {
@@ -36,3 +66,15 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #31394d; }
+
+.theme-light .live-dot {
+  background: rgb(var(--color-primary));
+}
+
+.theme-light ::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

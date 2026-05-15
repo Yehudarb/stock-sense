@@ -47,6 +47,8 @@ export default function Header({ isConnected }) {
     lastUpdateTime,
     intervalRefreshing,
     setIntervalRefreshing,
+    theme,
+    setTheme,
   } = useStore()
 
   const isHebrew = language === 'he'
@@ -55,6 +57,7 @@ export default function Header({ isConnected }) {
     range: isHebrew ? 'טווח' : 'Range',
     language: isHebrew ? 'EN' : 'עב',
     switchLanguage: isHebrew ? 'Switch to English' : 'לעבור לעברית',
+    switchTheme: isHebrew ? 'החלף ערכת נושא' : 'Toggle theme',
     watchlist: isHebrew ? 'רשימת מעקב' : 'Watchlist',
     live: isHebrew ? 'חי' : 'Live',
     noWatchlist: isHebrew ? 'אין עדיין סימבולים שמורים' : 'No saved symbols yet',
@@ -169,6 +172,16 @@ export default function Header({ isConnected }) {
                 </div>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-slate-300 transition-colors hover:bg-surface-bright"
+              title={copy.switchTheme}
+              aria-label={copy.switchTheme}
+            >
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
 
             <button
               type="button"

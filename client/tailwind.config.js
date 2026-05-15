@@ -4,15 +4,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#22d3ee',
+        primary: 'rgb(var(--color-primary) / <alpha-value>)',
         surface: {
-          DEFAULT: '#0b1326',
-          muted: '#1e293b',
-          bright: '#31394d',
+          DEFAULT: 'rgb(var(--color-surface) / <alpha-value>)',
+          muted: 'rgb(var(--color-surface-muted) / <alpha-value>)',
+          bright: 'rgb(var(--color-surface-bright) / <alpha-value>)',
         },
-        success: '#10b981',
-        danger: '#f43f5e',
-        accent: '#6366f1',
+        success: 'rgb(var(--color-success) / <alpha-value>)',
+        danger: 'rgb(var(--color-danger) / <alpha-value>)',
+        accent: 'rgb(var(--color-accent) / <alpha-value>)',
       },
       borderRadius: {
         'xl': '1rem',
@@ -26,4 +26,3 @@ export default {
   },
   plugins: [],
 }
-

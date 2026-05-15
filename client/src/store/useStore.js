@@ -3,6 +3,7 @@ import { create } from 'zustand'
 const useStore = create((set) => ({
   currentTicker: localStorage.getItem('lastTicker') ?? 'AAPL',
   language: localStorage.getItem('dashboardLanguage') ?? 'he',
+  theme: localStorage.getItem('dashboardTheme') ?? 'dark',
   interval: '5m',
   ohlcv: [],
   snapshot: null,
@@ -30,6 +31,10 @@ const useStore = create((set) => ({
   setLanguage: (language) => {
     localStorage.setItem('dashboardLanguage', language)
     set({ language })
+  },
+  setTheme: (theme) => {
+    localStorage.setItem('dashboardTheme', theme)
+    set({ theme })
   },
   setInterval: (interval) => set(state => ({
     interval,

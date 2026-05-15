@@ -409,20 +409,155 @@ export default function DisclaimerBanner() {
 
 ---
 
-## Priority Execution Order
+## 🎯 STATUS UPDATE — Already Completed ✅
 
-1. **P0.1** → Fix socket name issue (quick debug)
-2. **P0.2** → Create TradeActionCard (new component)
-3. **P0.3** → Tabify SignalPanel
-4. **P0.4** → Add DisclaimerBanner (legal protection)
-5. **P0.5** → Add LegalFooter (legal persistence)
-6. **P1.1** → Increase font sizes
-7. **P1.2** → Add timestamp
-8. **P1.3** → Unify colors
-9. **P1.4** → Watchlist dropdown
-10. **P1.5** → Timeframe feedback
-11. **P2.x** → Polish items (if time)
+### What's Done (P0 + P1):
+- ✅ P0.1 — Socket name preserved in socketBridge.js
+- ✅ P0.2 — TradeActionCard created & integrated in App.jsx (line 341)
+- ✅ P0.3 — SignalPanel converted to tabs (Decision/Ensemble/Professional/Details)
+- ✅ P0.4 — DisclaimerBanner added (bilingual, dismissible)
+- ✅ P0.5 — LegalFooter added with links
+- ✅ P1.1 — MetricCard font sizes upgraded to text-xl/text-2xl
+- ✅ P1.2 — Last update timestamp in Header ("2 seconds ago" format)
+- ✅ P1.3 — traderColors.js created with unified palette
+- ✅ P1.4 — Watchlist dropdown in Header (working, clickable)
+- ✅ P1.5 — Timeframe refresh feedback (pulse animation + message)
+- ✅ Layout — Chart prominence increased (3-column grid, 75%/25%)
+- ✅ Mobile — Responsive tabs (Chart/Signal/Details at bottom)
 
 ---
 
-**Start from P0.1 and proceed sequentially. Test after each P0 item before moving to P1.**
+## 🔴 REMAINING TASKS — Quick Wins (P2)
+
+### P2.1: Increase FactorRow & GateRow Font Sizes
+**Status:** NOT DONE  
+**Location:** `client/src/components/analysis/SignalPanel.jsx`  
+**What to do:**
+- In FactorRow (imported, used on line ~375): Change value text from `text-xs` to `text-sm`
+- In GateRow (function inside SignalPanel, line ~39): Change detail text from `text-xs` to `text-sm`
+- These metrics are still too small to scan quickly in the "Indicators" and "Pipeline Gates" sections
+
+**Expected:** Easier to read quickly without squinting
+
+---
+
+### P2.2: Unify SignalPanel Color Usage
+**Status:** PARTIALLY DONE  
+**Location:** `client/src/components/analysis/SignalPanel.jsx`  
+**What to do:**
+- Line 212-216 (EnsembleCard tone): Already using TRADER_TEXT, good!
+- BUT: Manually hardcoded colors still exist in:
+  - Line 141: `'text-green-400'` for green metrics → Should be `TRADER_TEXT.takeProfit`
+  - Line 142-143: Pattern potential colors → Should use `TRADER_TEXT.bullish / bearish`
+  - Line 337: Confluence bar color `'#22c55e'` → Should use `TRADER_COLORS.bullish`
+  - Line 400-401: Risk/Reward colors → Should use `TRADER_TEXT.stopLoss / takeProfit`
+
+**Import statement:** Add to top:
+```js
+import { TRADER_COLORS, TRADER_TEXT } from '../../lib/traderColors'
+```
+
+**Changes:**
+```js
+// OLD (line 141):
+color="text-green-300"
+// NEW:
+color={TRADER_TEXT.takeProfit}
+
+// OLD (line 337 - confluence bar):
+backgroundColor: signal.score >= 0 ? '#22c55e' : '#ef4444'
+// NEW:
+backgroundColor: signal.score >= 0 ? TRADER_COLORS.bullish : TRADER_COLORS.bearish
+```
+
+**Expected:** Consistent color scheme across entire SignalPanel
+
+---
+
+### P2.3: Fix Header Button Alignment (RTL Issue)
+**Status:** MINOR ISSUE  
+**Location:** `client/src/components/layout/Header.jsx`  
+**What to do:**
+- When language = Hebrew (RTL), the buttons order looks unnatural
+- Currently: [Watchlist] [Language] [Range] [1m 5m 15m...] [Last update]
+- In RTL, this reverses but the logical order should be: [Last update] [Timeframes] [Range] [Language] [Watchlist]
+
+**Fix:** Wrap button groups in a `<div className="flex items-center gap-2 order-last">` on RTL
+
+Alternative: Just ensure the order makes sense by using `flex-row-reverse` on RTL
+
+**Expected:** Header looks natural in both LTR and RTL
+
+---
+
+### P2.4: Test TradeActionCard on Mobile
+**Status:** NEEDS TESTING  
+**Location:** Browser test  
+**What to do:**
+1. Open app on mobile (375px width)
+2. Load a ticker with strong buy/sell signal
+3. Scroll up — TradeActionCard should be prominent
+4. Check if the 6 metrics (Current Price, Entry Zone, R/R, SL, TP, Risk) fit nicely
+5. If overflowing: Add responsive grid (2 cols on mobile, 3 on tablet, 6 on desktop)
+
+**Expected:** All metrics visible and readable on mobile without horizontal scroll
+
+---
+
+### P2.5: Add Keyboard Navigation to Dropdowns
+**Status:** NICE-TO-HAVE  
+**Location:** `client/src/components/layout/Header.jsx` (Watchlist dropdown)  
+**What to do:**
+- When dropdown is open, user should be able to use:
+  - Arrow Down/Up: Navigate between watchlist items
+  - Enter: Select item
+  - Escape: Close dropdown
+- This improves UX for power users
+
+**Implementation:** Add onKeyDown handler to dropdown ref
+
+```js
+useEffect(() => {
+  if (!showWatchlistDropdown) return
+  
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') setShowWatchlistDropdown(false)
+    // Arrow down/up navigation logic here
+  }
+  
+  document.addEventListener('keydown', handleKeyDown)
+  return () => document.removeEventListener('keydown', handleKeyDown)
+}, [showWatchlistDropdown])
+```
+
+**Expected:** Users can keyboard-navigate Watchlist dropdown
+
+---
+
+### P2.6: Mobile — Collapse TradeActionCard to Summary
+**Status:** OPTIONAL  
+**Location:** `client/src/components/ui/TradeActionCard.jsx`  
+**What to do:**
+- On mobile (<640px), show only:
+  - Action badge + Confidence
+  - Current Price
+  - Action headline
+- Expand to full 6 metrics on tablet+
+- Add toggle button "Show more details"
+
+**Expected:** Less vertical scroll on mobile
+
+---
+
+## Priority Execution Order (Remaining)
+
+1. **P2.1** → Increase FactorRow/GateRow font sizes (2 min)
+2. **P2.2** → Unify SignalPanel colors with TRADER_TEXT (5 min)
+3. **P2.3** → Fix Header RTL button order (3 min)
+4. **P2.4** → Test TradeActionCard mobile responsive (manual test)
+5. **P2.5** → Add keyboard nav to dropdowns (optional, 10 min)
+6. **P2.6** → Collapse TradeActionCard on mobile (optional, 15 min)
+
+---
+
+**All P0 and P1 are complete. P2 items are polish/nice-to-haves. Do P2.1-2.3 for quick wins.**
