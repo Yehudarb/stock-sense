@@ -33,11 +33,11 @@ import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
 import { TRADER_TEXT } from './lib/traderColors'
 
 const FG_COLOR = value => (
-  value >= 75 ? 'text-green-400'
-    : value >= 55 ? 'text-lime-400'
-    : value >= 45 ? 'text-yellow-400'
-    : value >= 25 ? 'text-orange-400'
-    : 'text-red-400'
+  value >= 75 ? TRADER_TEXT.bullish
+    : value >= 55 ? TRADER_TEXT.support
+    : value >= 45 ? TRADER_TEXT.neutral
+    : value >= 25 ? TRADER_TEXT.warning
+    : TRADER_TEXT.bearish
 )
 
 const FG_LABEL_HE = classification => ({
