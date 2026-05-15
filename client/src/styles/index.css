@@ -14,7 +14,7 @@ body {
   margin: 0;
   background: #0b1326;
   color: #dae2fd;
-  font-family: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Heebo', 'Inter', 'Geist', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }

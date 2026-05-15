@@ -19,11 +19,13 @@ import AnalysisResultCard from './components/analysis/AnalysisResultCard'
 import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
+import DisclaimerBanner from './components/legal/DisclaimerBanner'
 import Button from './components/ui/Button'
 import ErrorState from './components/ui/ErrorState'
 import KpiCard from './components/ui/KpiCard'
 import LoadingState from './components/ui/LoadingState'
 import SectionTitle from './components/ui/SectionTitle'
+import TradeActionCard from './components/ui/TradeActionCard'
 import { fmtVolume, fmtPercent } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
@@ -90,6 +92,7 @@ export default function App() {
     setCurrentTicker,
     lastLoadedTicker,
     bumpAnalysisRun,
+    intervalRefreshing,
   } = useStore()
 
   const isHebrew = language === 'he'
@@ -105,6 +108,8 @@ export default function App() {
   const [isEarningsLoading, setIsEarningsLoading] = useState(false)
   const [isBackendSlow, setIsBackendSlow] = useState(false)
   const [copiedReport, setCopiedReport] = useState(false)
+  const [timeframeToast, setTimeframeToast] = useState('')
+  const [mobileDashboardTab, setMobileDashboardTab] = useState('chart')
 
   useTicker()
 
@@ -170,6 +175,14 @@ export default function App() {
 
     return () => window.clearTimeout(timeoutId)
   }, [overallLoading])
+
+  useEffect(() => {
+    if (!intervalRefreshing) return undefined
+    const label = interval.toUpperCase()
+    setTimeframeToast(isHebrew ? `מחשב מחדש סיגנלים עבור ${label}...` : `Recalculating signals for ${label}...`)
+    const timer = window.setTimeout(() => setTimeframeToast(''), 1800)
+    return () => window.clearTimeout(timer)
+  }, [interval, intervalRefreshing, isHebrew])
 
   const regime = signal?.gates?.trend?.regime
   const regimeLabel = {
@@ -257,6 +270,8 @@ export default function App() {
   return (
     <Layout isConnected={isConnected}>
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8">
+        <DisclaimerBanner />
+
         <HeroSection
           currentTicker={currentTicker}
           isLoading={overallLoading}
@@ -323,6 +338,8 @@ export default function App() {
                 )}
               </div>
 
+              <TradeActionCard decision={signal?.decision} language={language} />
+
               {analysisResult && (
                 <AnalysisResultCard
                   language={language}
@@ -356,8 +373,8 @@ export default function App() {
               )}
             </section>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="flex flex-col gap-4 xl:col-span-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+              <div className={`flex flex-col gap-4 transition-opacity duration-300 lg:col-span-3 ${intervalRefreshing ? 'opacity-75' : 'opacity-100'} ${mobileDashboardTab !== 'chart' ? 'hidden lg:flex' : 'flex'}`}>
                 <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
                 <ChartWorkspace
                   currentTicker={currentTicker}
@@ -369,9 +386,14 @@ export default function App() {
                   technicalAnalysis={technicalAnalysis}
                   isLoading={isLoading}
                 />
+                {intervalRefreshing && (
+                  <div className="text-sm text-slate-400">
+                    {isHebrew ? 'הגרף והסיגנלים מתעדכנים עבור הטווח החדש...' : 'The chart and signals are refreshing for the new timeframe...'}
+                  </div>
+                )}
               </div>
 
-              <div className="flex flex-col gap-4">
+              <div className={`flex flex-col gap-4 lg:col-span-1 ${mobileDashboardTab !== 'signal' ? 'hidden lg:flex' : 'flex'}`}>
                 <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} language={language} />
                 <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
                 <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
@@ -379,9 +401,49 @@ export default function App() {
                 <SignalPanel signal={signal} language={language} />
               </div>
             </div>
+
+            <div className={`${mobileDashboardTab !== 'details' ? 'hidden' : 'flex'} flex-col gap-4 lg:hidden`}>
+              <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
+              <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
+              <AdvancedTrendsPanel trends={signal?.trends} language={language} />
+              <TechnicalAnalysisPanel
+                analysis={technicalAnalysis}
+                isLoading={isTechnicalAnalysisLoading}
+                error={technicalAnalysisError}
+              />
+            </div>
+
+            <div className="sticky bottom-4 z-40 mt-2 lg:hidden">
+              <div className="mx-auto flex max-w-md items-center justify-between rounded-full border border-white/10 bg-slate-950/92 p-1 shadow-[0_20px_60px_rgba(2,6,23,0.45)] backdrop-blur-md">
+                {[
+                  { key: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
+                  { key: 'signal', label: isHebrew ? 'סיגנל' : 'Signal' },
+                  { key: 'details', label: isHebrew ? 'פרטים' : 'Details' },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setMobileDashboardTab(tab.key)}
+                    className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
+                      mobileDashboardTab === tab.key
+                        ? 'bg-primary text-surface-muted'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </div>
+
+      {timeframeToast && (
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-primary/20 bg-slate-950/92 px-4 py-2 text-sm text-slate-100 shadow-[0_18px_50px_rgba(2,6,23,0.45)] backdrop-blur-md">
+          {timeframeToast}
+        </div>
+      )}
     </Layout>
   )
 }

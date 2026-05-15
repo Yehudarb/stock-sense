@@ -22,7 +22,7 @@ export default function FactorRow({ label, signal, value, language = 'he' }) {
     <div className="flex items-center justify-between py-1.5 border-b border-slate-800/50 last:border-0">
       <span className="text-sm text-slate-300">{displayLabel}</span>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-slate-400 font-mono">{value}</span>
+        <span className="text-sm font-semibold text-slate-300 font-mono">{value}</span>
         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${pill[signal] ?? pill.HOLD}`}>
           {labels[language]?.[signal] ?? signal}
         </span>

@@ -15,6 +15,7 @@ export function initSocketBridge(io) {
             const snap = await getSnapshot(upper)
             io.to(upper).emit('tick', {
               ticker: upper,
+              name: snap.name,
               price: snap.price,
               change: snap.change,
               changePct: snap.changePct,

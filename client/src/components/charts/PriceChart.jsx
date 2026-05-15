@@ -2,22 +2,23 @@ import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
 import { createCrosshairPlugin, formatTooltipDate, getWindowBounds, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import { TRADER_COLORS } from '../../lib/traderColors'
 
-const TV_GREEN = '#10b981'
-const TV_RED = '#f43f5e'
+const TV_GREEN = TRADER_COLORS.entry
+const TV_RED = TRADER_COLORS.bearish
 const TV_GRID = 'rgba(148, 163, 184, 0.08)'
 const TV_TEXT = 'rgba(226, 232, 240, 0.92)'
 const CHART_FONT = "Heebo, Inter, system-ui, sans-serif"
 
 const PATTERN_COLORS = {
-  bullish: { stroke: '#22c55e', fill: 'rgba(34, 197, 94, 0.08)' },
-  bearish: { stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.08)' },
-  neutral: { stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.08)' },
+  bullish: { stroke: TRADER_COLORS.bullish, fill: 'rgba(34, 197, 94, 0.08)' },
+  bearish: { stroke: TRADER_COLORS.bearish, fill: 'rgba(239, 68, 68, 0.08)' },
+  neutral: { stroke: TRADER_COLORS.neutral, fill: 'rgba(245, 158, 11, 0.08)' },
 }
 
 const GAP_COLORS = {
-  open: { stroke: '#f97316', fill: 'rgba(249, 115, 22, 0.13)' },
-  partial: { stroke: '#eab308', fill: 'rgba(234, 179, 8, 0.12)' },
+  open: { stroke: TRADER_COLORS.resistance, fill: 'rgba(249, 115, 22, 0.13)' },
+  partial: { stroke: TRADER_COLORS.warning, fill: 'rgba(234, 179, 8, 0.12)' },
   closed: { stroke: '#64748b', fill: 'rgba(100, 116, 139, 0.08)' },
 }
 
@@ -904,20 +905,20 @@ export default function PriceChart({
     const levelCandidates = (showLevels || showPivotPoints || showPrevHighLow || showHighLow52)
       ? [
           ...(showLevels ? [
-            { price: decision?.support, color: '#22c55e' },
-            { price: decision?.resistance, color: '#ef4444' },
-            ...((technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(34, 197, 94, 0.9)' }))),
-            ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(239, 68, 68, 0.9)' }))),
+            { price: decision?.support, color: TRADER_COLORS.support },
+            { price: decision?.resistance, color: TRADER_COLORS.resistance },
+            ...((technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(6, 182, 212, 0.9)' }))),
+            ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(249, 115, 22, 0.9)' }))),
             ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
           ] : []),
           ...(showPivotPoints && indicators?.pivotPoints ? [
             { price: indicators.pivotPoints.pivot, color: 'rgba(250, 204, 21, 0.9)' },
-            { price: indicators.pivotPoints.r1, color: 'rgba(248, 113, 113, 0.82)' },
-            { price: indicators.pivotPoints.s1, color: 'rgba(52, 211, 153, 0.82)' },
+            { price: indicators.pivotPoints.r1, color: 'rgba(249, 115, 22, 0.82)' },
+            { price: indicators.pivotPoints.s1, color: 'rgba(6, 182, 212, 0.82)' },
           ] : []),
           ...(showPrevHighLow && indicators?.priceLevels ? [
-            { price: indicators.priceLevels.previousHigh, color: 'rgba(251, 146, 60, 0.82)' },
-            { price: indicators.priceLevels.previousLow, color: 'rgba(45, 212, 191, 0.82)' },
+            { price: indicators.priceLevels.previousHigh, color: 'rgba(249, 115, 22, 0.82)' },
+            { price: indicators.priceLevels.previousLow, color: 'rgba(6, 182, 212, 0.82)' },
           ] : []),
           ...(showHighLow52 && indicators?.priceLevels ? [
             { price: indicators.priceLevels.high52Week, color: 'rgba(244, 114, 182, 0.88)' },

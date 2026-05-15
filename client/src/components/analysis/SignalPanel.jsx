@@ -1,10 +1,12 @@
+import { useMemo, useState } from 'react'
 import { SIGNAL_BADGES } from '../../../../shared/constants'
 import Badge from '../ui/Badge'
 import FactorRow from './FactorRow'
 import { fmtPrice } from '../../lib/formatters'
+import { TRADER_TEXT } from '../../lib/traderColors'
 
 const REGIME_LABEL = {
-  he: { uptrend: 'מגמה עולה', downtrend: 'מגמה יורדת', sideways: 'שוק צדדי', unknown: 'לא ידוע' },
+  he: { uptrend: 'מגמה עולה', downtrend: 'מגמה יורדת', sideways: 'שוק צדי', unknown: 'לא ידוע' },
   en: { uptrend: 'Uptrend', downtrend: 'Downtrend', sideways: 'Sideways', unknown: 'Unknown' },
 }
 
@@ -42,7 +44,7 @@ function GateRow({ label, passed, detail }) {
       <span className="text-slate-400">{label}</span>
       <div className="flex items-center gap-2">
         {detail && <span className="text-slate-500">{detail}</span>}
-        <span className={passed ? 'text-green-400' : 'text-red-400'}>{passed ? '✓' : '×'}</span>
+        <span className={passed ? 'text-green-400' : 'text-red-400'}>{passed ? 'Yes' : 'No'}</span>
       </div>
     </div>
   )
@@ -50,9 +52,9 @@ function GateRow({ label, passed, detail }) {
 
 function Metric({ label, value, color = 'text-white', sub }) {
   return (
-    <div className="rounded-lg bg-slate-900/40 border border-slate-800/50 p-3">
-      <div className="text-[11px] font-medium tracking-wide uppercase text-slate-500">{label}</div>
-      <div className={`mt-1 text-sm font-black ${color}`}>{value}</div>
+    <div className="rounded-lg border border-slate-800/50 bg-slate-900/40 p-3">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</div>
+      <div className={`mt-1 text-base font-black ${color}`}>{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
     </div>
   )
@@ -90,22 +92,26 @@ function AnalystDecisionCard({ decision, language }) {
     bearish: 'glass-panel border-red-500/20',
     neutral: 'glass-panel border-yellow-500/20',
   }[decision.tone] ?? 'glass-panel border-slate-500/20'
-  const toneText = { bullish: 'text-green-300', bearish: 'text-red-300', neutral: 'text-yellow-300' }[decision.tone] ?? 'text-white'
+  const toneText = {
+    bullish: TRADER_TEXT.bullish,
+    bearish: TRADER_TEXT.bearish,
+    neutral: TRADER_TEXT.neutral,
+  }[decision.tone] ?? 'text-white'
   const en = decisionCopy(decision.action, language)
   const primaryAction = isEnglish ? en[0] : decision.primaryAction
   const headline = isEnglish ? en[1] : decision.headline
   const reasons = isEnglish ? englishReasons(decision) : decision.reasons
   const entryText = decision.entryLow != null && decision.entryHigh != null
     ? `${fmtPrice(decision.entryLow)} - ${fmtPrice(decision.entryHigh)}`
-    : isEnglish ? 'No new entry' : 'לא כניסה חדשה'
+    : isEnglish ? 'No new entry' : 'ללא כניסה חדשה'
   const labels = {
     title: isEnglish ? 'Analyst conclusion' : 'מסקנת אנליסט',
     confidence: isEnglish ? 'Confidence' : 'ביטחון',
     currentPrice: isEnglish ? 'Current price' : 'מחיר נוכחי',
-    entryZone: isEnglish ? 'Entry zone' : 'אזור קנייה',
-    holdUntil: isEnglish ? 'Hold until' : 'להחזיק עד',
-    sellBelow: isEnglish ? 'Sell below' : 'למכור מתחת',
-    patternTarget: isEnglish ? 'Pattern target' : 'יעד לפי תבנית',
+    entryZone: isEnglish ? 'Entry zone' : 'אזור כניסה',
+    holdUntil: isEnglish ? 'Hold until' : 'יעד עבודה',
+    sellBelow: isEnglish ? 'Sell below' : 'ביטול מתחת',
+    patternTarget: isEnglish ? 'Pattern target' : 'יעד תבנית',
     patternPotential: isEnglish ? 'Pattern potential' : 'פוטנציאל תבנית',
     nearestGap: isEnglish ? 'Nearest gap' : 'גאפ קרוב',
     why: isEnglish ? 'Why' : 'למה',
@@ -129,18 +135,18 @@ function AnalystDecisionCard({ decision, language }) {
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Metric label={labels.currentPrice} value={fmtPrice(decision.currentPrice)} />
-        <Metric label={labels.entryZone} value={entryText} color="text-green-300" />
-        <Metric label={labels.holdUntil} value={fmtPrice(decision.holdUntil)} color="text-green-300" sub={decision.upsidePct != null ? `${decision.upsidePct}% ${labels.upside}` : null} />
-        <Metric label={labels.sellBelow} value={fmtPrice(decision.invalidation)} color="text-red-300" sub={decision.downsidePct != null ? `${Math.abs(decision.downsidePct)}% ${labels.risk}` : null} />
-        <Metric label="Take Profit" value={fmtPrice(decision.takeProfit)} color="text-green-400" />
-        <Metric label="Trailing Stop" value={fmtPrice(decision.trailingStop)} color="text-yellow-300" />
-        <Metric label="Support" value={fmtPrice(decision.support)} color="text-cyan-300" />
-        <Metric label="Resistance" value={fmtPrice(decision.resistance)} color="text-orange-300" />
+        <Metric label={labels.entryZone} value={entryText} color={TRADER_TEXT.entry} />
+        <Metric label={labels.holdUntil} value={fmtPrice(decision.holdUntil)} color={TRADER_TEXT.takeProfit} sub={decision.upsidePct != null ? `${decision.upsidePct}% ${labels.upside}` : null} />
+        <Metric label={labels.sellBelow} value={fmtPrice(decision.invalidation)} color={TRADER_TEXT.stopLoss} sub={decision.downsidePct != null ? `${Math.abs(decision.downsidePct)}% ${labels.risk}` : null} />
+        <Metric label="Take Profit" value={fmtPrice(decision.takeProfit)} color={TRADER_TEXT.takeProfit} />
+        <Metric label="Trailing Stop" value={fmtPrice(decision.trailingStop)} color={TRADER_TEXT.neutral} />
+        <Metric label="Support" value={fmtPrice(decision.support)} color={TRADER_TEXT.support} />
+        <Metric label="Resistance" value={fmtPrice(decision.resistance)} color={TRADER_TEXT.resistance} />
         <Metric label="Pro Confluence" value={decision.proConfluence != null ? `${decision.proConfluence}%` : '-'} color="text-blue-300" />
         <Metric label="Regime" value={decision.regime?.regime ?? '-'} color="text-slate-200" sub={decision.regime?.volatilityPct != null ? `Volatility ${decision.regime.volatilityPct}%` : null} />
         <Metric label={labels.patternTarget} value={fmtPrice(decision.patternTarget)} color="text-purple-300" sub={decision.patternLabel ?? null} />
-        <Metric label={labels.patternPotential} value={decision.patternPotentialPct != null ? formatPotential(decision.patternPotentialPct) : '-'} color={decision.patternPotentialPct == null ? 'text-slate-300' : decision.patternPotentialPct >= 0 ? 'text-green-300' : 'text-red-300'} />
-        <Metric label={labels.nearestGap} value={decision.gapZone ?? '-'} color={decision.gapDirection === 'up' ? 'text-green-300' : decision.gapDirection === 'down' ? 'text-red-300' : 'text-slate-300'} sub={formatGapStatus(decision.gapStatus, decision.gapFillPct, language)} />
+        <Metric label={labels.patternPotential} value={decision.patternPotentialPct != null ? formatPotential(decision.patternPotentialPct) : '-'} color={decision.patternPotentialPct == null ? 'text-slate-300' : decision.patternPotentialPct >= 0 ? TRADER_TEXT.takeProfit : TRADER_TEXT.stopLoss} />
+        <Metric label={labels.nearestGap} value={decision.gapZone ?? '-'} color={decision.gapDirection === 'up' ? TRADER_TEXT.takeProfit : decision.gapDirection === 'down' ? TRADER_TEXT.stopLoss : 'text-slate-300'} sub={formatGapStatus(decision.gapStatus, decision.gapFillPct, language)} />
       </div>
 
       {reasons?.length > 0 && (
@@ -169,7 +175,7 @@ function ProFeaturesCard({ pro, language }) {
   const prof = pro.professional
   const gap = pro.gaps?.nearestOpen
   const labels = {
-    title: isEnglish ? 'Professional layer' : 'Professional Layer',
+    title: isEnglish ? 'Professional layer' : 'שכבה מקצועית',
     support: isEnglish ? 'Nearest support' : 'תמיכה קרובה',
     resistance: isEnglish ? 'Nearest resistance' : 'התנגדות קרובה',
     regime: 'Market Regime',
@@ -189,12 +195,12 @@ function ProFeaturesCard({ pro, language }) {
         <span className="text-xs font-bold text-blue-300">{prof.confluencePct}% {prof.confidenceLevel}</span>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <Metric label={labels.support} value={fmtPrice(sr.nearestSupport)} color="text-cyan-300" />
-        <Metric label={labels.resistance} value={fmtPrice(sr.nearestResistance)} color="text-orange-300" />
+        <Metric label={labels.support} value={fmtPrice(sr.nearestSupport)} color={TRADER_TEXT.support} />
+        <Metric label={labels.resistance} value={fmtPrice(sr.nearestResistance)} color={TRADER_TEXT.resistance} />
         <Metric label={labels.regime} value={pro.marketRegime.regime} color="text-slate-200" />
-        <Metric label={labels.institution} value={inst.institutionalBuying ? `${inst.spikeCount} ${labels.volumeSpikes}` : labels.notDetected} color={inst.institutionalBuying ? 'text-green-300' : 'text-slate-400'} />
-        <Metric label={labels.openGaps} value={pro.gaps?.openCount ? `${pro.gaps.openCount} ${labels.open}` : labels.none} color={pro.gaps?.openCount ? 'text-yellow-300' : 'text-slate-400'} />
-        <Metric label={labels.nearestGap} value={gap ? `$${gap.zoneLow}-${gap.zoneHigh}` : labels.none} color={gap ? 'text-orange-300' : 'text-slate-400'} sub={gap ? formatGapStatus(gap.status, gap.fillPct, language) : null} />
+        <Metric label={labels.institution} value={inst.institutionalBuying ? `${inst.spikeCount} ${labels.volumeSpikes}` : labels.notDetected} color={inst.institutionalBuying ? TRADER_TEXT.takeProfit : 'text-slate-400'} />
+        <Metric label={labels.openGaps} value={pro.gaps?.openCount ? `${pro.gaps.openCount} ${labels.open}` : labels.none} color={pro.gaps?.openCount ? TRADER_TEXT.neutral : 'text-slate-400'} />
+        <Metric label={labels.nearestGap} value={gap ? `$${gap.zoneLow}-${gap.zoneHigh}` : labels.none} color={gap ? TRADER_TEXT.resistance : 'text-slate-400'} sub={gap ? formatGapStatus(gap.status, gap.fillPct, language) : null} />
       </div>
       {prof.factors?.length > 0 && !isEnglish && (
         <div className="mt-3 border-t border-slate-700 pt-2">
@@ -209,10 +215,10 @@ function EnsembleCard({ ensemble, language }) {
   if (!ensemble) return null
   const isEnglish = language === 'en'
   const tone = {
-    bullish: { label: isEnglish ? 'Bullish' : 'בוליש', color: 'text-green-300', bg: 'glass-panel border-green-500/20', bar: '#22c55e' },
-    bearish: { label: isEnglish ? 'Bearish' : 'בריש', color: 'text-red-300', bg: 'glass-panel border-red-500/20', bar: '#ef4444' },
-    neutral: { label: isEnglish ? 'Mixed' : 'מעורב', color: 'text-yellow-300', bg: 'glass-panel border-yellow-500/20', bar: '#eab308' },
-  }[ensemble.bias] ?? { label: isEnglish ? 'Mixed' : 'מעורב', color: 'text-yellow-300', bg: 'glass-panel border-yellow-500/20', bar: '#eab308' }
+    bullish: { label: isEnglish ? 'Bullish' : 'שורי', color: TRADER_TEXT.bullish, bg: 'glass-panel border-green-500/20', bar: '#22c55e' },
+    bearish: { label: isEnglish ? 'Bearish' : 'דובי', color: TRADER_TEXT.bearish, bg: 'glass-panel border-red-500/20', bar: '#ef4444' },
+    neutral: { label: isEnglish ? 'Mixed' : 'מעורב', color: TRADER_TEXT.neutral, bg: 'glass-panel border-yellow-500/20', bar: '#eab308' },
+  }[ensemble.bias] ?? { label: isEnglish ? 'Mixed' : 'מעורב', color: TRADER_TEXT.neutral, bg: 'glass-panel border-yellow-500/20', bar: '#eab308' }
 
   return (
     <div className={`rounded-xl border p-4 ${tone.bg}`}>
@@ -223,7 +229,7 @@ function EnsembleCard({ ensemble, language }) {
           <div className="mt-1 text-xs text-slate-400">
             {isEnglish
               ? `${ensemble.buyVotes}/${ensemble.totalModels} models vote buy · agreement ${ensemble.agreementPct}% · ${ensemble.confidence}`
-              : `${ensemble.buyVotes}/${ensemble.totalModels} מודלים מצביעים קנייה · הסכמה ${ensemble.agreementPct}% · ${ensemble.confidence}`}
+              : `${ensemble.buyVotes}/${ensemble.totalModels} מודלים תומכים בקנייה · הסכמה ${ensemble.agreementPct}% · ${ensemble.confidence}`}
           </div>
         </div>
         <div className="rounded-lg bg-slate-950 px-3 py-2 text-center">
@@ -239,7 +245,7 @@ function EnsembleCard({ ensemble, language }) {
           <div key={model.key} className="rounded-lg bg-slate-950/70 p-2">
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="font-bold text-slate-200">{model.label}</span>
-              <span className={model.vote === 'BUY' ? 'text-green-300' : 'text-red-300'}>
+              <span className={model.vote === 'BUY' ? TRADER_TEXT.bullish : TRADER_TEXT.bearish}>
                 {isEnglish ? (model.vote === 'BUY' ? 'Buy' : 'Sell') : (model.vote === 'BUY' ? 'קנייה' : 'מכירה')} · {Math.round(model.probability * 100)}%
               </span>
             </div>
@@ -282,68 +288,30 @@ function PatternBadge({ pattern, language }) {
   )
 }
 
-export default function SignalPanel({ signal, language = 'he' }) {
-  const isEnglish = language === 'en'
-  const copy = {
-    loading: isEnglish ? 'Loading analysis...' : 'טוען ניתוח...',
-    signalTitle: isEnglish ? 'Trading signal' : 'אות מסחר',
-    confidence: isEnglish ? 'Confidence' : 'ביטחון',
-    buyProbability: isEnglish ? 'Buy probability' : 'הסתברות קנייה',
-    sellProbability: isEnglish ? 'Sell probability' : 'הסתברות מכירה',
-    pipeline: isEnglish ? 'Pipeline gates' : 'שערי Pipeline',
-    marketTrend: isEnglish ? 'Market trend' : 'מגמת שוק',
-    trendGate: isEnglish ? 'Trend gate' : 'שער מגמה',
-    passed: isEnglish ? 'Passed' : 'עבר',
-    blocked: isEnglish ? 'Blocked' : 'חסום',
-    buyConfluence: isEnglish ? 'Buy confluence' : 'Confluence קנייה',
-    bullishReversal: isEnglish ? 'Bullish reversal' : 'אישור היפוך בולישי',
-    aligned: isEnglish ? 'aligned' : 'מיושרים',
-    candleVolume: isEnglish ? 'Candle + volume' : 'נר + נפח',
-    bullishCandle: isEnglish ? 'Bullish candle' : 'נר בולישי',
-    notConfirmed: isEnglish ? 'Not confirmed' : 'לא אושר',
-    indicators: isEnglish ? 'Indicators' : 'אינדיקטורים',
-    patterns: isEnglish ? 'Chart patterns' : 'תבניות גרפיות',
-    leadingPattern: isEnglish ? 'Leading pattern' : 'תבנית מובילה',
-    patternScore: isEnglish ? 'Pattern score' : 'ניקוד תבניות',
-    risk: isEnglish ? 'Risk management' : 'ניהול סיכונים',
-    riskReward: isEnglish ? 'Risk/reward ratio' : 'יחס סיכון/תשואה',
-    analysis: isEnglish ? 'Analysis' : 'ניתוח',
-  }
-
-  if (!signal) {
-    return <div className="glass-panel rounded-xl p-4 text-slate-500 text-center text-sm">{copy.loading}</div>
-  }
-
-  const { gates, patterns, risk, decision, pro, ensemble } = signal
-  const signalLabel = isEnglish ? ACTION_EN[signal.action] ?? signal.action : SIGNAL_BADGES[signal.action]
-
+function DetailTab({ signal, gates, patterns, risk, copy, isEnglish, language }) {
   return (
-    <div className="flex flex-col gap-3" dir={isEnglish ? 'ltr' : 'rtl'}>
-      <AnalystDecisionCard decision={decision} language={language} />
-      <EnsembleCard ensemble={ensemble} language={language} />
-      <ProFeaturesCard pro={pro} language={language} />
-
+    <div className="flex flex-col gap-3">
       <div className="glass-panel rounded-xl p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-white">{copy.signalTitle}</h3>
-          <Badge action={signal.action} label={signalLabel} />
+          <Badge action={signal.action} label={isEnglish ? ACTION_EN[signal.action] ?? signal.action : SIGNAL_BADGES[signal.action]} />
         </div>
         <div>
-          <div className="flex justify-between text-xs text-slate-400 mb-1">
+          <div className="mb-1 flex justify-between text-xs text-slate-400">
             <span>{copy.confidence}</span>
             <span>{signal.confidence}%</span>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-2">
+          <div className="h-2 w-full rounded-full bg-slate-700">
             <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${signal.confidence}%`, backgroundColor: signal.score >= 0 ? '#22c55e' : '#ef4444' }} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-green-950 rounded-lg p-2 text-center">
-            <div className="text-xs text-green-400 mb-0.5">{copy.buyProbability}</div>
+          <div className="rounded-lg bg-green-950 p-2 text-center">
+            <div className="mb-0.5 text-xs text-green-400">{copy.buyProbability}</div>
             <div className="text-lg font-bold text-green-300">{signal.buyProbability}%</div>
           </div>
-          <div className="bg-red-950 rounded-lg p-2 text-center">
-            <div className="text-xs text-red-400 mb-0.5">{copy.sellProbability}</div>
+          <div className="rounded-lg bg-red-950 p-2 text-center">
+            <div className="mb-0.5 text-xs text-red-400">{copy.sellProbability}</div>
             <div className="text-lg font-bold text-red-300">{signal.sellProbability}%</div>
           </div>
         </div>
@@ -351,8 +319,8 @@ export default function SignalPanel({ signal, language = 'he' }) {
 
       {gates && (
         <div className="glass-panel rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.pipeline}</h4>
-          <div className="border-b border-slate-700 pb-2 mb-2">
+          <h4 className="mb-2 text-xs font-bold text-slate-400">{copy.pipeline}</h4>
+          <div className="mb-2 border-b border-slate-700 pb-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-400">{copy.marketTrend}</span>
               <span className={REGIME_COLOR[gates.trend?.regime] ?? 'text-slate-400'}>
@@ -371,13 +339,13 @@ export default function SignalPanel({ signal, language = 'he' }) {
       )}
 
       <div className="glass-panel rounded-xl p-4">
-        <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.indicators}</h4>
+        <h4 className="mb-2 text-xs font-bold text-slate-400">{copy.indicators}</h4>
         {signal.factors.map((f, i) => <FactorRow key={i} label={f.label} signal={f.signal} value={f.value} language={language} />)}
       </div>
 
       {patterns?.patterns?.length > 0 && (
         <div className="glass-panel rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.patterns} ({patterns.patterns.length})</h4>
+          <h4 className="mb-2 text-xs font-bold text-slate-400">{copy.patterns} ({patterns.patterns.length})</h4>
           {patterns.best && (
             <div className="mb-3 rounded-lg border border-blue-900 bg-blue-950/40 p-2 text-xs text-blue-200">
               {copy.leadingPattern}: <span className="font-bold">{patterns.best.label}</span>
@@ -395,21 +363,101 @@ export default function SignalPanel({ signal, language = 'he' }) {
 
       {risk && (
         <div className="glass-panel rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.risk} (ATR={risk.atr})</h4>
+          <h4 className="mb-2 text-xs font-bold text-slate-400">{copy.risk} (ATR={risk.atr})</h4>
           <div className="grid grid-cols-1 gap-2 text-xs">
-            <div className="flex justify-between"><span className="text-slate-400">Stop Loss</span><span className="text-red-400 font-mono">${risk.stopLoss} <span className="text-slate-500">(-{risk.riskPct}%)</span></span></div>
-            <div className="flex justify-between"><span className="text-slate-400">Take Profit</span><span className="text-green-400 font-mono">${risk.takeProfit} <span className="text-slate-500">(+{risk.rewardPct}%)</span></span></div>
-            <div className="flex justify-between"><span className="text-slate-400">Trailing Stop</span><span className="text-yellow-400 font-mono">${risk.trailingStop}</span></div>
-            <div className="flex justify-between border-t border-slate-700 pt-1 mt-1"><span className="text-slate-400">{copy.riskReward}</span><span className={risk.rrRatio >= 1.5 ? 'text-green-400' : 'text-yellow-400'}>1:{risk.rrRatio}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Stop Loss</span><span className="font-mono text-red-400">${risk.stopLoss} <span className="text-slate-500">(-{risk.riskPct}%)</span></span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Take Profit</span><span className="font-mono text-green-400">${risk.takeProfit} <span className="text-slate-500">(+{risk.rewardPct}%)</span></span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Trailing Stop</span><span className="font-mono text-yellow-400">${risk.trailingStop}</span></div>
+            <div className="mt-1 flex justify-between border-t border-slate-700 pt-1"><span className="text-slate-400">{copy.riskReward}</span><span className={risk.rrRatio >= 1.5 ? 'text-green-400' : 'text-yellow-400'}>1:{risk.rrRatio}</span></div>
           </div>
         </div>
       )}
 
       {signal.analysis && (
         <div className="glass-panel rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-400 mb-2">{copy.analysis}</h4>
-          <p className="text-sm text-slate-300 leading-relaxed">{signal.analysis}</p>
+          <h4 className="mb-2 text-xs font-bold text-slate-400">{copy.analysis}</h4>
+          <p className="text-sm leading-relaxed text-slate-300">{signal.analysis}</p>
         </div>
+      )}
+    </div>
+  )
+}
+
+export default function SignalPanel({ signal, language = 'he' }) {
+  const [activeTab, setActiveTab] = useState('Decision')
+  const isEnglish = language === 'en'
+
+  const copy = {
+    loading: isEnglish ? 'Loading analysis...' : 'טוען ניתוח...',
+    signalTitle: isEnglish ? 'Trading signal' : 'אות מסחר',
+    confidence: isEnglish ? 'Confidence' : 'ביטחון',
+    buyProbability: isEnglish ? 'Buy probability' : 'הסתברות קנייה',
+    sellProbability: isEnglish ? 'Sell probability' : 'הסתברות מכירה',
+    pipeline: isEnglish ? 'Pipeline gates' : 'שערי Pipeline',
+    marketTrend: isEnglish ? 'Market trend' : 'מגמת שוק',
+    trendGate: isEnglish ? 'Trend gate' : 'שער מגמה',
+    passed: isEnglish ? 'Passed' : 'עבר',
+    blocked: isEnglish ? 'Blocked' : 'חסום',
+    buyConfluence: isEnglish ? 'Buy confluence' : 'Confluence קנייה',
+    bullishReversal: isEnglish ? 'Bullish reversal' : 'אישור היפוך שורי',
+    aligned: isEnglish ? 'aligned' : 'מיושרים',
+    candleVolume: isEnglish ? 'Candle + volume' : 'נר + נפח',
+    bullishCandle: isEnglish ? 'Bullish candle' : 'נר שורי',
+    notConfirmed: isEnglish ? 'Not confirmed' : 'לא אושר',
+    indicators: isEnglish ? 'Indicators' : 'אינדיקטורים',
+    patterns: isEnglish ? 'Chart patterns' : 'תבניות גרפיות',
+    leadingPattern: isEnglish ? 'Leading pattern' : 'תבנית מובילה',
+    patternScore: isEnglish ? 'Pattern score' : 'ניקוד תבניות',
+    risk: isEnglish ? 'Risk management' : 'ניהול סיכונים',
+    riskReward: isEnglish ? 'Risk/reward ratio' : 'יחס סיכוי/סיכון',
+    analysis: isEnglish ? 'Analysis' : 'ניתוח',
+  }
+
+  const tabs = useMemo(() => ([
+    { key: 'Decision', label: isEnglish ? 'Decision' : 'החלטה' },
+    { key: 'Ensemble', label: 'Ensemble' },
+    { key: 'Professional', label: isEnglish ? 'Professional' : 'מקצועי' },
+    { key: 'Details', label: isEnglish ? 'Details' : 'פרטים' },
+  ]), [isEnglish])
+
+  if (!signal) {
+    return <div className="glass-panel rounded-xl p-4 text-center text-sm text-slate-500">{copy.loading}</div>
+  }
+
+  const { gates, patterns, risk, decision, pro, ensemble } = signal
+
+  return (
+    <div className="glass-panel rounded-2xl p-4" dir={isEnglish ? 'ltr' : 'rtl'}>
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+              activeTab === tab.key
+                ? 'bg-primary/15 text-white ring-1 ring-primary/30'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'Decision' && <AnalystDecisionCard decision={decision} language={language} />}
+      {activeTab === 'Ensemble' && <EnsembleCard ensemble={ensemble} language={language} />}
+      {activeTab === 'Professional' && <ProFeaturesCard pro={pro} language={language} />}
+      {activeTab === 'Details' && (
+        <DetailTab
+          signal={signal}
+          gates={gates}
+          patterns={patterns}
+          risk={risk}
+          copy={copy}
+          isEnglish={isEnglish}
+          language={language}
+        />
       )}
     </div>
   )

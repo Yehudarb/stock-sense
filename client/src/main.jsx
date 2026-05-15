@@ -20,6 +20,8 @@ ChartJS.register(
   Filler, Tooltip, Legend, annotationPlugin,
 )
 
+ChartJS.defaults.font.family = "'Heebo', 'Inter', system-ui, sans-serif"
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode><App /></React.StrictMode>
 )

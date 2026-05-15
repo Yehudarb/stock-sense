@@ -1,6 +1,7 @@
 import Header from './Header'
 import Sidebar from './Sidebar'
 import useStore from '../../store/useStore'
+import LegalFooter from '../legal/LegalFooter'
 
 export default function Layout({ children, isConnected }) {
   const { language } = useStore()
@@ -13,6 +14,7 @@ export default function Layout({ children, isConnected }) {
         <Sidebar />
         <main className="flex-1 overflow-y-auto p-4 md:min-h-0 md:p-6 lg:p-8">{children}</main>
       </div>
+      <LegalFooter />
     </div>
   )
 }

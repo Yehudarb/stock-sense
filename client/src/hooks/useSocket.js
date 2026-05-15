@@ -28,14 +28,21 @@ export default function useSocket() {
     })
     socket.on('disconnect', () => setIsConnected(false))
     socket.on('tick', (data) => {
-      setSnapshot(prev => prev ? {
-        ...prev,
-        price: data.price,
-        change: data.change,
-        changePct: data.changePct,
-        volume: data.volume,
-        timestamp: data.timestamp,
-      } : prev)
+      if (data.ticker !== currentTickerRef.current) return
+
+      setSnapshot(prev => {
+        const base = prev || {}
+        return {
+          ...base,
+          ticker: data.ticker,
+          name: data.name ?? prev?.name ?? data.ticker,
+          price: data.price,
+          change: data.change,
+          changePct: data.changePct,
+          volume: data.volume,
+          timestamp: data.timestamp,
+        }
+      })
     })
 
     return () => { socket.disconnect() }

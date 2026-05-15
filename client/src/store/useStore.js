@@ -12,6 +12,8 @@ const useStore = create((set) => ({
   lastAnalysisAt: 0,
   lastLoadedTicker: null,
   analysisNonce: 0,
+  lastUpdateTime: null,
+  intervalRefreshing: false,
 
   setCurrentTicker: (ticker) => {
     localStorage.setItem('lastTicker', ticker)
@@ -22,24 +24,38 @@ const useStore = create((set) => ({
       error: null,
       lastAnalysisAt: Date.now(),
       analysisNonce: state.analysisNonce + 1,
+      intervalRefreshing: false,
     }))
   },
   setLanguage: (language) => {
     localStorage.setItem('dashboardLanguage', language)
     set({ language })
   },
-  setInterval: (interval) => set(state => ({ interval, ohlcv: [], error: null, lastAnalysisAt: Date.now(), analysisNonce: state.analysisNonce + 1 })),
-  setOhlcv: (ohlcv) => set({ ohlcv }),
+  setInterval: (interval) => set(state => ({
+    interval,
+    ohlcv: [],
+    error: null,
+    lastAnalysisAt: Date.now(),
+    analysisNonce: state.analysisNonce + 1,
+    intervalRefreshing: true,
+  })),
+  setOhlcv: (ohlcv) => set({ ohlcv, intervalRefreshing: false }),
   setSnapshot: (snapshotOrUpdater) =>
-    set(state => ({
-      snapshot: typeof snapshotOrUpdater === 'function'
+    set(state => {
+      const nextSnapshot = typeof snapshotOrUpdater === 'function'
         ? snapshotOrUpdater(state.snapshot)
-        : snapshotOrUpdater,
-    })),
+        : snapshotOrUpdater
+
+      return {
+        snapshot: nextSnapshot,
+        lastUpdateTime: nextSnapshot ? Date.now() : state.lastUpdateTime,
+      }
+    }),
   setWatchlist: (watchlist) => set({ watchlist }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
   setLastLoadedTicker: (lastLoadedTicker) => set({ lastLoadedTicker }),
+  setIntervalRefreshing: (intervalRefreshing) => set({ intervalRefreshing }),
   bumpAnalysisRun: () => set(state => ({ lastAnalysisAt: Date.now(), analysisNonce: state.analysisNonce + 1 })),
 
   addToWatchlist: (ticker) =>
