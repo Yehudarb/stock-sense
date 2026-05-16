@@ -15,8 +15,12 @@ export default function useSignal(ohlcv, indicators, language = 'he') {
     const signal        = computeSignal(ohlcv, indicators, patternResult.score)
     if (!signal) return null
     const analysis = generateAnalysis(ohlcv, indicators, signal, patternResult, language)
-    const risk     = computeRisk(ohlcv, indicators)
     const pro      = computeProfessionalFeatures(ohlcv, indicators, signal)
+    const risk     = computeRisk(ohlcv, indicators, {
+      nearestSupport: pro?.supportResistance?.nearestSupport ?? null,
+      nearestResistance: pro?.supportResistance?.nearestResistance ?? null,
+      patternInvalidation: patternResult?.best?.invalidationLevel ?? null,
+    })
     const ensemble = computeEnsembleConsensus(ohlcv, indicators, { ...signal, pro, patterns: patternResult })
     const decision = computeAnalystDecision(ohlcv, indicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language)
     const trends   = analyzeAdvancedTrends(ohlcv, indicators)

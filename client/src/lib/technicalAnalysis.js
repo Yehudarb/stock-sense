@@ -721,7 +721,6 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
   const dailyIndicators = frameIndicators.daily
   const dailyLevels = deriveSupportResistance(dailyBars, dailyIndicators)
   const dailyVolume = deriveVolumeAnalysis(dailyBars, dailyIndicators, dailyLevels)
-  const risk = computeRisk(dailyBars, dailyIndicators)
   const overallTechnicalBias = determineBiasFromFrames(analyzedFrames)
   const gapContext = deriveGapContext(dailyBars, overallTechnicalBias)
   const vwapContext = deriveVwapContext(dailyIndicators, dailyBars, dailyBars.length - 1, overallTechnicalBias)
@@ -801,6 +800,12 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
   const keyResistance = aggregateLevels(analyzedFrames, 'resistance')
   const nearestResistance = keyResistance[0]
   const nearestSupport = keySupport[0]
+  const risk = computeRisk(dailyBars, dailyIndicators, {
+    nearestSupport,
+    nearestResistance,
+    patternInvalidation: patterns[0]?.invalidationLevel ?? patterns[0]?.invalidatedBelow ?? patterns[0]?.invalidatedAbove ?? null,
+    vwap: latest(dailyIndicators.vwap, primaryIndex),
+  })
 
   const riskLevel = technicalScore >= 75 && riskRewardScore >= 70 ? 'Low' : technicalScore >= 55 ? 'Medium' : 'High'
   const mainRisk = nearestResistance && dailyBars.at(-1)?.c >= nearestResistance * 0.985
@@ -906,6 +911,10 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
       stopLoss: risk?.stopLoss ?? null,
       takeProfit: risk?.takeProfit ?? null,
       rrRatio: risk?.rrRatio ?? null,
+      trailingStop: risk?.trailingStop ?? null,
+      riskPct: risk?.riskPct ?? null,
+      rewardPct: risk?.rewardPct ?? null,
+      stopContext: risk?.stopContext ?? null,
     },
     finalTechnicalOutlook,
     disclaimer: 'This technical analysis is for educational and informational purposes only. It is not financial advice or a trading recommendation.',

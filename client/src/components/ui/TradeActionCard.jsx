@@ -61,7 +61,7 @@ export default function TradeActionCard({ decision, language = 'he' }) {
     metric(copy.currentPrice, fmtPrice(decision.currentPrice), 'text-white'),
     metric(copy.entryZone, entryZone, TRADER_TEXT.entry),
     metric(copy.ratio, rrRatio, theme.accent),
-    metric(copy.stopLoss, fmtPrice(decision.invalidation ?? decision.stopLoss), TRADER_TEXT.stopLoss, riskPct),
+    metric(copy.stopLoss, fmtPrice(decision.invalidation ?? decision.stopLoss), TRADER_TEXT.stopLoss, decision.stopContext?.recommended?.type ?? riskPct),
     metric(copy.takeProfit, fmtPrice(decision.takeProfit ?? decision.holdUntil), TRADER_TEXT.takeProfit, tpPct),
     metric(copy.risk, riskPct, decision.downsidePct != null && Math.abs(decision.downsidePct) > 5 ? 'text-yellow-300' : 'text-slate-200'),
   ]
@@ -91,6 +91,39 @@ export default function TradeActionCard({ decision, language = 'he' }) {
           </div>
         ))}
       </div>
+
+      {decision.stopContext?.recommended && (
+        <div className="border-t border-white/8 bg-slate-950/55 px-5 py-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            {isEnglish ? 'Stop strategy' : 'אסטרטגיית סטופ'}
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Recommended' : 'מומלץ'}</div>
+              <div className={`mt-1 text-lg font-black ${TRADER_TEXT.stopLoss}`}>{fmtPrice(decision.stopContext.recommended.price)}</div>
+              <div className="mt-1 text-xs text-slate-400">{decision.stopContext.recommended.type}</div>
+            </div>
+            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Risk distance' : 'מרחק סיכון'}</div>
+              <div className="mt-1 text-lg font-black text-slate-100">{decision.stopContext.recommended.riskPct}%</div>
+              <div className="mt-1 text-xs text-slate-400">{fmtPrice(decision.stopContext.recommended.distanceDollar)} {isEnglish ? 'from price' : 'מהמחיר'}</div>
+            </div>
+            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Break-even trigger' : 'מעבר לברייק איבן'}</div>
+              <div className="mt-1 text-lg font-black text-slate-100">{fmtPrice(decision.stopContext.breakEvenTrigger)}</div>
+              <div className="mt-1 text-xs text-slate-400">{decision.stopContext.volatilityBand}</div>
+            </div>
+            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Alternatives' : 'חלופות'}</div>
+              <div className="mt-1 text-sm font-bold text-slate-100">
+                {fmtPrice(decision.stopContext.aggressive?.price)} / {fmtPrice(decision.stopContext.conservative?.price)}
+              </div>
+              <div className="mt-1 text-xs text-slate-400">{isEnglish ? 'Aggressive / Conservative' : 'אגרסיבי / שמרני'}</div>
+            </div>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-slate-300">{decision.stopContext.comment}</p>
+        </div>
+      )}
     </section>
   )
 }

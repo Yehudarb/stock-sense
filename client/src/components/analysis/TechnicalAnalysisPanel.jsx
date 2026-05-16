@@ -214,7 +214,7 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <div className="rounded-2xl border border-white/8 bg-slate-900/30 p-5 backdrop-blur-md">
                 <div className="text-sm font-bold text-white mb-4">Risk / Reward Profile</div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                   <div className="rounded-xl border border-white/5 bg-slate-950/50 p-3">
                     <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Risk Level</div>
                     <div className={`text-lg font-black ${analysis.riskAssessment.riskLevel === 'Low' ? 'text-emerald-400' : analysis.riskAssessment.riskLevel === 'High' ? 'text-rose-400' : 'text-amber-400'}`}>
@@ -224,12 +224,42 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
                   <div className="rounded-xl border border-white/5 bg-slate-950/50 p-3">
                     <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Stop Loss</div>
                     <div className="text-lg font-black text-white">{analysis.riskAssessment.stopLoss ?? '-'}</div>
+                    <div className="mt-1 text-xs text-slate-500">{analysis.riskAssessment.stopContext?.recommended?.type ?? 'Recommended'}</div>
                   </div>
                   <div className="rounded-xl border border-white/5 bg-slate-950/50 p-3">
                     <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Take Profit</div>
                     <div className="text-lg font-black text-white">{analysis.riskAssessment.takeProfit ?? '-'}</div>
                   </div>
+                  <div className="rounded-xl border border-white/5 bg-slate-950/50 p-3">
+                    <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Break-even trigger</div>
+                    <div className="text-lg font-black text-white">{analysis.riskAssessment.stopContext?.breakEvenTrigger ?? '-'}</div>
+                    <div className="mt-1 text-xs text-slate-500">{analysis.riskAssessment.stopContext?.volatilityBand ?? '-'}</div>
+                  </div>
                 </div>
+                {analysis.riskAssessment.stopContext?.recommended && (
+                  <div className="mt-4 rounded-2xl border border-white/6 bg-slate-950/45 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="warning">{analysis.riskAssessment.stopContext.recommended.type}</Badge>
+                      <Badge tone="balanced">{analysis.riskAssessment.stopContext.recommended.riskPct}% risk</Badge>
+                      <Badge tone="default">${analysis.riskAssessment.stopContext.recommended.distanceDollar} distance</Badge>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">{analysis.riskAssessment.stopContext.comment}</p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl border border-white/5 bg-slate-950/55 p-3">
+                        <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Aggressive</div>
+                        <div className="text-base font-black text-white">{analysis.riskAssessment.stopContext.aggressive?.price ?? '-'}</div>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-slate-950/55 p-3">
+                        <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Recommended</div>
+                        <div className="text-base font-black text-white">{analysis.riskAssessment.stopContext.recommended?.price ?? '-'}</div>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-slate-950/55 p-3">
+                        <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Conservative</div>
+                        <div className="text-base font-black text-white">{analysis.riskAssessment.stopContext.conservative?.price ?? '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-4 text-sm leading-relaxed text-slate-300 italic border-l-2 border-primary/30 pl-4">
                   {analysis.riskAssessment.mainRisk}
                 </div>

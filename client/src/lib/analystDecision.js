@@ -211,6 +211,7 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
     stopLoss: roundPrice(stopLoss),
     trailingStop: roundPrice(trailingStop),
     invalidation: roundPrice(invalidation),
+    stopContext: risk?.stopContext ?? null,
     riskReward: risk?.rrRatio ?? null,
     proConfluence: pro?.professional?.confluencePct ?? null,
     support: nearestSupport,
