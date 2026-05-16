@@ -429,8 +429,8 @@ export default function ChartWorkspace({
   const [showPrevHighLow, setShowPrevHighLow] = useState(false)
   const [showHighLow52, setShowHighLow52] = useState(false)
   const [showVolume, setShowVolume] = useState(false)
-  const [showRSI, setShowRSI] = useState(true)
-  const [showMACD, setShowMACD] = useState(true)
+  const [showRSI, setShowRSI] = useState(false)
+  const [showMACD, setShowMACD] = useState(false)
   const [showPatterns, setShowPatterns] = useState(false)
   const [showTriangles, setShowTriangles] = useState(false)
   const [showFibonacci, setShowFibonacci] = useState(false)
@@ -442,6 +442,7 @@ export default function ChartWorkspace({
   const [visibleBars, setVisibleBars] = useState(null)
   const [viewOffset, setViewOffset] = useState(0)
   const [hoveredIndex, setHoveredIndex] = useState(null)
+  const [showDetails, setShowDetails] = useState(false)
 
   const allPresets = useMemo(() => [...PRIMARY_PRESETS, ...INTRADAY_PRESETS], [])
   const activePreset = allPresets.find(item => item.id === selectedPresetId) ?? PRIMARY_PRESETS[0]
@@ -832,7 +833,6 @@ export default function ChartWorkspace({
 
   return (
     <section className="space-y-4">
-      <div className="text-sm font-bold text-white">{currentTicker} chart</div>
 
       <div className="grid gap-4">
         {false && measureMode && (
@@ -998,17 +998,22 @@ export default function ChartWorkspace({
           </div>
         </div>
 
-        <details className="rounded-2xl border border-white/8 bg-slate-950/78 p-4">
-          <summary className="cursor-pointer list-none font-semibold text-white transition-colors hover:text-slate-200">
-            <span className="select-none">
-              {chartCopy.summary} ({patternSummary.length} {chartCopy.patternsWord}, {signalCount} {chartCopy.signalsWord})
-            </span>
-          </summary>
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <PatternSummaryCard patterns={patternSummary} copy={chartCopy} />
-            <IndicatorSummaryCard analysis={technicalAnalysis} copy={chartCopy} />
+        <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-4">
+          <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowDetails(!showDetails)}>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              {chartCopy.summary} · {patternSummary.length} {chartCopy.patternsWord} · {signalCount} {chartCopy.signalsWord}
+            </div>
+            <button className="text-primary text-xs font-bold hover:underline">
+              {showDetails ? (language === 'he' ? 'הסתר פירוט' : 'Hide Details') : (language === 'he' ? 'הצג פירוט' : 'Show Details')}
+            </button>
           </div>
-        </details>
+          {showDetails && (
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <PatternSummaryCard patterns={patternSummary} copy={chartCopy} />
+              <IndicatorSummaryCard analysis={technicalAnalysis} copy={chartCopy} />
+            </div>
+          )}
+        </div>
 
         {showVolume && (
           <ChartContainer

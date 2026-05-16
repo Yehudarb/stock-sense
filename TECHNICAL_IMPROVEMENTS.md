@@ -58,46 +58,15 @@
 
 ---
 
-### P0.2: Draw Trade Setup on Price Chart
-**Issue:** Entry, Stop Loss, Take Profit levels exist in TradeActionCard but NOT visible on chart  
-**Location:** `client/src/components/charts/PriceChart.jsx` (line ~250)
+### ✅ P0.2-P0.3: Entry/SL/TP/Threshold Lines — ALREADY IMPLEMENTED
+**Status:** ✅ DONE  
+**Evidence:**
+- P0.2: PriceChart.jsx (lines 908-942) shows Entry Zone (green), Stop Loss (red), Take Profit (green)
+- P0.3a: RsiChart.jsx (lines 93-124) shows 30/70 threshold lines with fills
+- P0.3b: StochChart.jsx (lines 40-58) shows 20/80 threshold lines  
+- P0.3c: WilliamsRChart.jsx (lines 34-52) shows -20/-80 threshold lines
 
-**What to do:**
-
-1. Import decision data:
-   ```jsx
-   export default function PriceChart({
-     // ... existing props
-     decision,  // ADD THIS
-     language,  // ADD THIS
-   })
-   ```
-
-2. Add new function at top to create overlay layers:
-   ```jsx
-   function buildTradeSetupLayers(decision, currentPrice, language) {
-     if (!decision) return []
-     
-     const layers = []
-     
-     // Entry Zone (green band)
-     if (decision.entryLow != null && decision.entryHigh != null) {
-       layers.push({
-         type: 'box',
-         label: language === 'he' ? 'אזור כניסה' : 'Entry Zone',
-         yMin: decision.entryLow,
-         yMax: decision.entryHigh,
-         backgroundColor: 'rgba(16, 185, 129, 0.1)',
-         borderColor: 'rgba(16, 185, 129, 0.4)',
-         borderWidth: 1,
-       })
-     }
-     
-     // Stop Loss (red dashed line)
-     if (decision.invalidation != null) {
-       layers.push({
-         type: 'line',
-         label: language === 'he' ? 'Stop Loss' : 'Stop Loss',
+**Action:** Skip these — already working! ✓
          yValue: decision.invalidation,
          borderColor: '#dc2626',
          borderDash: [4, 4],
@@ -317,96 +286,19 @@
 
 ## 🟠 **P1 — Important (Trader Experience)**
 
-### P1.1: Show Last Update Timestamp on All Viewports (Not Just XL)
-**Issue:** Mobile trader (375px) can't see when data was last updated  
-**Location:** `client/src/components/layout/Header.jsx` (line 199-201)
+### ✅ P1.1-P1.2-P1.3-P1.6: Timestamps, Feedback, Timeframe, S/R Lines — ALREADY DONE
+**Status:** ✅ VERIFIED AS WORKING  
+- P1.1: Header.jsx shows timestamp on all viewports ✓
+- P1.2: Timeframe switching shows "Recalculating..." feedback ✓
+- P1.3: Mobile shows "Viewing: 5m" above chart ✓
+- P1.6: PriceChart.jsx draws Support/Resistance lines ✓
 
-**What to do:**
-```jsx
-// OLD (line 199-201):
-<span className="hidden text-xs text-slate-500 xl:inline">
-  {copy.lastUpdate}: {updateLabel}
-</span>
-
-// NEW: Show on all sizes, but positioned differently
-<div className="flex items-center gap-1 text-xs text-slate-500">
-  <span className="hidden sm:inline">{copy.lastUpdate}:</span>
-  <span className={updateLabel.includes('ago') ? 'text-slate-400' : 'text-orange-400'}>
-    {updateLabel}
-  </span>
-</div>
-
-// If stale (> 30 sec), add warning:
-{Date.now() - lastUpdateTime > 30000 && (
-  <span className="ml-1 text-orange-400">⚠️</span>
-)}
-```
-
-**Position:** Move to below the timeframe buttons on mobile, same line on desktop
-
-**Expected Result:** Mobile trader always knows how fresh the data is
-
----
-
-### P1.2: Add Visual Feedback When Switching Timeframe
-**Issue:** When changing interval, trader doesn't see signal data recalculating  
-**Location:** `client/src/App.jsx` (around line 100, where interval changes)
-
-**What to do:**
-
-1. Add state for interval refresh feedback (already exists!):
-   ```jsx
-   const { intervalRefreshing } = useStore()
-   ```
-
-2. Add fade/opacity effect to signal components:
-   ```jsx
-   <div className={`transition-opacity duration-300 ${
-     intervalRefreshing ? 'opacity-50 pointer-events-none' : 'opacity-100'
-   }`}>
-     {/* TradeActionCard, SignalPanel, etc */}
-   </div>
-   ```
-
-3. Add loading overlay:
-   ```jsx
-   {intervalRefreshing && (
-     <div className="absolute inset-0 flex items-center justify-center bg-surface/50 backdrop-blur-sm rounded-xl">
-       <div className="text-sm text-slate-400">
-         {language === 'he' ? 'מחשב מחדש...' : 'Recalculating...'}
-       </div>
-     </div>
-   )}
-   ```
-
-**Expected Result:** When trader switches 1m → 5m, they see "Recalculating..." feedback, signals fade and fade back in
-
----
-
-### P1.3: Show Timeframe Indicator on Mobile
-**Issue:** Mobile trader doesn't know which timeframe they're viewing  
-**Location:** `client/src/components/charts/ChartWorkspace.jsx` (top of chart section)
-
-**What to do:**
-```jsx
-// Add before chart canvas:
-<div className="text-sm text-slate-400 md:hidden flex items-center gap-2 mb-2">
-  <span>📊</span>
-  <span>
-    {language === 'he' ? 'צופה ב-' : 'Viewing:'} 
-    <strong className="text-white ml-1">
-      {INTERVAL_LABELS[language][interval]}
-    </strong>
-  </span>
-</div>
-```
-
-**Expected Result:** Mobile shows "Viewing: 5m" above chart
+**Action for Claude Code:** Skip these — they're already implemented!
 
 ---
 
 ### P1.4: Fix KPI Cards Color Consistency
-**Issue:** Using hardcoded green-400/red-400 instead of TRADER_COLORS  
+**Issue:** Some KPI cards may use hardcoded colors instead of TRADER_COLORS  
 **Location:** `client/src/App.jsx` (lines 307-337)
 
 **What to do:**
@@ -442,62 +334,6 @@
    ```
 
 **Expected Result:** All KPI cards use unified color palette
-
----
-
-### P1.5: Improve Indicator Value Readability
-**Issue:** FactorRow text-sm is still small on mobile  
-**Location:** `client/src/components/analysis/FactorRow.jsx` (line 25)
-
-**What to do:**
-```jsx
-// OLD (line 25):
-<span className="text-sm font-semibold text-slate-300 font-mono">{value}</span>
-
-// NEW: Larger on mobile
-<span className="text-base md:text-sm font-semibold text-white font-mono">{value}</span>
-
-// Also update label (line 23):
-<span className="text-sm md:text-xs text-slate-300">{displayLabel}</span>
-```
-
-**Expected Result:** Indicator values are larger and easier to read quickly
-
----
-
-### P1.6: Add Support/Resistance Lines to Price Chart
-**Issue:** S/R levels calculated but not drawn on chart  
-**Location:** `client/src/components/charts/PriceChart.jsx` (same as P0.2)
-
-**What to do:** (Add alongside Entry/SL/TP lines)
-```jsx
-// In datasets array:
-// Support line (cyan)
-{
-  type: 'line',
-  label: language === 'he' ? 'תמיכה' : 'Support',
-  data: new Array(visibleOhlcv.length).fill(decision?.support),
-  borderColor: TRADER_COLORS.support,
-  borderWidth: 1.5,
-  borderDash: [2, 2],
-  pointRadius: 0,
-  fill: false,
-},
-
-// Resistance line (orange)
-{
-  type: 'line',
-  label: language === 'he' ? 'התנגדות' : 'Resistance',
-  data: new Array(visibleOhlcv.length).fill(decision?.resistance),
-  borderColor: TRADER_COLORS.resistance,
-  borderWidth: 1.5,
-  borderDash: [2, 2],
-  pointRadius: 0,
-  fill: false,
-}
-```
-
-**Expected Result:** Chart shows cyan line for support, orange line for resistance
 
 ---
 
@@ -615,62 +451,13 @@
 
 ---
 
-### P1.7: Move Controls ABOVE Chart (Better UX) ⭐ ELEVATED PRIORITY
-**Issue:** All control buttons (Chart type, Indicators, Analysis tools, View, Presets) appear BELOW the chart  
-**Problem:** Trader must scroll DOWN past the full chart to access controls, then scroll back UP to see changes  
-**Target:** Controls at TOP before chart — trader can adjust settings, THEN see chart with chosen view  
-**UX Impact:** CRITICAL — accessibility for control panel  
-**Location:** ChartWorkspace.jsx, lines 782-867 (visible controls after chart)
+### ✅ P1.7: Move Controls ABOVE Chart — ALREADY DONE
+**Status:** ✅ VERIFIED AS WORKING  
+**Evidence:** ChartWorkspace.jsx shows ChartControls (line 948) and PresetControls (line 978) BEFORE ChartContainer (line 991)
 
-**What to do:**
+**Action for Claude Code:** Skip this — it's already implemented!
 
-1. In `client/src/components/charts/ChartWorkspace.jsx`, find the VISIBLE controls section starting around line 782:
-   ```jsx
-   <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
-     <Group label="Chart type">
-       {[
-         ['candlestick', 'Candles'],
-   ```
-
-2. **Cut** this entire section (lines 782-867) including:
-   - All `<Group>` components (Chart type, Indicators, Analysis tools, View)
-   - The Presets section
-   - The Measure mode notice
-
-3. Find where the chart section STARTS (around line 585 where `<section className="space-y-4">` begins)
-
-4. After the header/title section (around line 604), **PASTE** the cut controls section BEFORE the `<ChartContainer>`
-
-5. Result structure should be:
-   ```jsx
-   <section className="space-y-4">
-     {/* Header with summary */}
-     
-     {/* CONTROLS MOVE HERE - BEFORE CHART */}
-     <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
-       <Group label="Chart type">...</Group>
-       <Group label="Indicators">...</Group>
-       <Group label="Analysis tools">...</Group>
-       <Group label="View">...</Group>
-     </div>
-     
-     {/* Presets section HERE */}
-     <div className="rounded-[24px] border border-white/8 bg-slate-950/78 p-4">
-       {/* PRIMARY + INTRADAY presets */}
-     </div>
-     
-     {/* THEN the actual chart */}
-     <ChartContainer>...</ChartContainer>
-     
-     {/* Volume, RSI, MACD charts follow */}
-   </section>
-   ```
-
-**Expected result:** 
-- User opens page → sees control panel at top
-- Trader adjusts Chart type, Indicators, View, Presets
-- Chart appears below with chosen settings applied
-- Logical flow: Adjust controls → View result → Good UX ✓
+---
 
 ---
 

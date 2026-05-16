@@ -17,6 +17,7 @@ import SignalPanel from './components/analysis/SignalPanel'
 import AdvancedTrendsPanel from './components/analysis/AdvancedTrendsPanel'
 import AnalysisResultCard from './components/analysis/AnalysisResultCard'
 import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
+import AnalysisSidebar from './components/analysis/AnalysisSidebar'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -111,6 +112,7 @@ export default function App() {
   const [copiedReport, setCopiedReport] = useState(false)
   const [timeframeToast, setTimeframeToast] = useState('')
   const [mobileDashboardTab, setMobileDashboardTab] = useState('chart')
+  const [showMoreKpis, setShowMoreKpis] = useState(false)
 
   useTicker()
 
@@ -278,16 +280,19 @@ export default function App() {
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8">
         <DisclaimerBanner />
 
-        <HeroSection
-          currentTicker={currentTicker}
-          isLoading={overallLoading}
-          onAnalyze={handleAnalyzeTicker}
-          onPickTicker={handleAnalyzeTicker}
-          lastLoadedTicker={lastLoadedTicker}
-        />
-
-        <ExampleSection onAnalyzeTicker={handleAnalyzeTicker} />
-        <TrustSection />
+        {!snapshot && (
+          <>
+            <HeroSection
+              currentTicker={currentTicker}
+              isLoading={overallLoading}
+              onAnalyze={handleAnalyzeTicker}
+              onPickTicker={handleAnalyzeTicker}
+              lastLoadedTicker={lastLoadedTicker}
+            />
+            <ExampleSection onAnalyzeTicker={handleAnalyzeTicker} />
+            <TrustSection />
+          </>
+        )}
 
         {overallLoading && !snapshot && (
           <LoadingState
@@ -311,16 +316,25 @@ export default function App() {
         {snapshot && (
           <>
             <section className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <SectionTitle
-                  eyebrow="Live analysis workspace"
-                  title={`Reviewing ${currentTicker} with a clearer market view`}
-                  subtitle="The dashboard below keeps the tactical detail, while the structured AI result at the top makes the output easier to trust, question, and act on."
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-black text-primary">
+                    {currentTicker[0]}
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-black text-white">{currentTicker}</h1>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                      {isHebrew ? 'ניתוח פעיל' : 'Active Analysis'} · {interval.toUpperCase()}
+                    </div>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" onClick={handleRetry}>{copy.refresh}</Button>
-                  <Button variant="ghost" className="border border-white/10" onClick={handleShareReport}>
+                  <Button variant="secondary" onClick={handleRetry} className="h-9 text-xs">{copy.refresh}</Button>
+                  <Button variant="ghost" className="h-9 text-xs border border-white/10" onClick={handleShareReport}>
                     {copiedReport ? copy.copied : copy.share}
+                  </Button>
+                  <Button variant="primary" onClick={() => setCurrentTicker('')} className="h-9 text-xs">
+                    {isHebrew ? 'חיפוש חדש' : 'New Search'}
                   </Button>
                 </div>
               </div>
@@ -336,22 +350,34 @@ export default function App() {
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
-                    <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
-                    <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
-                    <KpiCard label={copy.volume} value={fmtVolume(snapshot.volume)} />
-                    <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
-                    <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
                     <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
-                    {fearGreed?.value != null ? (
-                      <KpiCard label={copy.fearGreed} value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
-                    ) : (
-                      <KpiCard
-                        label={copy.vsSma20}
-                        value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
-                        color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish) : ''}
-                      />
+                    <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                    <KpiCard label={copy.volume} value={fmtVolume(snapshot.volume)} />
+                    
+                    {showMoreKpis && (
+                      <>
+                        <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
+                        <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
+                        <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                        {fearGreed?.value != null ? (
+                          <KpiCard label={copy.fearGreed} value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
+                        ) : (
+                          <KpiCard
+                            label={copy.vsSma20}
+                            value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
+                            color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish) : ''}
+                          />
+                        )}
+                      </>
                     )}
                   </div>
+                  
+                  <button 
+                    onClick={() => setShowMoreKpis(!showMoreKpis)}
+                    className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest border border-dashed border-white/5 rounded-xl bg-white/2"
+                  >
+                    {showMoreKpis ? (isHebrew ? 'הצג פחות' : 'Show Less') : (isHebrew ? 'הצג עוד נתונים' : 'Show More Metrics')}
+                  </button>
                 </div>
 
                 {intervalRefreshing && (
@@ -409,30 +435,34 @@ export default function App() {
                   technicalAnalysis={technicalAnalysis}
                   isLoading={isLoading}
                 />
-                {intervalRefreshing && (
-                  <div className="text-sm text-slate-400">
-                    {isHebrew ? 'הגרף והסיגנלים מתעדכנים עבור הטווח החדש...' : 'The chart and signals are refreshing for the new timeframe...'}
-                  </div>
-                )}
               </div>
 
               <div className={`flex flex-col gap-4 lg:col-span-1 ${mobileDashboardTab !== 'signal' ? 'hidden lg:flex' : 'flex'}`}>
-                <ForecastOpinionPanel forecast={forecast} isLoading={isMultiTimeframeLoading} language={language} />
-                <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
-                <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
-                <AdvancedTrendsPanel trends={signal?.trends} language={language} />
-                <SignalPanel signal={signal} language={language} />
+                <AnalysisSidebar 
+                  forecast={forecast}
+                  marketContext={marketContext}
+                  earnings={earnings}
+                  trends={signal?.trends}
+                  signal={signal}
+                  isLoadingForecast={isMultiTimeframeLoading}
+                  isLoadingMarket={isMarketContextLoading}
+                  isLoadingEarnings={isEarningsLoading}
+                  language={language}
+                />
               </div>
             </div>
 
             <div className={`${mobileDashboardTab !== 'details' ? 'hidden' : 'flex'} flex-col gap-4 lg:hidden`}>
-              <MarketContextPanel marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
-              <EarningsPanel earnings={earnings} isLoading={isEarningsLoading} language={language} />
-              <AdvancedTrendsPanel trends={signal?.trends} language={language} />
-              <TechnicalAnalysisPanel
-                analysis={technicalAnalysis}
-                isLoading={isTechnicalAnalysisLoading}
-                error={technicalAnalysisError}
+              <AnalysisSidebar 
+                forecast={forecast}
+                marketContext={marketContext}
+                earnings={earnings}
+                trends={signal?.trends}
+                signal={signal}
+                isLoadingForecast={isMultiTimeframeLoading}
+                isLoadingMarket={isMarketContextLoading}
+                isLoadingEarnings={isEarningsLoading}
+                language={language}
               />
             </div>
 
