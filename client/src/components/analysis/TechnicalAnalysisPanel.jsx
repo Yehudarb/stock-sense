@@ -105,6 +105,28 @@ function InterpretationCard({ item }) {
   )
 }
 
+function ContextCard({ title, tone = 'balanced', value, subtitle, rows = [] }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4 backdrop-blur-md">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-bold text-white">{title}</div>
+        <Badge tone={tone}>{value}</Badge>
+      </div>
+      {subtitle && <p className="mt-3 text-sm leading-6 text-slate-300">{subtitle}</p>}
+      {rows.length > 0 && (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {rows.map(row => (
+            <div key={row.label} className="rounded-xl border border-white/6 bg-slate-950/60 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{row.label}</div>
+              <div className="mt-1 text-sm font-bold text-slate-100">{row.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
   if (isLoading && !analysis) {
     return (
@@ -244,6 +266,33 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
                   <ScoreTile label="OBV" value={analysis.indicators.obv ?? '-'} />
                 </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <ContextCard
+                title="VWAP Context"
+                tone={analysis.vwapContext?.signal === 'Bullish' ? 'positive' : analysis.vwapContext?.signal === 'Bearish' || analysis.vwapContext?.signal === 'Pressure' ? 'danger' : 'balanced'}
+                value={analysis.vwapContext?.signal ?? 'Balanced'}
+                subtitle={analysis.vwapContext?.comment}
+                rows={[
+                  { label: 'Position', value: analysis.vwapContext?.position ?? '-' },
+                  { label: 'Slope', value: analysis.vwapContext?.slope ?? '-' },
+                  { label: 'Distance', value: analysis.vwapContext?.distancePct != null ? `${analysis.vwapContext.distancePct}%` : '-' },
+                  { label: 'Trend Agreement', value: analysis.vwapContext?.trendAgreement ?? '-' },
+                ]}
+              />
+              <ContextCard
+                title="Gap Context"
+                tone={analysis.gapContext?.signal === 'Bullish' ? 'positive' : analysis.gapContext?.signal === 'Bearish' || analysis.gapContext?.signal === 'Caution' ? 'danger' : 'balanced'}
+                value={analysis.gapContext?.signal ?? 'Neutral'}
+                subtitle={analysis.gapContext?.comment}
+                rows={[
+                  { label: 'Alignment', value: analysis.gapContext?.alignment ?? '-' },
+                  { label: 'Gap Type', value: analysis.gapContext?.nearestOpenGap?.type ?? analysis.gapContext?.latestGap?.type ?? '-' },
+                  { label: 'Zone', value: analysis.gapContext?.nearestOpenGap ? `$${analysis.gapContext.nearestOpenGap.zoneLow} - $${analysis.gapContext.nearestOpenGap.zoneHigh}` : analysis.gapContext?.latestGap ? `$${analysis.gapContext.latestGap.zoneLow} - $${analysis.gapContext.latestGap.zoneHigh}` : '-' },
+                  { label: 'Fill Status', value: analysis.gapContext?.nearestOpenGap ? `${analysis.gapContext.nearestOpenGap.status} ${analysis.gapContext.nearestOpenGap.fillPct ?? 0}%` : analysis.gapContext?.latestGap ? `${analysis.gapContext.latestGap.status} ${analysis.gapContext.latestGap.fillPct ?? 0}%` : '-' },
+                ]}
+              />
             </div>
           </div>
         )}

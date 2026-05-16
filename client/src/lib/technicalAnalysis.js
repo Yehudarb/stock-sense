@@ -242,6 +242,176 @@ function deriveVolumeAnalysis(ohlcv, indicators, levels) {
   }
 }
 
+function detectGapEvents(ohlcv) {
+  const events = []
+
+  for (let index = 1; index < ohlcv.length; index += 1) {
+    const prev = ohlcv[index - 1]
+    const bar = ohlcv[index]
+    const subsequent = ohlcv.slice(index + 1)
+
+    if (bar.l > prev.h * 1.002) {
+      const zoneLow = prev.h
+      const zoneHigh = bar.l
+      const gapSize = Math.max(zoneHigh - zoneLow, 0)
+      const lowestAfter = subsequent.length ? Math.min(...subsequent.map(item => item.l)) : bar.l
+      const fillPct = gapSize > 0
+        ? clamp(((zoneHigh - lowestAfter) / gapSize) * 100, 0, 100)
+        : 0
+      const status = lowestAfter <= zoneLow ? 'closed' : lowestAfter < zoneHigh ? 'partial' : 'open'
+
+      events.push({
+        direction: 'Bullish',
+        type: 'Gap Up',
+        zoneLow: normalizePrice(zoneLow),
+        zoneHigh: normalizePrice(zoneHigh),
+        sizePct: round((gapSize / Math.max(zoneLow, 0.01)) * 100, 2),
+        status,
+        fillPct: round(fillPct, 0),
+        index,
+      })
+      continue
+    }
+
+    if (bar.h < prev.l * 0.998) {
+      const zoneLow = bar.h
+      const zoneHigh = prev.l
+      const gapSize = Math.max(zoneHigh - zoneLow, 0)
+      const highestAfter = subsequent.length ? Math.max(...subsequent.map(item => item.h)) : bar.h
+      const fillPct = gapSize > 0
+        ? clamp(((highestAfter - zoneLow) / gapSize) * 100, 0, 100)
+        : 0
+      const status = highestAfter >= zoneHigh ? 'closed' : highestAfter > zoneLow ? 'partial' : 'open'
+
+      events.push({
+        direction: 'Bearish',
+        type: 'Gap Down',
+        zoneLow: normalizePrice(zoneLow),
+        zoneHigh: normalizePrice(zoneHigh),
+        sizePct: round((gapSize / Math.max(zoneHigh, 0.01)) * 100, 2),
+        status,
+        fillPct: round(fillPct, 0),
+        index,
+      })
+    }
+  }
+
+  return events
+}
+
+function deriveGapContext(ohlcv, overallTechnicalBias) {
+  const price = ohlcv.at(-1)?.c ?? null
+  const gapEvents = detectGapEvents(ohlcv)
+  if (!gapEvents.length || price == null) {
+    return {
+      latestGap: null,
+      nearestOpenGap: null,
+      alignment: 'None',
+      signal: 'Neutral',
+      comment: 'No notable unfilled gap is shaping the current technical picture.',
+    }
+  }
+
+  const openGaps = gapEvents.filter(gap => gap.status !== 'closed')
+  const nearestOpenGap = openGaps.length
+    ? [...openGaps].sort((a, b) => {
+      const distanceA = Math.min(Math.abs(price - a.zoneLow), Math.abs(price - a.zoneHigh))
+      const distanceB = Math.min(Math.abs(price - b.zoneLow), Math.abs(price - b.zoneHigh))
+      return distanceA - distanceB
+    })[0]
+    : null
+  const latestGap = gapEvents.at(-1)
+  const focusGap = nearestOpenGap ?? latestGap
+  const gapBias = focusGap.direction
+
+  const alignment = overallTechnicalBias === 'Neutral'
+    ? 'Mixed'
+    : overallTechnicalBias === gapBias
+      ? 'With trend'
+      : 'Against trend'
+
+  const signal = gapBias === 'Bullish'
+    ? alignment === 'With trend'
+      ? 'Bullish'
+      : alignment === 'Against trend'
+        ? 'Caution'
+        : 'Mixed'
+    : alignment === 'With trend'
+      ? 'Bearish'
+      : alignment === 'Against trend'
+        ? 'Rebound watch'
+        : 'Mixed'
+
+  const comment = focusGap.direction === 'Bullish'
+    ? alignment === 'With trend'
+      ? `An open gap-up between ${formatDollar(focusGap.zoneLow)} and ${formatDollar(focusGap.zoneHigh)} is still supporting the prevailing uptrend.`
+      : `A bullish gap-up between ${formatDollar(focusGap.zoneLow)} and ${formatDollar(focusGap.zoneHigh)} is pushing against the broader bias, so follow-through matters.`
+    : alignment === 'With trend'
+      ? `An open gap-down between ${formatDollar(focusGap.zoneLow)} and ${formatDollar(focusGap.zoneHigh)} is reinforcing the prevailing downside pressure.`
+      : `A bearish gap-down between ${formatDollar(focusGap.zoneLow)} and ${formatDollar(focusGap.zoneHigh)} is counter to the broader bias, so failed continuation is possible.`
+
+  return {
+    latestGap,
+    nearestOpenGap,
+    alignment,
+    signal,
+    comment,
+  }
+}
+
+function deriveVwapContext(indicators, bars, index, overallTechnicalBias) {
+  const price = bars[index]?.c ?? null
+  const vwap = latest(indicators.vwap, index)
+  if (price == null || vwap == null) {
+    return {
+      position: 'Unknown',
+      signal: 'Neutral',
+      slope: 'Flat',
+      distancePct: null,
+      trendAgreement: 'Unknown',
+      comment: 'VWAP context is unavailable for the current dataset.',
+    }
+  }
+
+  const distancePct = ((price - vwap) / Math.max(vwap, 0.01)) * 100
+  const vwapSlope = computeSlope(indicators.vwap ?? [], 8)
+  const slope = vwapSlope > 0.02 ? 'Rising' : vwapSlope < -0.02 ? 'Falling' : 'Flat'
+  const position = distancePct > 0.2 ? 'Above' : distancePct < -0.2 ? 'Below' : 'At VWAP'
+  const trendAgreement = overallTechnicalBias === 'Neutral'
+    ? 'Mixed'
+    : (overallTechnicalBias === 'Bullish' && position === 'Above') || (overallTechnicalBias === 'Bearish' && position === 'Below')
+      ? 'Aligned'
+      : 'Diverging'
+  const signal = position === 'Above' && slope === 'Rising'
+    ? 'Bullish'
+    : position === 'Below' && slope === 'Falling'
+      ? 'Bearish'
+      : position === 'Above'
+        ? 'Support test'
+        : position === 'Below'
+          ? 'Pressure'
+          : 'Balanced'
+
+  const comment = position === 'Above' && slope === 'Rising'
+    ? 'Price is holding above a rising VWAP, which supports the current move.'
+    : position === 'Below' && slope === 'Falling'
+      ? 'Price is trading below a falling VWAP, which keeps downside pressure intact.'
+      : position === 'Above'
+        ? 'Price is above VWAP, but the slope is not fully confirming the move yet.'
+        : position === 'Below'
+          ? 'Price is below VWAP, so rallies may still face resistance unless VWAP is reclaimed.'
+          : 'Price is trading near VWAP, suggesting a balanced or transitional session structure.'
+
+  return {
+    position,
+    signal,
+    slope,
+    distancePct: round(distancePct, 2),
+    trendAgreement,
+    comment,
+  }
+}
+
 function summarizePattern(pattern, bars, levels, timeframe = '1D', volumeAnalysis = {}) {
   const lastPrice = bars.at(-1)?.c ?? 0
   const zoneLow = pattern.visual?.low ?? Math.min(...bars.slice(-12).map(bar => bar.l))
@@ -506,6 +676,9 @@ function buildIndicatorInterpretations(indicators, bars, index) {
   const mfi = latest(indicators.mfi14, index)
   const cmf = latest(indicators.cmf20, index)
   const atrPct = price && atr != null ? (atr / price) * 100 : null
+  const vwap = latest(indicators.vwap, index)
+  const vwapSlope = computeSlope(indicators.vwap ?? [], 8)
+  const vwapDistancePct = price && vwap != null ? ((price - vwap) / Math.max(vwap, 0.01)) * 100 : null
 
   const items = []
   if (rsi != null) items.push({ label: 'RSI 14', value: round(rsi, 1), interpretation: rsi >= 70 ? 'Overbought risk' : rsi <= 30 ? 'Oversold rebound zone' : rsi >= 55 ? 'Positive momentum' : rsi <= 45 ? 'Soft momentum' : 'Balanced momentum', tone: rsi >= 70 ? 'warning' : rsi <= 30 ? 'positive' : 'balanced' })
@@ -515,6 +688,7 @@ function buildIndicatorInterpretations(indicators, bars, index) {
   if (atr != null) items.push({ label: 'ATR 14', value: `${round(atr, 2)} (${round(atrPct, 2)}%)`, interpretation: atrPct > 4 ? 'High volatility' : atrPct > 2 ? 'Medium volatility' : 'Low volatility', tone: atrPct > 4 ? 'danger' : atrPct > 2 ? 'warning' : 'positive' })
   if (stochRsi != null) items.push({ label: 'Stochastic RSI', value: round(stochRsi, 1), interpretation: stochRsi >= 80 ? 'Momentum stretched' : stochRsi <= 20 ? 'Momentum washed out' : 'Momentum in range', tone: stochRsi >= 80 ? 'warning' : stochRsi <= 20 ? 'positive' : 'balanced' })
   if (supertrendLine != null) items.push({ label: 'Supertrend', value: supertrendDirection === 'bullish' ? 'Bullish' : 'Bearish', interpretation: price >= supertrendLine ? 'Price is above the Supertrend line' : 'Price is below the Supertrend line', tone: price >= supertrendLine ? 'positive' : 'danger' })
+  if (vwap != null) items.push({ label: 'VWAP', value: normalizePrice(vwap), interpretation: price > vwap ? `Price is ${round(vwapDistancePct, 2)}% above VWAP${vwapSlope > 0.02 ? ' and VWAP is rising' : vwapSlope < -0.02 ? ' while VWAP is falling' : ''}` : price < vwap ? `Price is ${Math.abs(round(vwapDistancePct, 2))}% below VWAP${vwapSlope < -0.02 ? ' and VWAP is falling' : vwapSlope > 0.02 ? ' while VWAP is rising' : ''}` : 'Price is sitting right on VWAP', tone: price > vwap ? 'positive' : price < vwap ? 'danger' : 'balanced' })
   if (obvSlope !== 0) items.push({ label: 'OBV', value: obvSlope > 0 ? 'Rising' : 'Falling', interpretation: obvSlope > 0 ? 'Volume trend supports price move' : 'Volume trend is diverging or weakening', tone: obvSlope > 0 ? 'positive' : 'warning' })
   if (mfi != null) items.push({ label: 'Money Flow Index', value: round(mfi, 1), interpretation: mfi >= 80 ? 'Money flow is stretched' : mfi <= 20 ? 'Money flow is washed out' : 'Money flow is balanced', tone: mfi >= 80 ? 'warning' : mfi <= 20 ? 'positive' : 'balanced' })
   if (cmf != null) items.push({ label: 'Chaikin Money Flow', value: round(cmf, 2), interpretation: cmf > 0.05 ? 'Accumulation pressure' : cmf < -0.05 ? 'Distribution pressure' : 'Neutral money flow', tone: cmf > 0.05 ? 'positive' : cmf < -0.05 ? 'danger' : 'balanced' })
@@ -549,6 +723,8 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
   const dailyVolume = deriveVolumeAnalysis(dailyBars, dailyIndicators, dailyLevels)
   const risk = computeRisk(dailyBars, dailyIndicators)
   const overallTechnicalBias = determineBiasFromFrames(analyzedFrames)
+  const gapContext = deriveGapContext(dailyBars, overallTechnicalBias)
+  const vwapContext = deriveVwapContext(dailyIndicators, dailyBars, dailyBars.length - 1, overallTechnicalBias)
   const patterns = [...(framePatterns.daily ?? []), ...(framePatterns.weekly ?? []).slice(0, 2)]
     .filter((pattern, index, array) => array.findIndex(item => item.name === pattern.name && item.priceZone === pattern.priceZone) === index)
     .slice(0, 8)
@@ -710,6 +886,8 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
       obv: round(latest(dailyIndicators.obv, primaryIndex), 0),
     },
     indicatorInterpretations: buildIndicatorInterpretations(dailyIndicators, dailyBars, primaryIndex),
+    gapContext,
+    vwapContext,
     patterns,
     volumeAnalysis: dailyVolume,
     keyLevels: {
