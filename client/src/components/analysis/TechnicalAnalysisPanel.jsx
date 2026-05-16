@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Badge from '../ui/Badge'
 import Card from '../ui/Card'
 import LoadingState from '../ui/LoadingState'
@@ -131,130 +132,184 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
 
   if (!analysis) return null
 
+  const [activeTab, setActiveTab] = useState('summary')
+
+  const tabs = [
+    { id: 'summary', label: 'Summary' },
+    { id: 'indicators', label: 'Indicators' },
+    { id: 'structure', label: 'Structure' },
+    { id: 'volume', label: 'Volume' },
+  ]
+
   return (
-    <Card className="rounded-3xl p-5 sm:p-6">
-      <div className="space-y-6">
+    <Card className="rounded-3xl p-0 overflow-hidden border-white/10 shadow-2xl">
+      {/* Header with Title & Overall Stats */}
+      <div className="bg-slate-900/60 p-6 border-b border-white/5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary/80">Technical Analysis Engine</div>
-            <h3 className="mt-2 text-2xl font-black tracking-tight text-white">{analysis.technicalSummary}</h3>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">{analysis.finalTechnicalOutlook}</p>
+            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Technical Intelligence</div>
+            <h3 className="mt-1 text-2xl font-black tracking-tight text-white">{analysis.technicalSummary}</h3>
+            <p className="mt-2 max-w-4xl text-sm leading-relaxed text-slate-400">{analysis.finalTechnicalOutlook}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge sentiment={analysis.overallTechnicalBias}>{analysis.overallTechnicalBias}</Badge>
-            <Badge tone="balanced">{analysis.technicalScore}/100 technical score</Badge>
+            <Badge tone="balanced">{analysis.technicalScore}/100 score</Badge>
             <Badge tone={analysis.riskAssessment.riskLevel === 'Low' ? 'positive' : analysis.riskAssessment.riskLevel === 'High' ? 'danger' : 'warning'}>
               {analysis.riskAssessment.riskLevel} risk
             </Badge>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
-          <ScoreTile label="Technical score" value={analysis.technicalScore} tone="positive" />
-          <ScoreTile label="Trend score" value={analysis.trendScore} />
-          <ScoreTile label="Momentum score" value={analysis.momentumScore} />
-          <ScoreTile label="Volatility score" value={analysis.volatilityScore ?? '-'} />
-          <ScoreTile label="Volume score" value={analysis.volumeScore} />
-          <ScoreTile label="Pattern score" value={analysis.patternScore} />
-          <ScoreTile label="Levels score" value={analysis.levelsScore ?? '-'} />
+        {/* Inner Tabs */}
+        <div className="mt-8 flex gap-1 p-1 w-fit rounded-xl bg-slate-950/50 border border-white/5">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${
+                activeTab === tab.id
+                  ? 'bg-primary text-slate-950 shadow-lg shadow-primary/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
-            <div className="text-sm font-bold text-white">Multi-timeframe map</div>
-            <div className="mt-4">
-              <FrameTable timeframes={analysis.timeframes} />
+      <div className="p-6 bg-slate-950/20">
+        {activeTab === 'summary' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
+              <ScoreTile label="Technical" value={analysis.technicalScore} tone="positive" />
+              <ScoreTile label="Trend" value={analysis.trendScore} />
+              <ScoreTile label="Momentum" value={analysis.momentumScore} />
+              <ScoreTile label="Volatility" value={analysis.volatilityScore ?? '-'} />
+              <ScoreTile label="Volume" value={analysis.volumeScore} />
+              <ScoreTile label="Pattern" value={analysis.patternScore} />
+              <ScoreTile label="Levels" value={analysis.levelsScore ?? '-'} />
             </div>
-          </div>
 
-          <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
-            <div className="text-sm font-bold text-white">Indicator snapshot</div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <ScoreTile label="RSI 14" value={analysis.indicators.rsi14 ?? '-'} />
-              <ScoreTile label="Stoch RSI" value={analysis.indicators.stochRsi ?? '-'} />
-              <ScoreTile label="ADX" value={analysis.indicators.adx ?? '-'} />
-              <ScoreTile label="MACD signal" value={analysis.indicators.macdSignal} tone={analysis.indicators.macdSignal === 'Bullish' ? 'positive' : 'danger'} />
-              <ScoreTile label="ATR" value={analysis.indicators.atrPct != null ? `${analysis.indicators.atr} / ${analysis.indicators.atrPct}%` : analysis.indicators.atr ?? '-'} />
-              <ScoreTile label="Price vs SMA200" value={analysis.indicators.priceVsSma200} tone={analysis.indicators.priceVsSma200 === 'Above' ? 'positive' : 'danger'} />
-              <ScoreTile label="VWAP" value={analysis.indicators.vwap ?? '-'} />
-              <ScoreTile label="OBV" value={analysis.indicators.obv ?? '-'} />
-              <ScoreTile label="Supertrend" value={analysis.indicators.supertrend?.state ?? '-'} tone={analysis.indicators.supertrend?.state === 'Bullish' ? 'positive' : 'danger'} />
-            </div>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+                <div className="text-sm font-bold text-white mb-4">Risk / Reward Profile</div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+                    <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Risk Level</div>
+                    <div className={`text-lg font-black ${analysis.riskAssessment.riskLevel === 'Low' ? 'text-emerald-400' : analysis.riskAssessment.riskLevel === 'High' ? 'text-rose-400' : 'text-amber-400'}`}>
+                      {analysis.riskAssessment.riskLevel}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+                    <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Stop Loss</div>
+                    <div className="text-lg font-black text-white">{analysis.riskAssessment.stopLoss ?? '-'}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+                    <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Take Profit</div>
+                    <div className="text-lg font-black text-white">{analysis.riskAssessment.takeProfit ?? '-'}</div>
+                  </div>
+                </div>
+                <div className="mt-4 text-sm leading-relaxed text-slate-300 italic border-l-2 border-primary/30 pl-4">
+                  {analysis.riskAssessment.mainRisk}
+                </div>
+              </div>
 
-        {analysis.indicatorInterpretations?.length > 0 && (
-          <div className="space-y-4">
-            <div className="text-sm font-bold text-white">Indicator interpretation</div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {analysis.indicatorInterpretations.map(item => <InterpretationCard key={item.label} item={item} />)}
+              <div className="rounded-2xl border border-amber-300/10 bg-amber-300/5 p-5">
+                <div className="text-sm font-bold text-white mb-2">Technical Disclaimer</div>
+                <p className="text-sm leading-relaxed text-amber-50/70">{analysis.disclaimer}</p>
+              </div>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
-            <div className="text-sm font-bold text-white">Support / resistance map</div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Support</div>
-                <div className="mt-2 text-sm leading-6 text-slate-300">{analysis.keyLevels.support.join(', ') || '-'}</div>
+        {activeTab === 'indicators' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.5fr_1fr]">
+              <div className="space-y-4">
+                <div className="text-sm font-bold text-white">Market Intelligence Interpretation</div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {analysis.indicatorInterpretations.map(item => <InterpretationCard key={item.label} item={item} />)}
+                </div>
               </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Resistance</div>
-                <div className="mt-2 text-sm leading-6 text-slate-300">{analysis.keyLevels.resistance.join(', ') || '-'}</div>
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Dynamic levels</div>
-                <div className="mt-2 text-sm leading-6 text-slate-300">{analysis.keyLevels.dynamicSupportResistance.join(', ') || '-'}</div>
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Breakout / stop zones</div>
-                <div className="mt-2 text-sm leading-6 text-slate-300">
-                  Breakout: {(analysis.keyLevels.breakoutLevels ?? []).join(', ') || '-'}<br />
-                  Stop-loss danger: {(analysis.keyLevels.stopLossDangerZones ?? []).join(', ') || '-'}
+
+              <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+                <div className="text-sm font-bold text-white mb-4">Indicator Snapshot</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <ScoreTile label="RSI 14" value={analysis.indicators.rsi14 ?? '-'} />
+                  <ScoreTile label="Stoch RSI" value={analysis.indicators.stochRsi ?? '-'} />
+                  <ScoreTile label="ADX" value={analysis.indicators.adx ?? '-'} />
+                  <ScoreTile label="MACD signal" value={analysis.indicators.macdSignal} tone={analysis.indicators.macdSignal === 'Bullish' ? 'positive' : 'danger'} />
+                  <ScoreTile label="ATR" value={analysis.indicators.atrPct != null ? `${analysis.indicators.atr} / ${analysis.indicators.atrPct}%` : analysis.indicators.atr ?? '-'} />
+                  <ScoreTile label="Price vs SMA200" value={analysis.indicators.priceVsSma200} tone={analysis.indicators.priceVsSma200 === 'Above' ? 'positive' : 'danger'} />
+                  <ScoreTile label="VWAP" value={analysis.indicators.vwap ?? '-'} />
+                  <ScoreTile label="OBV" value={analysis.indicators.obv ?? '-'} />
                 </div>
               </div>
             </div>
           </div>
+        )}
 
-          <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
-            <div className="text-sm font-bold text-white">Volume confirmation</div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <ScoreTile label="Current vs average" value={analysis.volumeAnalysis.currentVsAverage} />
-              <ScoreTile label="Confirmation" value={analysis.volumeAnalysis.confirmation ? 'Confirmed' : 'Mixed'} tone={analysis.volumeAnalysis.confirmation ? 'positive' : 'warning'} />
-              <ScoreTile label="Accumulation" value={analysis.volumeAnalysis.accumulation ? 'Yes' : 'No'} tone={analysis.volumeAnalysis.accumulation ? 'positive' : 'default'} />
-              <ScoreTile label="Distribution" value={analysis.volumeAnalysis.distribution ? 'Yes' : 'No'} tone={analysis.volumeAnalysis.distribution ? 'danger' : 'default'} />
+        {activeTab === 'structure' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="grid grid-cols-1 gap-6">
+              <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+                <div className="text-sm font-bold text-white mb-4">Multi-Timeframe Trend Agreement</div>
+                <FrameTable timeframes={analysis.timeframes} />
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+                  <div className="text-sm font-bold text-white mb-4">Key Support & Resistance Levels</div>
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Support Zones</div>
+                      <div className="text-sm leading-relaxed text-emerald-400 font-mono">{analysis.keyLevels.support.join(', ') || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Resistance Zones</div>
+                      <div className="text-sm leading-relaxed text-rose-400 font-mono">{analysis.keyLevels.resistance.join(', ') || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Dynamic S/R</div>
+                      <div className="text-sm leading-relaxed text-slate-300">{analysis.keyLevels.dynamicSupportResistance.join(', ') || '-'}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Breakout Targets</div>
+                      <div className="text-sm leading-relaxed text-primary font-bold">{(analysis.keyLevels.breakoutLevels ?? []).join(', ') || '-'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="text-sm font-bold text-white">Detected Chart Patterns</div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {analysis.patterns.length
+                      ? analysis.patterns.map(pattern => <PatternCard key={`${pattern.name}-${pattern.priceZone}`} pattern={pattern} />)
+                      : <div className="text-sm text-slate-500 p-8 border border-dashed border-white/5 rounded-2xl text-center italic">No high-conviction technical patterns detected.</div>}
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="mt-4 text-sm leading-6 text-slate-300">{analysis.volumeAnalysis.comment}</p>
           </div>
-        </div>
+        )}
 
-        <div className="space-y-4">
-          <div className="text-sm font-bold text-white">Detected patterns</div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {analysis.patterns.length
-              ? analysis.patterns.map(pattern => <PatternCard key={`${pattern.name}-${pattern.priceZone}`} pattern={pattern} />)
-              : <div className="text-sm text-slate-500">No high-conviction technical patterns were detected yet.</div>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
-            <div className="text-sm font-bold text-white">Risk / reward</div>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <ScoreTile label="Risk level" value={analysis.riskAssessment.riskLevel} tone={analysis.riskAssessment.riskLevel === 'Low' ? 'positive' : analysis.riskAssessment.riskLevel === 'High' ? 'danger' : 'warning'} />
-              <ScoreTile label="Stop loss" value={analysis.riskAssessment.stopLoss ?? '-'} />
-              <ScoreTile label="Take profit" value={analysis.riskAssessment.takeProfit ?? '-'} />
+        {activeTab === 'volume' && (
+          <div className="max-w-4xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-6">
+              <div className="text-sm font-bold text-white mb-6">Volume & Accumulation Analysis</div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mb-6">
+                <ScoreTile label="Current Activity" value={analysis.volumeAnalysis.currentVsAverage} />
+                <ScoreTile label="Signal Strength" value={analysis.volumeAnalysis.confirmation ? 'Confirmed' : 'Mixed'} tone={analysis.volumeAnalysis.confirmation ? 'positive' : 'warning'} />
+                <ScoreTile label="Accumulation" value={analysis.volumeAnalysis.accumulation ? 'High' : 'Low'} tone={analysis.volumeAnalysis.accumulation ? 'positive' : 'default'} />
+                <ScoreTile label="Distribution" value={analysis.volumeAnalysis.distribution ? 'High' : 'Low'} tone={analysis.volumeAnalysis.distribution ? 'danger' : 'default'} />
+              </div>
+              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                <p className="text-sm leading-relaxed text-slate-200">{analysis.volumeAnalysis.comment}</p>
+              </div>
             </div>
-            <div className="mt-4 text-sm leading-6 text-slate-300">{analysis.riskAssessment.mainRisk}</div>
           </div>
-
-          <div className="rounded-2xl border border-amber-300/10 bg-amber-300/5 p-4">
-            <div className="text-sm font-bold text-white">Important disclaimer</div>
-            <p className="mt-3 text-sm leading-6 text-amber-50/90">{analysis.disclaimer}</p>
-          </div>
-        </div>
+        )}
       </div>
     </Card>
   )

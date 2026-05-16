@@ -111,8 +111,8 @@ export default function App() {
   const [isBackendSlow, setIsBackendSlow] = useState(false)
   const [copiedReport, setCopiedReport] = useState(false)
   const [timeframeToast, setTimeframeToast] = useState('')
-  const [mobileDashboardTab, setMobileDashboardTab] = useState('chart')
   const [showMoreKpis, setShowMoreKpis] = useState(false)
+  const [activeMainTab, setActiveMainTab] = useState('chart')
 
   useTicker()
 
@@ -220,6 +220,11 @@ export default function App() {
     refresh: isHebrew ? 'רענן ניתוח' : 'Refresh analysis',
     share: isHebrew ? 'דוח לשיתוף' : 'Shareable report',
     copied: isHebrew ? 'הדוח הועתק' : 'Report copied',
+    tabs: {
+      chart: isHebrew ? 'גרף וניתוח' : 'Chart & Analysis',
+      intelligence: isHebrew ? 'בינה מלאכותית' : 'AI Intelligence',
+      extended: isHebrew ? 'נתונים מורחבים' : 'Extended Data',
+    }
   }
 
   const loadingSteps = useMemo(() => ([
@@ -339,77 +344,141 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Executive Summary Row */}
               <div className="relative">
-                <div className={`space-y-4 transition-opacity duration-300 ${intervalRefreshing ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
-                  <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4">
-                    <div className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                <div className={`grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-4 transition-opacity duration-300 ${intervalRefreshing ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
+                  <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 flex flex-col justify-center">
+                    <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
                       {isHebrew ? 'החלטה מיידית' : 'Immediate Action'}
                     </div>
                     <TradeActionCard decision={signal?.decision} language={language} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
-                    <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
-                    <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
-                    <KpiCard label={copy.volume} value={fmtVolume(snapshot.volume)} />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
+                      <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
+                      <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                      <KpiCard label={copy.volume} value={fmtVolume(snapshot.volume)} />
+                      
+                      {showMoreKpis && (
+                        <>
+                          <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
+                          <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
+                          <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                          {fearGreed?.value != null ? (
+                            <KpiCard label={copy.fearGreed} value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
+                          ) : (
+                            <KpiCard
+                              label={copy.vsSma20}
+                              value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
+                              color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish) : ''}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
                     
-                    {showMoreKpis && (
-                      <>
-                        <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
-                        <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
-                        <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
-                        {fearGreed?.value != null ? (
-                          <KpiCard label={copy.fearGreed} value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
-                        ) : (
-                          <KpiCard
-                            label={copy.vsSma20}
-                            value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
-                            color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish) : ''}
-                          />
-                        )}
-                      </>
-                    )}
+                    <button 
+                      onClick={() => setShowMoreKpis(!showMoreKpis)}
+                      className="w-full py-2 text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest border border-dashed border-white/5 rounded-xl bg-white/2"
+                    >
+                      {showMoreKpis ? (isHebrew ? 'הצג פחות' : 'Show Less') : (isHebrew ? 'הצג עוד נתונים' : 'Show More Metrics')}
+                    </button>
                   </div>
-                  
-                  <button 
-                    onClick={() => setShowMoreKpis(!showMoreKpis)}
-                    className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest border border-dashed border-white/5 rounded-xl bg-white/2"
-                  >
-                    {showMoreKpis ? (isHebrew ? 'הצג פחות' : 'Show Less') : (isHebrew ? 'הצג עוד נתונים' : 'Show More Metrics')}
-                  </button>
                 </div>
 
                 {intervalRefreshing && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-surface/50 backdrop-blur-sm">
-                    <div className="rounded-full border border-white/10 bg-slate-950/85 px-4 py-2 text-sm text-slate-300">
+                  <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-slate-950/40 backdrop-blur-[2px] z-10">
+                    <div className="rounded-full border border-white/10 bg-slate-950/90 px-4 py-2 text-sm text-slate-300 shadow-2xl">
                       {isHebrew ? 'מחשב מחדש...' : 'Recalculating...'}
                     </div>
                   </div>
                 )}
               </div>
 
-              {analysisResult && (
-                <AnalysisResultCard
-                  language={language}
-                  summary={analysisResult.summary}
-                  sentiment={analysisResult.overallSentiment}
-                  confidenceScore={analysisResult.confidenceScore}
-                  riskLevel={analysisResult.riskLevel}
-                  bullCase={analysisResult.bullCase}
-                  bearCase={analysisResult.bearCase}
-                  keyRisks={analysisResult.keyRisks}
-                  newsSentiment={analysisResult.newsSentiment}
-                  technicalOutlook={analysisResult.technicalOutlook}
-                  finalOutlook={analysisResult.finalOutlook}
-                />
-              )}
+              {/* Main Tabbed Content Area */}
+              <div className="space-y-6">
+                <div className="flex gap-1 p-1 w-fit rounded-2xl bg-slate-900/50 border border-white/5 mx-auto lg:mx-0">
+                  {[
+                    { id: 'chart', label: copy.tabs.chart },
+                    { id: 'intelligence', label: copy.tabs.intelligence },
+                    { id: 'extended', label: copy.tabs.extended },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveMainTab(tab.id)}
+                      className={`px-8 py-2.5 text-xs font-bold rounded-xl transition-all ${
+                        activeMainTab === tab.id
+                          ? 'bg-primary text-slate-950 shadow-lg shadow-primary/20'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
 
-              <TechnicalAnalysisPanel
-                analysis={technicalAnalysis}
-                isLoading={isTechnicalAnalysisLoading}
-                error={technicalAnalysisError}
-              />
+                <div className="animate-in fade-in duration-500">
+                  {activeMainTab === 'chart' && (
+                    <div className="space-y-4">
+                      <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
+                      <ChartWorkspace
+                        currentTicker={currentTicker}
+                        interval={interval}
+                        snapshot={snapshot}
+                        ohlcv={ohlcv}
+                        indicators={indicators}
+                        signal={signal}
+                        technicalAnalysis={technicalAnalysis}
+                        isLoading={isLoading}
+                      />
+                    </div>
+                  )}
+
+                  {activeMainTab === 'intelligence' && (
+                    <div className="space-y-6">
+                      {analysisResult && (
+                        <AnalysisResultCard
+                          language={language}
+                          summary={analysisResult.summary}
+                          sentiment={analysisResult.overallSentiment}
+                          confidenceScore={analysisResult.confidenceScore}
+                          riskLevel={analysisResult.riskLevel}
+                          bullCase={analysisResult.bullCase}
+                          bearCase={analysisResult.bearCase}
+                          keyRisks={analysisResult.keyRisks}
+                          newsSentiment={analysisResult.newsSentiment}
+                          technicalOutlook={analysisResult.technicalOutlook}
+                          finalOutlook={analysisResult.finalOutlook}
+                        />
+                      )}
+
+                      <TechnicalAnalysisPanel
+                        analysis={technicalAnalysis}
+                        isLoading={isTechnicalAnalysisLoading}
+                        error={technicalAnalysisError}
+                      />
+                    </div>
+                  )}
+
+                  {activeMainTab === 'extended' && (
+                    <div className="max-w-4xl mx-auto">
+                      <AnalysisSidebar 
+                        forecast={forecast}
+                        marketContext={marketContext}
+                        earnings={earnings}
+                        trends={signal?.trends}
+                        signal={signal}
+                        isLoadingForecast={isMultiTimeframeLoading}
+                        isLoadingMarket={isMarketContextLoading}
+                        isLoadingEarnings={isEarningsLoading}
+                        language={language}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {error && snapshot && (
                 <ErrorState
@@ -422,65 +491,18 @@ export default function App() {
               )}
             </section>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-              <div className={`flex flex-col gap-4 transition-opacity duration-300 lg:col-span-3 ${intervalRefreshing ? 'opacity-75' : 'opacity-100'} ${mobileDashboardTab !== 'chart' ? 'hidden lg:flex' : 'flex'}`}>
-                <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
-                <ChartWorkspace
-                  currentTicker={currentTicker}
-                  interval={interval}
-                  snapshot={snapshot}
-                  ohlcv={ohlcv}
-                  indicators={indicators}
-                  signal={signal}
-                  technicalAnalysis={technicalAnalysis}
-                  isLoading={isLoading}
-                />
-              </div>
-
-              <div className={`flex flex-col gap-4 lg:col-span-1 ${mobileDashboardTab !== 'signal' ? 'hidden lg:flex' : 'flex'}`}>
-                <AnalysisSidebar 
-                  forecast={forecast}
-                  marketContext={marketContext}
-                  earnings={earnings}
-                  trends={signal?.trends}
-                  signal={signal}
-                  isLoadingForecast={isMultiTimeframeLoading}
-                  isLoadingMarket={isMarketContextLoading}
-                  isLoadingEarnings={isEarningsLoading}
-                  language={language}
-                />
-              </div>
-            </div>
-
-            <div className={`${mobileDashboardTab !== 'details' ? 'hidden' : 'flex'} flex-col gap-4 lg:hidden`}>
-              <AnalysisSidebar 
-                forecast={forecast}
-                marketContext={marketContext}
-                earnings={earnings}
-                trends={signal?.trends}
-                signal={signal}
-                isLoadingForecast={isMultiTimeframeLoading}
-                isLoadingMarket={isMarketContextLoading}
-                isLoadingEarnings={isEarningsLoading}
-                language={language}
-              />
-            </div>
-
             <div className="sticky bottom-4 z-40 mt-2 lg:hidden">
               <div className="mx-auto flex max-w-md items-center justify-between rounded-full border border-white/10 bg-slate-950/92 p-1 shadow-[0_20px_60px_rgba(2,6,23,0.45)] backdrop-blur-md">
                 {[
-                  { key: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
-                  { key: 'signal', label: isHebrew ? 'סיגנל' : 'Signal' },
-                  { key: 'details', label: isHebrew ? 'פרטים' : 'Details' },
+                  { id: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
+                  { id: 'intelligence', label: isHebrew ? 'בינה' : 'AI' },
+                  { id: 'extended', label: isHebrew ? 'עוד' : 'More' },
                 ].map(tab => (
                   <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setMobileDashboardTab(tab.key)}
-                    className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-                      mobileDashboardTab === tab.key
-                        ? 'bg-primary text-surface-muted'
-                        : 'text-slate-400 hover:text-white'
+                    key={tab.id}
+                    onClick={() => setActiveMainTab(tab.id)}
+                    className={`flex-1 rounded-full py-2 text-xs font-bold transition-all ${
+                      activeMainTab === tab.id ? 'bg-primary text-slate-950' : 'text-slate-400'
                     }`}
                   >
                     {tab.label}
