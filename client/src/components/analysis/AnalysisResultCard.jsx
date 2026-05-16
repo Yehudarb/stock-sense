@@ -4,7 +4,7 @@ import Badge from '../ui/Badge'
 
 function SectionBlock({ title, children }) {
   return (
-    <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
+    <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 backdrop-blur-md">
       <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">{title}</div>
       <div className="mt-3">{children}</div>
     </div>
@@ -74,39 +74,37 @@ export default function AnalysisResultCard({
   ]
 
   return (
-    <Card className="rounded-3xl p-0 overflow-hidden border-white/10 shadow-2xl">
-      {/* Header section with Sentiment & Conclusion */}
-      <div className="bg-slate-900/60 p-6 border-b border-white/5">
+    <Card className="overflow-hidden rounded-3xl border-white/10 p-0 shadow-2xl">
+      <div className="border-b border-white/5 bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(15,23,42,0.52))] p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">AI Intelligence Engine</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Structured market read</div>
             <h3 className="mt-1 text-2xl font-black tracking-tight text-white">{finalOutlook}</h3>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">{summary}</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 sm:min-w-[340px]">
-            <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-4">
+          <div className="grid grid-cols-1 gap-2 sm:min-w-[340px] sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4 backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{labels.overallSentiment}</div>
               <Badge sentiment={sentiment}>{sentiment}</Badge>
             </div>
-            <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-4">
+            <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4 backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{labels.confidence}</div>
               <div className="text-xl font-black text-white">{confidenceScore}%</div>
             </div>
-            <div className="rounded-2xl border border-white/5 bg-slate-950/50 p-4">
+            <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4 backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{labels.risk}</div>
               <Badge tone={riskTone(riskLevel)}>{riskLevel}</Badge>
             </div>
           </div>
         </div>
 
-        {/* Detail Tabs Selector */}
-        <div className="mt-8 flex gap-1 p-1 w-fit rounded-xl bg-slate-950/50 border border-white/5">
+        <div className="mt-8 flex w-fit gap-1 rounded-xl border border-white/5 bg-slate-950/50 p-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`rounded-lg px-5 py-2 text-xs font-bold transition-all ${
                 activeTab === tab.id
                   ? 'bg-primary text-slate-950 shadow-lg shadow-primary/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -118,48 +116,53 @@ export default function AnalysisResultCard({
         </div>
       </div>
 
-      <div className="p-6 bg-slate-950/20">
+      <div className="bg-slate-950/20 p-6">
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           {activeTab === 'bull' && (
-            <div className="space-y-4">
-              <div className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+            <SectionBlock title={labels.bullCase}>
+              <div className="mb-4 flex items-center gap-2 text-sm font-bold text-emerald-400">
                 <div className="h-2 w-2 rounded-full bg-emerald-400" />
                 {labels.bullCase}
               </div>
               <ListBlock items={bullCase} tone="positive" />
-            </div>
+            </SectionBlock>
           )}
           {activeTab === 'bear' && (
-            <div className="space-y-4">
-              <div className="text-sm font-bold text-rose-400 flex items-center gap-2">
+            <SectionBlock title={labels.bearCase}>
+              <div className="mb-4 flex items-center gap-2 text-sm font-bold text-rose-400">
                 <div className="h-2 w-2 rounded-full bg-rose-400" />
                 {labels.bearCase}
               </div>
               <ListBlock items={bearCase} tone="danger" />
-            </div>
+            </SectionBlock>
           )}
           {activeTab === 'risks' && (
-            <div className="space-y-4">
-              <div className="text-sm font-bold text-amber-400 flex items-center gap-2">
+            <SectionBlock title={labels.keyRisks}>
+              <div className="mb-4 flex items-center gap-2 text-sm font-bold text-amber-400">
                 <div className="h-2 w-2 rounded-full bg-amber-400" />
                 {labels.keyRisks}
               </div>
               <ListBlock items={keyRisks} tone="warning" />
-            </div>
+            </SectionBlock>
           )}
           {activeTab === 'news' && (
-            <div className="space-y-4">
-              <div className="text-sm font-bold text-white flex items-center gap-2">
+            <div className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr]">
+              <SectionBlock title={labels.newsSentiment}>
+                <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
+                  <div className="h-2 w-2 rounded-full bg-primary" />
+                  {labels.newsSentiment}
+                </div>
+                <p className="rounded-xl border border-white/5 bg-slate-900/30 p-4 text-sm leading-relaxed text-slate-300">
+                  {newsSentiment}
+                </p>
+              </SectionBlock>
+              <SectionBlock title={labels.technicalOutlook}>
+                <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
                 <div className="h-2 w-2 rounded-full bg-primary" />
-                {labels.newsSentiment}
-              </div>
-              <p className="text-sm leading-relaxed text-slate-300 bg-slate-900/30 p-4 rounded-xl border border-white/5">
-                {newsSentiment}
-              </p>
-              <div className="mt-4 p-4 rounded-xl border border-white/5 bg-slate-950/50">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{labels.technicalOutlook}</div>
+                  {labels.technicalOutlook}
+                </div>
                 <p className="text-sm leading-relaxed text-slate-400 italic">{technicalOutlook}</p>
-              </div>
+              </SectionBlock>
             </div>
           )}
         </div>

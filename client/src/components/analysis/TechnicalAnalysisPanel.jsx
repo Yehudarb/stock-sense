@@ -12,7 +12,7 @@ function ScoreTile({ label, value, tone = 'default' }) {
   }[tone] ?? 'text-white'
 
   return (
-    <div className="rounded-2xl border border-white/6 bg-slate-950/40 p-4">
+    <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 backdrop-blur-md">
       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</div>
       <div className={`mt-2 text-2xl font-black tracking-tight ${toneClass}`}>{value}</div>
     </div>
@@ -65,7 +65,7 @@ function FrameTable({ timeframes }) {
 
 function PatternCard({ pattern }) {
   return (
-    <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
+    <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4 backdrop-blur-md">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-bold text-white">{pattern.name}</div>
@@ -95,7 +95,7 @@ function PatternCard({ pattern }) {
 
 function InterpretationCard({ item }) {
   return (
-    <div className="rounded-2xl border border-white/6 bg-slate-950/35 p-4">
+    <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4 backdrop-blur-md">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-bold text-white">{item.label}</div>
         <Badge tone={item.tone ?? 'balanced'}>{item.value}</Badge>
@@ -142,12 +142,11 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
   ]
 
   return (
-    <Card className="rounded-3xl p-0 overflow-hidden border-white/10 shadow-2xl">
-      {/* Header with Title & Overall Stats */}
-      <div className="bg-slate-900/60 p-6 border-b border-white/5">
+    <Card className="overflow-hidden rounded-3xl border-white/10 p-0 shadow-2xl">
+      <div className="border-b border-white/5 bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(15,23,42,0.52))] p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Technical Intelligence</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Technical command deck</div>
             <h3 className="mt-1 text-2xl font-black tracking-tight text-white">{analysis.technicalSummary}</h3>
             <p className="mt-2 max-w-4xl text-sm leading-relaxed text-slate-400">{analysis.finalTechnicalOutlook}</p>
           </div>
@@ -160,8 +159,7 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
           </div>
         </div>
 
-        {/* Inner Tabs */}
-        <div className="mt-8 flex gap-1 p-1 w-fit rounded-xl bg-slate-950/50 border border-white/5">
+        <div className="mt-8 flex w-fit gap-1 rounded-xl border border-white/5 bg-slate-950/50 p-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -178,7 +176,7 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
         </div>
       </div>
 
-      <div className="p-6 bg-slate-950/20">
+      <div className="bg-slate-950/20 p-6">
         {activeTab === 'summary' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
@@ -192,20 +190,20 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+              <div className="rounded-2xl border border-white/8 bg-slate-900/30 p-5 backdrop-blur-md">
                 <div className="text-sm font-bold text-white mb-4">Risk / Reward Profile</div>
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+                  <div className="rounded-xl border border-white/5 bg-slate-950/50 p-3">
                     <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Risk Level</div>
                     <div className={`text-lg font-black ${analysis.riskAssessment.riskLevel === 'Low' ? 'text-emerald-400' : analysis.riskAssessment.riskLevel === 'High' ? 'text-rose-400' : 'text-amber-400'}`}>
                       {analysis.riskAssessment.riskLevel}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+                  <div className="rounded-xl border border-white/5 bg-slate-950/50 p-3">
                     <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Stop Loss</div>
                     <div className="text-lg font-black text-white">{analysis.riskAssessment.stopLoss ?? '-'}</div>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-950/50 border border-white/5">
+                  <div className="rounded-xl border border-white/5 bg-slate-950/50 p-3">
                     <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Take Profit</div>
                     <div className="text-lg font-black text-white">{analysis.riskAssessment.takeProfit ?? '-'}</div>
                   </div>
@@ -215,7 +213,7 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-amber-300/10 bg-amber-300/5 p-5">
+              <div className="rounded-2xl border border-amber-300/10 bg-amber-300/5 p-5 backdrop-blur-md">
                 <div className="text-sm font-bold text-white mb-2">Technical Disclaimer</div>
                 <p className="text-sm leading-relaxed text-amber-50/70">{analysis.disclaimer}</p>
               </div>
@@ -233,7 +231,7 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+              <div className="rounded-2xl border border-white/8 bg-slate-900/30 p-5 backdrop-blur-md">
                 <div className="text-sm font-bold text-white mb-4">Indicator Snapshot</div>
                 <div className="grid grid-cols-2 gap-3">
                   <ScoreTile label="RSI 14" value={analysis.indicators.rsi14 ?? '-'} />
@@ -253,13 +251,13 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
         {activeTab === 'structure' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="grid grid-cols-1 gap-6">
-              <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+              <div className="rounded-2xl border border-white/8 bg-slate-900/30 p-5 backdrop-blur-md">
                 <div className="text-sm font-bold text-white mb-4">Multi-Timeframe Trend Agreement</div>
                 <FrameTable timeframes={analysis.timeframes} />
               </div>
 
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-5">
+                <div className="rounded-2xl border border-white/8 bg-slate-900/30 p-5 backdrop-blur-md">
                   <div className="text-sm font-bold text-white mb-4">Key Support & Resistance Levels</div>
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div>
@@ -296,7 +294,7 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
 
         {activeTab === 'volume' && (
           <div className="max-w-4xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="rounded-2xl border border-white/6 bg-slate-900/30 p-6">
+              <div className="rounded-2xl border border-white/8 bg-slate-900/30 p-6 backdrop-blur-md">
               <div className="text-sm font-bold text-white mb-6">Volume & Accumulation Analysis</div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mb-6">
                 <ScoreTile label="Current Activity" value={analysis.volumeAnalysis.currentVsAverage} />
