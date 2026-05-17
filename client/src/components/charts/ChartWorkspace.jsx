@@ -42,6 +42,8 @@ const INTRADAY_PRESETS = [
   { id: '4H', label: '4H', interval: '4h', visibleBars: 180 },
 ]
 
+const CHART_LAYOUT_STORAGE_KEY = 'stock-sense.chart-layout.v2'
+
 const INTERVAL_LABELS = {
   he: {
     '1m': '1 דק׳',
@@ -505,10 +507,10 @@ export default function ChartWorkspace({
   const [viewOffset, setViewOffset] = useState(0)
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
-  const [pricePanelWidthPct, setPricePanelWidthPct] = useState(100)
   const [pricePanelHeightPx, setPricePanelHeightPx] = useState(null)
+  const [priceScale, setPriceScale] = useState(1)
+  const [layoutHydrated, setLayoutHydrated] = useState(false)
   const [resizeState, setResizeState] = useState(null)
-  const pricePanelRef = useRef(null)
 
   const allPresets = useMemo(() => [...PRIMARY_PRESETS, ...INTRADAY_PRESETS], [])
   const activePreset = allPresets.find(item => item.id === selectedPresetId) ?? PRIMARY_PRESETS[0]
@@ -517,6 +519,52 @@ export default function ChartWorkspace({
   const maxOffset = Math.max(0, n - activeVisibleBars)
   const canZoom = n > 40
   const canPan = maxOffset > 0
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(CHART_LAYOUT_STORAGE_KEY) ?? 'null')
+      if (!saved) {
+        setLayoutHydrated(true)
+        return
+      }
+
+      if (saved.chartType) setChartType(saved.chartType)
+      if (saved.visibleBars != null) setVisibleBars(saved.visibleBars)
+      if (saved.priceScale != null) setPriceScale(clamp(saved.priceScale, 0.35, 4))
+      if (saved.pricePanelHeightPx != null) setPricePanelHeightPx(saved.pricePanelHeightPx)
+      if (typeof saved.showSMA === 'boolean') setShowSMA(saved.showSMA)
+      if (typeof saved.showEMA === 'boolean') setShowEMA(saved.showEMA)
+      if (typeof saved.showVWAP === 'boolean') setShowVWAP(saved.showVWAP)
+      if (typeof saved.showBB === 'boolean') setShowBB(saved.showBB)
+      if (typeof saved.showVolume === 'boolean') setShowVolume(saved.showVolume)
+      if (typeof saved.showRSI === 'boolean') setShowRSI(saved.showRSI)
+      if (typeof saved.showMACD === 'boolean') setShowMACD(saved.showMACD)
+      if (typeof saved.showLevels === 'boolean') setShowLevels(saved.showLevels)
+    } catch {
+      window.localStorage.removeItem(CHART_LAYOUT_STORAGE_KEY)
+    } finally {
+      setLayoutHydrated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!layoutHydrated || typeof window === 'undefined') return
+    window.localStorage.setItem(CHART_LAYOUT_STORAGE_KEY, JSON.stringify({
+      chartType,
+      visibleBars,
+      priceScale,
+      pricePanelHeightPx,
+      showSMA,
+      showEMA,
+      showVWAP,
+      showBB,
+      showVolume,
+      showRSI,
+      showMACD,
+      showLevels,
+    }))
+  }, [chartType, layoutHydrated, pricePanelHeightPx, priceScale, showBB, showEMA, showLevels, showMACD, showRSI, showSMA, showVWAP, showVolume, visibleBars])
 
   useEffect(() => {
     setViewOffset(0)
@@ -529,20 +577,9 @@ export default function ChartWorkspace({
   }, [activePreset, interval, ohlcv])
 
   useEffect(() => {
-    setPricePanelWidthPct(100)
-    setPricePanelHeightPx(null)
-  }, [currentTicker, interval, chartExpanded])
-
-  useEffect(() => {
     if (!resizeState) return undefined
 
     const handlePointerMove = event => {
-      if (resizeState.type === 'width') {
-        const hostWidth = pricePanelRef.current?.parentElement?.clientWidth ?? window.innerWidth
-        const deltaPct = (event.clientX - resizeState.startX) / Math.max(hostWidth, 1) * 100
-        setPricePanelWidthPct(clamp(resizeState.startWidthPct + deltaPct, 58, 100))
-      }
-
       if (resizeState.type === 'height') {
         const nextHeight = clamp(
           resizeState.startHeight + (event.clientY - resizeState.startY),
@@ -550,6 +587,23 @@ export default function ChartWorkspace({
           Math.round(window.innerHeight * 0.92),
         )
         setPricePanelHeightPx(nextHeight)
+      }
+
+      if (resizeState.type === 'timeScale') {
+        const multiplier = clamp(1 + ((event.clientX - resizeState.startX) / 320), 0.28, 3.4)
+        const nextVisible = Math.round(clamp(resizeState.startVisibleBars * multiplier, 24, n))
+        const anchorRatio = 0.5
+        const oldStart = n - resizeState.startViewOffset - resizeState.startVisibleBars
+        const anchorIndex = oldStart + resizeState.startVisibleBars * anchorRatio
+        const nextStart = anchorIndex - nextVisible * anchorRatio
+        const nextOffset = clamp(n - nextVisible - nextStart, 0, Math.max(0, n - nextVisible))
+        setVisibleBars(nextVisible)
+        setViewOffset(Math.round(nextOffset))
+      }
+
+      if (resizeState.type === 'priceScale') {
+        const multiplier = clamp(1 + ((event.clientY - resizeState.startY) / 260), 0.35, 3.5)
+        setPriceScale(clamp(resizeState.startPriceScale * multiplier, 0.35, 4))
       }
     }
 
@@ -562,7 +616,7 @@ export default function ChartWorkspace({
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
     }
-  }, [resizeState])
+  }, [n, resizeState])
 
   function handleSelectPreset(preset) {
     setSelectedPresetId(preset.id)
@@ -575,27 +629,68 @@ export default function ChartWorkspace({
     setVisibleBars(resolvePresetBars(preset, ohlcv))
   }
 
-  function changeVisibleBars(multiplier) {
+  function zoomVisibleBars(multiplier, anchorRatio = 1) {
     if (!canZoom) return
-    setVisibleBars(current => {
-      const base = Math.min(n, current ?? activeVisibleBars)
-      const next = Math.round(base * multiplier)
-      if (next >= n) return n
-      return Math.max(24, next)
-    })
-    setViewOffset(0)
+    const base = Math.min(n, visibleBars ?? activeVisibleBars)
+    const next = Math.round(clamp(base * multiplier, 24, n))
+    const oldStart = n - viewOffset - base
+    const anchorIndex = oldStart + base * anchorRatio
+    const nextStart = anchorIndex - next * anchorRatio
+    const nextOffset = clamp(n - next - nextStart, 0, Math.max(0, n - next))
+    setVisibleBars(next)
+    setViewOffset(Math.round(nextOffset))
+  }
+
+  function changeVisibleBars(multiplier) {
+    zoomVisibleBars(multiplier, 1)
   }
 
   function handlePriceChartWheel(event) {
     if (!canZoom) return
     event.preventDefault()
-    changeVisibleBars(event.deltaY < 0 ? 0.86 : 1.18)
+    const rect = event.currentTarget?.getBoundingClientRect?.()
+    const anchorRatio = rect
+      ? clamp((event.clientX - rect.left) / Math.max(rect.width, 1), 0.05, 0.95)
+      : 0.5
+    zoomVisibleBars(event.deltaY < 0 ? 0.82 : 1.22, anchorRatio)
   }
 
   function panBy(delta) {
     if (!canPan) return
     setViewOffset(current => Math.max(0, Math.min(maxOffset, current + delta)))
   }
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      const target = event.target
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault()
+        zoomVisibleBars(0.82, 0.5)
+      }
+      if (event.key === '-' || event.key === '_') {
+        event.preventDefault()
+        zoomVisibleBars(1.22, 0.5)
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        panBy(12)
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        panBy(-12)
+      }
+      if (event.key === '0') {
+        event.preventDefault()
+        setViewOffset(0)
+        setPriceScale(1)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canPan, canZoom, maxOffset, n, activeVisibleBars, visibleBars, viewOffset])
 
   function handleResetChart() {
     setChartType('candlestick')
@@ -633,6 +728,8 @@ export default function ChartWorkspace({
     setShowLevels(true)
     setChartExpanded(false)
     setMeasureMode(false)
+    setPriceScale(1)
+    setPricePanelHeightPx(null)
     setHoveredIndex(null)
     setViewOffset(0)
     handleSelectPreset(PRIMARY_PRESETS[0])
@@ -658,8 +755,10 @@ export default function ChartWorkspace({
       type,
       startX: event.clientX,
       startY: event.clientY,
-      startWidthPct: pricePanelWidthPct,
       startHeight: pricePanelHeightPx ?? getBaseChartHeight(chartExpanded),
+      startVisibleBars: activeVisibleBars,
+      startViewOffset: viewOffset,
+      startPriceScale: priceScale,
     })
   }
 
@@ -979,12 +1078,9 @@ export default function ChartWorkspace({
       }
 
   const resolvedPriceChartHeight = pricePanelHeightPx ?? getBaseChartHeight(chartExpanded)
-  const priceChartStyle = typeof window !== 'undefined' && window.innerWidth >= 1024
-    ? { width: `${pricePanelWidthPct}%`, maxWidth: '100%' }
-    : undefined
   const resizeHint = language === 'he'
-    ? 'גרור מהצד או מהתחתית כדי לשנות את גודל הגרף'
-    : 'Drag the side or bottom rail to resize the chart'
+    ? 'גרור בתוך הגרף להזזה, גלגלת לזום, צד ימין לסקאלת מחיר ותחתית לצפיפות נרות'
+    : 'Drag inside to pan, wheel to zoom, right rail for price scale, bottom rail for candle density'
 
   return (
     <section className="space-y-4">
@@ -1048,7 +1144,6 @@ export default function ChartWorkspace({
           subtitle={chartCopy.priceChartSubtitle}
           height="h-auto"
           className="transition-[width] duration-150"
-          style={priceChartStyle}
           bodyClassName="relative"
           bodyStyle={{ height: `${resolvedPriceChartHeight}px` }}
           onWheel={handlePriceChartWheel}
@@ -1063,7 +1158,7 @@ export default function ChartWorkspace({
         >
           <div className="mb-3 hidden items-center justify-between gap-3 text-xs text-slate-400 lg:flex">
             <span>{resizeHint}</span>
-            <span>{Math.round(pricePanelWidthPct)}% · {resolvedPriceChartHeight}px</span>
+            <span>{activeVisibleBars} bars · Y {priceScale.toFixed(2)}x</span>
           </div>
           <div className="mb-2 flex items-center gap-2 text-sm text-slate-400 md:hidden">
             <span>{language === 'he' ? 'צופה ב-' : 'Viewing:'}</span>
@@ -1076,17 +1171,17 @@ export default function ChartWorkspace({
           )}
           <button
             type="button"
-            aria-label="Resize chart width"
-            onPointerDown={event => startResize('width', event)}
-            className="absolute inset-y-8 right-1 z-10 hidden w-3 cursor-ew-resize items-center justify-center rounded-full lg:flex"
+            aria-label="Adjust price scale"
+            onPointerDown={event => startResize('priceScale', event)}
+            className="absolute inset-y-8 right-1 z-10 hidden w-3 cursor-ns-resize items-center justify-center rounded-full lg:flex"
           >
             <span className="h-16 w-1 rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
           <button
             type="button"
-            aria-label="Resize chart height"
-            onPointerDown={event => startResize('height', event)}
-            className="absolute bottom-1 left-12 right-12 z-10 hidden h-3 cursor-ns-resize items-center justify-center rounded-full lg:flex"
+            aria-label="Adjust candle density"
+            onPointerDown={event => startResize('timeScale', event)}
+            className="absolute bottom-1 left-12 right-12 z-10 hidden h-3 cursor-ew-resize items-center justify-center rounded-full lg:flex"
           >
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
@@ -1122,9 +1217,11 @@ export default function ChartWorkspace({
               interval={interval}
               visibleBars={activeVisibleBars}
               viewOffset={viewOffset}
+              priceScale={priceScale}
               measurementEnabled={measureMode}
               hoveredIndex={hoveredIndex}
               onHoverIndexChange={setHoveredIndex}
+              onPanBars={panBy}
             />
           </SafeChart>
         </ChartContainer>

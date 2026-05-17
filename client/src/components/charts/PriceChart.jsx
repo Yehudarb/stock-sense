@@ -145,6 +145,17 @@ function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci,
   return { min: min - pad, max: max + pad }
 }
 
+function applyPriceScale(range, priceScale = 1) {
+  if (range?.min == null || range?.max == null || priceScale === 1) return range
+  const center = (range.min + range.max) / 2
+  const halfRange = ((range.max - range.min) / 2) * priceScale
+
+  return {
+    min: center - halfRange,
+    max: center + halfRange,
+  }
+}
+
 function sliceIndicatorTree(value, startIndex, endIndex) {
   if (Array.isArray(value)) return value.slice(startIndex, endIndex)
   if (!value || typeof value !== 'object') return value
@@ -860,13 +871,16 @@ export default function PriceChart({
   interval,
   visibleBars,
   viewOffset = 0,
+  priceScale = 1,
   measurementEnabled = false,
   hoveredIndex = null,
   onHoverIndexChange,
+  onPanBars,
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
   const measurementRef = useRef({ active: false, start: null, end: null })
+  const panRef = useRef({ active: false, startX: 0 })
   const { theme } = useStore()
   const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768
 
@@ -894,7 +908,7 @@ export default function PriceChart({
     const isCandlestick = chartType === 'candlestick'
     const isArea = chartType === 'area'
     const lastBar = visibleOhlcv[visibleOhlcv.length - 1]
-    const priceRange = buildPriceRange(visibleOhlcv, visibleIndicators, {
+    const priceRange = applyPriceScale(buildPriceRange(visibleOhlcv, visibleIndicators, {
       showSMA,
       showEMA,
       showWMA,
@@ -903,7 +917,7 @@ export default function PriceChart({
       showIchimoku,
       showKeltner,
       showDonchian,
-    }, visiblePatterns, visibleGaps, fibonacci, decision)
+    }, visiblePatterns, visibleGaps, fibonacci, decision), priceScale)
     const breakoutLevel = technicalAnalysis?.keyLevels?.breakoutLevels?.[0] ?? null
     const invalidationLevel = technicalAnalysis?.riskAssessment?.stopLoss ?? technicalAnalysis?.keyLevels?.stopLossDangerZones?.[0] ?? null
     const zoneCandidates = [
@@ -1351,35 +1365,62 @@ export default function PriceChart({
     }
 
     const handlePointerDown = event => {
-      if (!measurementEnabled) return
+      if (measurementEnabled) {
+        event.preventDefault()
+        const point = pointFromEvent(event)
+        measurementRef.current = { active: true, start: point, end: point }
+        canvas.setPointerCapture?.(event.pointerId)
+        chart.draw()
+        return
+      }
+
+      if (!onPanBars || event.button !== 0) return
       event.preventDefault()
-      const point = pointFromEvent(event)
-      measurementRef.current = { active: true, start: point, end: point }
+      panRef.current = { active: true, startX: event.clientX }
       canvas.setPointerCapture?.(event.pointerId)
-      chart.draw()
+      canvas.style.cursor = 'grabbing'
     }
 
     const handlePointerMove = event => {
-      if (!measurementEnabled || !measurementRef.current.active) return
-      event.preventDefault()
-      measurementRef.current.end = pointFromEvent(event)
-      chart.draw()
+      if (measurementEnabled && measurementRef.current.active) {
+        event.preventDefault()
+        measurementRef.current.end = pointFromEvent(event)
+        chart.draw()
+        return
+      }
+
+      if (!panRef.current.active || !onPanBars) return
+      const deltaX = event.clientX - panRef.current.startX
+      const chartWidth = Math.max(chart.chartArea?.width ?? 1, 1)
+      const barsDelta = Math.round((deltaX / chartWidth) * visibleOhlcv.length)
+      if (barsDelta !== 0) {
+        event.preventDefault()
+        onPanBars(barsDelta)
+        panRef.current.startX = event.clientX
+      }
     }
 
-    const stopMeasurement = event => {
-      if (!measurementEnabled || !measurementRef.current.active) return
-      measurementRef.current.active = false
-      if (event?.clientX != null) measurementRef.current.end = pointFromEvent(event)
-      canvas.releasePointerCapture?.(event.pointerId)
-      chart.draw()
+    const stopInteraction = event => {
+      if (measurementEnabled && measurementRef.current.active) {
+        measurementRef.current.active = false
+        if (event?.clientX != null) measurementRef.current.end = pointFromEvent(event)
+        canvas.releasePointerCapture?.(event.pointerId)
+        chart.draw()
+      }
+
+      if (panRef.current.active) {
+        panRef.current.active = false
+        canvas.releasePointerCapture?.(event?.pointerId)
+        canvas.style.cursor = measurementEnabled ? 'crosshair' : onPanBars ? 'grab' : ''
+      }
     }
 
-    if (measurementEnabled) {
-      canvas.style.cursor = 'crosshair'
+    if (measurementEnabled || onPanBars) {
+      canvas.style.cursor = measurementEnabled ? 'crosshair' : 'grab'
       canvas.addEventListener('pointerdown', handlePointerDown)
       canvas.addEventListener('pointermove', handlePointerMove)
-      canvas.addEventListener('pointerup', stopMeasurement)
-      canvas.addEventListener('pointerleave', stopMeasurement)
+      canvas.addEventListener('pointerup', stopInteraction)
+      canvas.addEventListener('pointerleave', stopInteraction)
     } else {
       canvas.style.cursor = ''
     }
@@ -1388,14 +1429,14 @@ export default function PriceChart({
       canvas.style.cursor = ''
       canvas.removeEventListener('pointerdown', handlePointerDown)
       canvas.removeEventListener('pointermove', handlePointerMove)
-      canvas.removeEventListener('pointerup', stopMeasurement)
-      canvas.removeEventListener('pointerleave', stopMeasurement)
+      canvas.removeEventListener('pointerup', stopInteraction)
+      canvas.removeEventListener('pointerleave', stopInteraction)
       if (chartRef.current) {
         chartRef.current.destroy()
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, measurementEnabled, hoveredIndex, onHoverIndexChange, theme, isMobileViewport])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }
