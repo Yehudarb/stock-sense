@@ -3,21 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: 34 211 238;
-  --color-surface: 11 19 38;
-  --color-surface-muted: 30 41 59;
-  --color-surface-bright: 49 57 77;
+  --color-primary: 56 189 248;
+  --color-surface: 24 39 68;
+  --color-surface-muted: 37 56 91;
+  --color-surface-bright: 59 83 124;
   --color-success: 16 185 129;
   --color-danger: 244 63 94;
-  --color-accent: 99 102 241;
-  --body-bg: #0b1326;
-  --body-text: #dae2fd;
-  --panel-border: rgba(255, 255, 255, 0.05);
-  --panel-bg: rgba(30, 41, 59, 0.6);
+  --color-accent: 96 165 250;
+  --body-bg: #182845;
+  --body-text: #dbeafe;
+  --panel-border: rgba(186, 230, 253, 0.14);
+  --panel-bg: rgba(32, 51, 84, 0.66);
   --app-ambient:
-    radial-gradient(circle at top left, rgba(34, 211, 238, 0.12), transparent 28%),
-    radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(7, 13, 27, 0.98), rgba(11, 19, 38, 1));
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 30%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(26, 45, 77, 0.98), rgba(20, 34, 58, 1));
 }
 
 .theme-light {
@@ -43,8 +43,8 @@
     @apply rounded-2xl bg-surface-muted/60 backdrop-blur-xl shadow-glass;
     border: 1px solid var(--panel-border);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 20px 60px rgba(2, 6, 23, 0.32);
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 18px 48px rgba(8, 20, 38, 0.24);
   }
 }
 
@@ -78,6 +78,70 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #31394d; }
+
+html[data-theme="dark"] .bg-slate-950\/95,
+html[data-theme="dark"] .bg-slate-950\/92,
+html[data-theme="dark"] .bg-slate-950\/90,
+html[data-theme="dark"] .bg-slate-950\/85,
+html[data-theme="dark"] .bg-slate-950\/80,
+html[data-theme="dark"] .bg-slate-950\/78,
+html[data-theme="dark"] .bg-slate-950\/75,
+html[data-theme="dark"] .bg-slate-950\/70,
+html[data-theme="dark"] .bg-slate-950\/65,
+html[data-theme="dark"] .bg-slate-950\/60,
+html[data-theme="dark"] .bg-slate-950\/55,
+html[data-theme="dark"] .bg-slate-950\/50,
+html[data-theme="dark"] .bg-slate-950\/45,
+html[data-theme="dark"] .bg-slate-950\/40,
+html[data-theme="dark"] .bg-slate-950\/35,
+html[data-theme="dark"] .bg-slate-950\/30,
+html[data-theme="dark"] .bg-slate-950\/20 {
+  background-color: rgba(28, 45, 76, 0.72);
+}
+
+html[data-theme="dark"] .bg-slate-900\/70,
+html[data-theme="dark"] .bg-slate-900\/60,
+html[data-theme="dark"] .bg-slate-900\/50,
+html[data-theme="dark"] .bg-slate-900\/40,
+html[data-theme="dark"] .bg-slate-900\/30 {
+  background-color: rgba(38, 60, 96, 0.62);
+}
+
+html[data-theme="dark"] .text-white {
+  color: #eff6ff;
+}
+
+html[data-theme="dark"] .text-slate-100,
+html[data-theme="dark"] .text-slate-200 {
+  color: #dbeafe;
+}
+
+html[data-theme="dark"] .text-slate-300 {
+  color: #c7d7ee;
+}
+
+html[data-theme="dark"] .text-slate-400 {
+  color: #9fb4d0;
+}
+
+html[data-theme="dark"] .text-slate-500 {
+  color: #7f95b2;
+}
+
+html[data-theme="dark"] .border-white\/5,
+html[data-theme="dark"] .border-white\/6,
+html[data-theme="dark"] .border-white\/8,
+html[data-theme="dark"] .border-white\/10 {
+  border-color: rgba(186, 230, 253, 0.14);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #35527a;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #44658f;
+}
 
 .theme-light .live-dot {
   background: rgb(var(--color-primary));
