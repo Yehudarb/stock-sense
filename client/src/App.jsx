@@ -221,9 +221,9 @@ export default function App() {
     share: isHebrew ? 'דוח לשיתוף' : 'Shareable report',
     copied: isHebrew ? 'הדוח הועתק' : 'Report copied',
     tabs: {
-      chart: isHebrew ? 'גרף וניתוח' : 'Chart & Analysis',
-      intelligence: isHebrew ? 'בינה מלאכותית' : 'AI Intelligence',
-      extended: isHebrew ? 'נתונים מורחבים' : 'Extended Data',
+      chart: isHebrew ? 'גרף' : 'Chart',
+      intelligence: isHebrew ? 'סיכום' : 'Summary',
+      extended: isHebrew ? 'פירוט' : 'Details',
     }
   }
 
@@ -463,7 +463,12 @@ export default function App() {
                   )}
 
                   {activeMainTab === 'extended' && (
-                    <div className="max-w-4xl mx-auto">
+                    <div className="max-w-4xl mx-auto space-y-4">
+                      <div className="rounded-2xl border border-white/6 bg-slate-950/35 px-4 py-3 text-sm text-slate-300">
+                        {isHebrew
+                          ? 'רק המידע המשלים שנחוץ כדי להבין את התמונה: סיגנל, הקשר שוק, ואירועים קרובים.'
+                          : 'Only the supporting context that helps explain the setup: signal, market context, and upcoming events.'}
+                      </div>
                       <AnalysisSidebar 
                         forecast={forecast}
                         marketContext={marketContext}
@@ -493,10 +498,10 @@ export default function App() {
 
             <div className="sticky bottom-4 z-40 mt-2 lg:hidden">
               <div className="mx-auto flex max-w-md items-center justify-between rounded-full border border-white/10 bg-slate-950/92 p-1 shadow-[0_20px_60px_rgba(2,6,23,0.45)] backdrop-blur-md">
-                {[
+                {[ 
                   { id: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
-                  { id: 'intelligence', label: isHebrew ? 'בינה' : 'AI' },
-                  { id: 'extended', label: isHebrew ? 'עוד' : 'More' },
+                  { id: 'intelligence', label: isHebrew ? 'סיכום' : 'Summary' },
+                  { id: 'extended', label: isHebrew ? 'פירוט' : 'Details' },
                 ].map(tab => (
                   <button
                     key={tab.id}

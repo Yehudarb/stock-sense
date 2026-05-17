@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useStore from '../../store/useStore'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
@@ -67,6 +67,59 @@ const INTERVAL_LABELS = {
   },
 }
 
+const OVERLAY_COLORS = {
+  candles: '#10b981',
+  line: '#38bdf8',
+  area: '#60a5fa',
+  sma20: '#EF9F27',
+  sma50: 'rgba(234, 179, 8, 0.95)',
+  sma200: 'rgba(99, 102, 241, 0.92)',
+  ema20: 'rgba(56, 189, 248, 0.92)',
+  ema50: '#8b5cf6',
+  ema200: 'rgba(167, 139, 250, 0.92)',
+  wma20: 'rgba(251, 191, 36, 0.86)',
+  wma50: 'rgba(245, 158, 11, 0.9)',
+  bbUpper: 'rgba(132, 204, 22, 0.95)',
+  bbMiddle: 'rgba(163, 230, 53, 0.8)',
+  bbLower: 'rgba(190, 242, 100, 0.95)',
+  vwap: '#2dd4bf',
+  supertrend: '#34d399',
+  ichimokuTenkan: '#60a5fa',
+  ichimokuKijun: '#f59e0b',
+  ichimokuSpanA: 'rgba(16, 185, 129, 0.85)',
+  ichimokuSpanB: 'rgba(239, 68, 68, 0.85)',
+  keltnerUpper: '#fb7185',
+  keltnerMiddle: '#fda4af',
+  keltnerLower: '#fecdd3',
+  donchianUpper: '#22d3ee',
+  donchianMiddle: '#67e8f9',
+  donchianLower: '#a5f3fc',
+  pivot: '#facc15',
+  previousHigh: '#fb923c',
+  previousLow: '#fdba74',
+  high52: '#f472b6',
+  low52: '#f9a8d4',
+  levels: '#f43f5e',
+  volume: '#38bdf8',
+  volumeMA: '#60a5fa',
+  rsi: '#378add',
+  macd: '#378add',
+  macdSignal: '#E24B4A',
+}
+
+function getBaseChartHeight(expanded) {
+  if (typeof window === 'undefined') return expanded ? 720 : 600
+  if (expanded) return Math.round(window.innerHeight * 0.72)
+  if (window.innerWidth < 640) return 400
+  if (window.innerWidth < 768) return 500
+  if (window.innerWidth < 1280) return 600
+  return 700
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value))
+}
+
 function SafeChart({ isLoading, resetKey, children }) {
   if (isLoading) {
     return (
@@ -96,6 +149,11 @@ function quietControlClass(active) {
 }
 
 function Group({ label, children }) {
+  const isDesktopViewport = typeof window !== 'undefined' && window.innerWidth >= 1024
+  const priceChartStyle = isDesktopViewport
+    ? { width: `${pricePanelWidthPct}%`, maxWidth: '100%' }
+    : undefined
+
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/85 p-4 shadow-[0_16px_40px_rgba(2,6,23,0.35)]">
       <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">{label}</div>
@@ -115,6 +173,15 @@ function LegendPill({ label, color, onRemove }) {
       <span>{label}</span>
       <span className="text-slate-500">x</span>
     </button>
+  )
+}
+
+function SeriesKey({ label, color }) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-slate-950/65 px-3 py-1.5 text-[11px] font-medium text-slate-200">
+      <span className="h-0.5 w-4 rounded-full" style={{ backgroundColor: color }} />
+      <span>{label}</span>
+    </div>
   )
 }
 
@@ -443,6 +510,10 @@ export default function ChartWorkspace({
   const [viewOffset, setViewOffset] = useState(0)
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [pricePanelWidthPct, setPricePanelWidthPct] = useState(100)
+  const [pricePanelHeightPx, setPricePanelHeightPx] = useState(null)
+  const [resizeState, setResizeState] = useState(null)
+  const pricePanelRef = useRef(null)
 
   const allPresets = useMemo(() => [...PRIMARY_PRESETS, ...INTRADAY_PRESETS], [])
   const activePreset = allPresets.find(item => item.id === selectedPresetId) ?? PRIMARY_PRESETS[0]
@@ -461,6 +532,42 @@ export default function ChartWorkspace({
     if (!ohlcv.length || interval !== activePreset.interval) return
     setVisibleBars(resolvePresetBars(activePreset, ohlcv))
   }, [activePreset, interval, ohlcv])
+
+  useEffect(() => {
+    setPricePanelWidthPct(100)
+    setPricePanelHeightPx(null)
+  }, [currentTicker, interval, chartExpanded])
+
+  useEffect(() => {
+    if (!resizeState) return undefined
+
+    const handlePointerMove = event => {
+      if (resizeState.type === 'width') {
+        const hostWidth = pricePanelRef.current?.parentElement?.clientWidth ?? window.innerWidth
+        const deltaPct = (event.clientX - resizeState.startX) / Math.max(hostWidth, 1) * 100
+        setPricePanelWidthPct(clamp(resizeState.startWidthPct + deltaPct, 58, 100))
+      }
+
+      if (resizeState.type === 'height') {
+        const nextHeight = clamp(
+          resizeState.startHeight + (event.clientY - resizeState.startY),
+          360,
+          Math.round(window.innerHeight * 0.92),
+        )
+        setPricePanelHeightPx(nextHeight)
+      }
+    }
+
+    const handlePointerUp = () => setResizeState(null)
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [resizeState])
 
   function handleSelectPreset(preset) {
     setSelectedPresetId(preset.id)
@@ -549,6 +656,18 @@ export default function ChartWorkspace({
     setMeasureMode(false)
   }
 
+  function startResize(type, event) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) return
+    event.preventDefault()
+    setResizeState({
+      type,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidthPct: pricePanelWidthPct,
+      startHeight: pricePanelHeightPx ?? getBaseChartHeight(chartExpanded),
+    })
+  }
+
   const coreIndicators = [
     ['📊 SMA', showSMA, () => setShowSMA(value => !value)],
     ['📈 EMA', showEMA, () => setShowEMA(value => !value)],
@@ -608,25 +727,38 @@ export default function ChartWorkspace({
   ]
 
   const activeLegend = [
-    chartType === 'candlestick' ? { label: 'Candles', color: '#10b981', action: () => setChartType('line') } : null,
-    chartType === 'line' ? { label: 'Line', color: '#38bdf8', action: () => setChartType('candlestick') } : null,
-    chartType === 'area' ? { label: 'Area', color: '#60a5fa', action: () => setChartType('candlestick') } : null,
-    showSMA ? { label: 'SMA 20/50/200', color: '#f59e0b', action: () => setShowSMA(false) } : null,
-    showEMA ? { label: 'EMA 20/50/200', color: '#a78bfa', action: () => setShowEMA(false) } : null,
-    showWMA ? { label: 'WMA 20/50', color: '#fbbf24', action: () => setShowWMA(false) } : null,
-    showBB ? { label: 'Bollinger Bands', color: '#84cc16', action: () => setShowBB(false) } : null,
-    showVWAP ? { label: 'VWAP', color: '#2dd4bf', action: () => setShowVWAP(false) } : null,
-    showSupertrend ? { label: 'Supertrend', color: '#34d399', action: () => setShowSupertrend(false) } : null,
-    showIchimoku ? { label: 'Ichimoku', color: '#60a5fa', action: () => setShowIchimoku(false) } : null,
-    showKeltner ? { label: 'Keltner', color: '#fb7185', action: () => setShowKeltner(false) } : null,
-    showDonchian ? { label: 'Donchian', color: '#22d3ee', action: () => setShowDonchian(false) } : null,
-    showLevels ? { label: 'Levels', color: '#f43f5e', action: () => setShowLevels(false) } : null,
-    showPivotPoints ? { label: 'Pivot Points', color: '#facc15', action: () => setShowPivotPoints(false) } : null,
-    showPrevHighLow ? { label: 'Prev H/L', color: '#fb923c', action: () => setShowPrevHighLow(false) } : null,
-    showHighLow52 ? { label: '52W H/L', color: '#f472b6', action: () => setShowHighLow52(false) } : null,
-    showVolume ? { label: 'Volume', color: '#38bdf8', action: () => setShowVolume(false) } : null,
-    showVolumeMA ? { label: 'Volume MA', color: '#60a5fa', action: () => setShowVolumeMA(false) } : null,
-    showRSI ? { label: 'RSI', color: '#60a5fa', action: () => setShowRSI(false) } : null,
+    chartType === 'candlestick' ? { label: 'Candles', color: OVERLAY_COLORS.candles, action: () => setChartType('line') } : null,
+    chartType === 'line' ? { label: 'Line', color: OVERLAY_COLORS.line, action: () => setChartType('candlestick') } : null,
+    chartType === 'area' ? { label: 'Area', color: OVERLAY_COLORS.area, action: () => setChartType('candlestick') } : null,
+    showSMA ? { label: 'SMA 20', color: OVERLAY_COLORS.sma20, action: () => setShowSMA(false) } : null,
+    showSMA ? { label: 'SMA 50', color: OVERLAY_COLORS.sma50, action: () => setShowSMA(false) } : null,
+    showSMA ? { label: 'SMA 200', color: OVERLAY_COLORS.sma200, action: () => setShowSMA(false) } : null,
+    showEMA ? { label: 'EMA 20', color: OVERLAY_COLORS.ema20, action: () => setShowEMA(false) } : null,
+    showEMA ? { label: 'EMA 50', color: OVERLAY_COLORS.ema50, action: () => setShowEMA(false) } : null,
+    showEMA ? { label: 'EMA 200', color: OVERLAY_COLORS.ema200, action: () => setShowEMA(false) } : null,
+    showWMA ? { label: 'WMA 20', color: OVERLAY_COLORS.wma20, action: () => setShowWMA(false) } : null,
+    showBB ? { label: 'BB Upper', color: OVERLAY_COLORS.bbUpper, action: () => setShowBB(false) } : null,
+    showBB ? { label: 'BB Mid', color: OVERLAY_COLORS.bbMiddle, action: () => setShowBB(false) } : null,
+    showBB ? { label: 'BB Lower', color: OVERLAY_COLORS.bbLower, action: () => setShowBB(false) } : null,
+    showVWAP ? { label: 'VWAP', color: OVERLAY_COLORS.vwap, action: () => setShowVWAP(false) } : null,
+    showSupertrend ? { label: 'Supertrend', color: OVERLAY_COLORS.supertrend, action: () => setShowSupertrend(false) } : null,
+    showIchimoku ? { label: 'Ichimoku Tenkan', color: OVERLAY_COLORS.ichimokuTenkan, action: () => setShowIchimoku(false) } : null,
+    showIchimoku ? { label: 'Ichimoku Kijun', color: OVERLAY_COLORS.ichimokuKijun, action: () => setShowIchimoku(false) } : null,
+    showKeltner ? { label: 'Keltner Upper', color: OVERLAY_COLORS.keltnerUpper, action: () => setShowKeltner(false) } : null,
+    showKeltner ? { label: 'Keltner Mid', color: OVERLAY_COLORS.keltnerMiddle, action: () => setShowKeltner(false) } : null,
+    showKeltner ? { label: 'Keltner Lower', color: OVERLAY_COLORS.keltnerLower, action: () => setShowKeltner(false) } : null,
+    showDonchian ? { label: 'Donchian Upper', color: OVERLAY_COLORS.donchianUpper, action: () => setShowDonchian(false) } : null,
+    showDonchian ? { label: 'Donchian Mid', color: OVERLAY_COLORS.donchianMiddle, action: () => setShowDonchian(false) } : null,
+    showDonchian ? { label: 'Donchian Lower', color: OVERLAY_COLORS.donchianLower, action: () => setShowDonchian(false) } : null,
+    showLevels ? { label: 'Levels', color: OVERLAY_COLORS.levels, action: () => setShowLevels(false) } : null,
+    showPivotPoints ? { label: 'Pivot Points', color: OVERLAY_COLORS.pivot, action: () => setShowPivotPoints(false) } : null,
+    showPrevHighLow ? { label: 'Prev High', color: OVERLAY_COLORS.previousHigh, action: () => setShowPrevHighLow(false) } : null,
+    showPrevHighLow ? { label: 'Prev Low', color: OVERLAY_COLORS.previousLow, action: () => setShowPrevHighLow(false) } : null,
+    showHighLow52 ? { label: '52W High', color: OVERLAY_COLORS.high52, action: () => setShowHighLow52(false) } : null,
+    showHighLow52 ? { label: '52W Low', color: OVERLAY_COLORS.low52, action: () => setShowHighLow52(false) } : null,
+    showVolume ? { label: 'Volume', color: OVERLAY_COLORS.volume, action: () => setShowVolume(false) } : null,
+    showVolumeMA ? { label: 'Volume MA', color: OVERLAY_COLORS.volumeMA, action: () => setShowVolumeMA(false) } : null,
+    showRSI ? { label: 'RSI', color: OVERLAY_COLORS.rsi, action: () => setShowRSI(false) } : null,
     showStochRsi ? { label: 'Stoch RSI', color: '#c084fc', action: () => setShowStochRsi(false) } : null,
     showADX ? { label: 'ADX', color: '#f97316', action: () => setShowADX(false) } : null,
     showOBV ? { label: 'OBV', color: '#10b981', action: () => setShowOBV(false) } : null,
@@ -637,7 +769,27 @@ export default function ChartWorkspace({
     showMFI ? { label: 'MFI', color: '#2dd4bf', action: () => setShowMFI(false) } : null,
     showCMF ? { label: 'CMF', color: '#22c55e', action: () => setShowCMF(false) } : null,
     showADL ? { label: 'A/D Line', color: '#818cf8', action: () => setShowADL(false) } : null,
-    showMACD ? { label: 'MACD', color: '#f472b6', action: () => setShowMACD(false) } : null,
+    showMACD ? { label: 'MACD', color: OVERLAY_COLORS.macd, action: () => setShowMACD(false) } : null,
+  ].filter(Boolean)
+
+  const mainChartKeys = [
+    showSMA ? { label: 'SMA 20', color: OVERLAY_COLORS.sma20 } : null,
+    showSMA ? { label: 'SMA 50', color: OVERLAY_COLORS.sma50 } : null,
+    showSMA ? { label: 'SMA 200', color: OVERLAY_COLORS.sma200 } : null,
+    showEMA ? { label: 'EMA 20', color: OVERLAY_COLORS.ema20 } : null,
+    showEMA ? { label: 'EMA 50', color: OVERLAY_COLORS.ema50 } : null,
+    showEMA ? { label: 'EMA 200', color: OVERLAY_COLORS.ema200 } : null,
+    showWMA ? { label: 'WMA 20', color: OVERLAY_COLORS.wma20 } : null,
+    showBB ? { label: 'BB Upper', color: OVERLAY_COLORS.bbUpper } : null,
+    showBB ? { label: 'BB Mid', color: OVERLAY_COLORS.bbMiddle } : null,
+    showBB ? { label: 'BB Lower', color: OVERLAY_COLORS.bbLower } : null,
+    showVWAP ? { label: 'VWAP', color: OVERLAY_COLORS.vwap } : null,
+    showSupertrend ? { label: 'Supertrend', color: OVERLAY_COLORS.supertrend } : null,
+    showPivotPoints ? { label: 'Pivot', color: OVERLAY_COLORS.pivot } : null,
+    showPrevHighLow ? { label: 'Prev High', color: OVERLAY_COLORS.previousHigh } : null,
+    showPrevHighLow ? { label: 'Prev Low', color: OVERLAY_COLORS.previousLow } : null,
+    showHighLow52 ? { label: '52W High', color: OVERLAY_COLORS.high52 } : null,
+    showHighLow52 ? { label: '52W Low', color: OVERLAY_COLORS.low52 } : null,
   ].filter(Boolean)
 
   const secondaryPanels = [
@@ -831,6 +983,11 @@ export default function ChartWorkspace({
         risk: 'Risk',
       }
 
+  const resolvedPriceChartHeight = pricePanelHeightPx ?? getBaseChartHeight(chartExpanded)
+  const resizeHint = language === 'he'
+    ? 'גרור מהצד או מהתחתית כדי לשנות את גודל הגרף'
+    : 'Drag the side or bottom rail to resize the chart'
+
   return (
     <section className="space-y-4">
 
@@ -891,7 +1048,11 @@ export default function ChartWorkspace({
         <ChartContainer
           title={chartCopy.priceChart}
           subtitle={chartCopy.priceChartSubtitle}
-          height={chartExpanded ? 'h-[72vh]' : 'h-[400px] sm:h-[500px] md:h-[600px] xl:h-[700px]'}
+          height="h-auto"
+          className="transition-[width] duration-150"
+          style={priceChartStyle}
+          bodyClassName="relative"
+          bodyStyle={{ height: `${resolvedPriceChartHeight}px` }}
           onWheel={handlePriceChartWheel}
           headerRight={(
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -902,10 +1063,35 @@ export default function ChartWorkspace({
             </div>
           )}
         >
+          <div className="mb-3 hidden items-center justify-between gap-3 text-xs text-slate-400 lg:flex">
+            <span>{resizeHint}</span>
+            <span>{Math.round(pricePanelWidthPct)}% · {resolvedPriceChartHeight}px</span>
+          </div>
           <div className="mb-2 flex items-center gap-2 text-sm text-slate-400 md:hidden">
             <span>{language === 'he' ? 'צופה ב-' : 'Viewing:'}</span>
             <strong className="text-white">{INTERVAL_LABELS[language]?.[interval] ?? interval}</strong>
           </div>
+          {mainChartKeys.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {mainChartKeys.map(item => <SeriesKey key={`${item.label}-${item.color}`} label={item.label} color={item.color} />)}
+            </div>
+          )}
+          <button
+            type="button"
+            aria-label="Resize chart width"
+            onPointerDown={event => startResize('width', event)}
+            className="absolute inset-y-8 right-1 z-10 hidden w-3 cursor-ew-resize items-center justify-center rounded-full lg:flex"
+          >
+            <span className="h-16 w-1 rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
+          </button>
+          <button
+            type="button"
+            aria-label="Resize chart height"
+            onPointerDown={event => startResize('height', event)}
+            className="absolute bottom-1 left-12 right-12 z-10 hidden h-3 cursor-ns-resize items-center justify-center rounded-full lg:flex"
+          >
+            <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
+          </button>
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
             <PriceChart
               ohlcv={ohlcv}
@@ -1021,6 +1207,10 @@ export default function ChartWorkspace({
             subtitle={chartCopy.volumeSubtitle}
             height="h-[170px] sm:h-[190px]"
           >
+            <div className="mb-3 flex flex-wrap gap-2">
+              <SeriesKey label="Volume" color={OVERLAY_COLORS.volume} />
+              {showVolumeMA && <SeriesKey label="Volume MA" color={OVERLAY_COLORS.volumeMA} />}
+            </div>
             <SafeChart isLoading={isLoading} resetKey={`volume-${chartResetKey}`}>
               <VolumeChart
                 ohlcv={ohlcv}
@@ -1044,6 +1234,11 @@ export default function ChartWorkspace({
                 subtitle={`RSI (14)${rsiLast != null ? ` · ${rsiLast.toFixed(1)}` : ''}`}
                 height="h-[190px]"
               >
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <SeriesKey label="RSI 14" color={OVERLAY_COLORS.rsi} />
+                  <SeriesKey label="70 overbought" color="rgba(244, 63, 94, 0.52)" />
+                  <SeriesKey label="30 oversold" color="rgba(16, 185, 129, 0.52)" />
+                </div>
                 <SafeChart isLoading={isLoading} resetKey={`rsi-${chartResetKey}`}>
                   <RsiChart
                     ohlcv={ohlcv}
@@ -1064,6 +1259,12 @@ export default function ChartWorkspace({
                 subtitle={`MACD (12, 26, 9)${macdLine != null && macdSignal != null ? ` · ${macdLine.toFixed(2)} / ${macdSignal.toFixed(2)}` : ''}`}
                 height="h-[190px]"
               >
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <SeriesKey label="MACD" color={OVERLAY_COLORS.macd} />
+                  <SeriesKey label="Signal" color={OVERLAY_COLORS.macdSignal} />
+                  <SeriesKey label="Histogram +" color="#22c55e" />
+                  <SeriesKey label="Histogram -" color="#ef4444" />
+                </div>
                 <SafeChart isLoading={isLoading} resetKey={`macd-${chartResetKey}`}>
                   <MacdChart
                     ohlcv={ohlcv}
@@ -1089,6 +1290,11 @@ export default function ChartWorkspace({
                 subtitle={panel.subtitle}
                 height="h-[180px]"
               >
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {panel.datasets.map(dataset => (
+                    <SeriesKey key={`${panel.key}-${dataset.label}`} label={dataset.label} color={dataset.color} />
+                  ))}
+                </div>
                 <SafeChart isLoading={isLoading} resetKey={`${panel.key}-${chartResetKey}`}>
                   <IndicatorLineChart
                     ohlcv={ohlcv}
