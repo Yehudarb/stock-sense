@@ -149,11 +149,6 @@ function quietControlClass(active) {
 }
 
 function Group({ label, children }) {
-  const isDesktopViewport = typeof window !== 'undefined' && window.innerWidth >= 1024
-  const priceChartStyle = isDesktopViewport
-    ? { width: `${pricePanelWidthPct}%`, maxWidth: '100%' }
-    : undefined
-
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/85 p-4 shadow-[0_16px_40px_rgba(2,6,23,0.35)]">
       <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">{label}</div>
@@ -984,6 +979,9 @@ export default function ChartWorkspace({
       }
 
   const resolvedPriceChartHeight = pricePanelHeightPx ?? getBaseChartHeight(chartExpanded)
+  const priceChartStyle = typeof window !== 'undefined' && window.innerWidth >= 1024
+    ? { width: `${pricePanelWidthPct}%`, maxWidth: '100%' }
+    : undefined
   const resizeHint = language === 'he'
     ? 'גרור מהצד או מהתחתית כדי לשנות את גודל הגרף'
     : 'Drag the side or bottom rail to resize the chart'
