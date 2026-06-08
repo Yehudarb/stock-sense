@@ -85,7 +85,7 @@ function pushRangeValues(values, source) {
   values.push(...(source ?? []).filter(value => value != null))
 }
 
-function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci, decision) {
+function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci, decision, demoLevels = []) {
   const values = []
 
   ohlcv?.forEach(bar => {
@@ -135,6 +135,10 @@ function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci,
     decision?.resistance,
   ].forEach(value => {
     if (value != null) values.push(value)
+  })
+
+  demoLevels.forEach(level => {
+    if (level?.price != null) values.push(level.price)
   })
 
   const min = Math.min(...values)
@@ -699,6 +703,35 @@ const priceLevelsPlugin = {
   },
 }
 
+const demoTradingPlugin = {
+  id: 'demoTrading',
+  afterDatasetsDraw(chart, _args, options) {
+    const levels = options?.levels ?? []
+    if (!levels.length) return
+
+    const { ctx, chartArea, scales } = chart
+    ctx.save()
+    levels.forEach((level, index) => {
+      if (level?.price == null) return
+      const y = scales.y.getPixelForValue(level.price)
+      if (!Number.isFinite(y) || y < chartArea.top || y > chartArea.bottom) return
+
+      ctx.beginPath()
+      ctx.moveTo(chartArea.left, y)
+      ctx.lineTo(chartArea.right, y)
+      ctx.strokeStyle = level.color
+      ctx.lineWidth = level.width ?? 1.4
+      ctx.setLineDash(level.dash ?? [4, 4])
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      const labelY = clamp(y - 10 - (index % 2) * 24, chartArea.top + 4, chartArea.bottom - 24)
+      drawLabel(ctx, level.label, chartArea.left + 12, labelY, level.color)
+    })
+    ctx.restore()
+  },
+}
+
 const zoneOverlayPlugin = {
   id: 'zoneOverlay',
   beforeDatasetsDraw(chart, _args, options) {
@@ -866,6 +899,7 @@ export default function PriceChart({
   showLevels = true,
   ticker,
   decision,
+  demoAccount,
   language = 'en',
   technicalAnalysis,
   interval,
@@ -908,6 +942,60 @@ export default function PriceChart({
     const isCandlestick = chartType === 'candlestick'
     const isArea = chartType === 'area'
     const lastBar = visibleOhlcv[visibleOhlcv.length - 1]
+    const demoOverlayLevels = [
+      ...((demoAccount?.pendingOrders ?? [])
+        .filter(order => order.ticker === ticker)
+        .map(order => ({
+          price: order.entryPrice,
+          color: order.side === 'short' ? 'rgba(248, 113, 113, 0.96)' : 'rgba(56, 189, 248, 0.96)',
+          label: language === 'he'
+            ? `${order.side === 'short' ? 'שורט' : 'לונג'} ${order.orderType === 'limit' ? 'לימיט' : 'סטופ'} ${formatOverlayPrice(order.entryPrice)}`
+            : `${order.side === 'short' ? 'Short' : 'Long'} ${order.orderType === 'limit' ? 'limit' : 'stop'} ${formatOverlayPrice(order.entryPrice)}`,
+          dash: order.orderType === 'limit' ? [3, 4] : [8, 4],
+        }))),
+      ...((demoAccount?.openPositions ?? [])
+        .filter(position => position.ticker === ticker)
+        .flatMap(position => ([
+          {
+            price: position.entryPrice,
+            color: position.side === 'short' ? 'rgba(251, 146, 60, 0.96)' : 'rgba(16, 185, 129, 0.96)',
+            label: language === 'he'
+              ? `${position.side === 'short' ? 'שורט' : 'לונג'} כניסה ${formatOverlayPrice(position.entryPrice)}`
+              : `${position.side === 'short' ? 'Short' : 'Long'} entry ${formatOverlayPrice(position.entryPrice)}`,
+            dash: [],
+            width: 1.8,
+          },
+          position.stopLoss != null
+            ? {
+                price: position.stopLoss,
+                color: 'rgba(244, 63, 94, 0.96)',
+                label: language === 'he' ? `סטופ ${formatOverlayPrice(position.stopLoss)}` : `Stop ${formatOverlayPrice(position.stopLoss)}`,
+                dash: [6, 4],
+              }
+            : null,
+          position.takeProfit != null
+            ? {
+                price: position.takeProfit,
+                color: 'rgba(34, 197, 94, 0.96)',
+                label: language === 'he' ? `יעד ${formatOverlayPrice(position.takeProfit)}` : `Target ${formatOverlayPrice(position.takeProfit)}`,
+                dash: [6, 4],
+              }
+            : null,
+        ].filter(Boolean)))),
+      ...((demoAccount?.closedTrades ?? [])
+        .filter(trade => trade.ticker === ticker)
+        .slice(0, 3)
+        .map(trade => ({
+          price: trade.exitPrice,
+          color: trade.realizedPnl >= 0 ? 'rgba(16, 185, 129, 0.75)' : 'rgba(244, 63, 94, 0.75)',
+          label: language === 'he'
+            ? `סגירה ${formatOverlayPrice(trade.exitPrice)}`
+            : `Close ${formatOverlayPrice(trade.exitPrice)}`,
+          dash: [2, 6],
+          width: 1,
+        }))),
+    ]
+
     const priceRange = applyPriceScale(buildPriceRange(visibleOhlcv, visibleIndicators, {
       showSMA,
       showEMA,
@@ -917,7 +1005,7 @@ export default function PriceChart({
       showIchimoku,
       showKeltner,
       showDonchian,
-    }, visiblePatterns, visibleGaps, fibonacci, decision), priceScale)
+    }, visiblePatterns, visibleGaps, fibonacci, decision, demoOverlayLevels), priceScale)
     const breakoutLevel = technicalAnalysis?.keyLevels?.breakoutLevels?.[0] ?? null
     const invalidationLevel = technicalAnalysis?.riskAssessment?.stopLoss ?? technicalAnalysis?.keyLevels?.stopLossDangerZones?.[0] ?? null
     const zoneCandidates = [
@@ -1312,6 +1400,9 @@ export default function PriceChart({
           priceLevels: {
             levels: levelCandidates,
           },
+          demoTrading: {
+            levels: demoOverlayLevels,
+          },
           zoneOverlay: {
             zones: showLevels ? zoneCandidates : [],
           },
@@ -1346,6 +1437,7 @@ export default function PriceChart({
         fibonacciPlugin,
         zoneOverlayPlugin,
         priceLevelsPlugin,
+        demoTradingPlugin,
         currentPricePlugin,
         dateRangePlugin,
         priceCrosshairPlugin,
@@ -1436,7 +1528,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, theme, isMobileViewport])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

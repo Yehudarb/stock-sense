@@ -509,6 +509,7 @@ export default function ChartWorkspace({
   indicators,
   signal,
   technicalAnalysis,
+  paperTradingAccount,
   isLoading,
 }) {
   const { setInterval, language } = useStore()
@@ -1268,6 +1269,7 @@ export default function ChartWorkspace({
               decision={signal?.decision}
               language={language}
               technicalAnalysis={technicalAnalysis}
+              demoAccount={paperTradingAccount}
               interval={interval}
               visibleBars={activeVisibleBars}
               viewOffset={viewOffset}

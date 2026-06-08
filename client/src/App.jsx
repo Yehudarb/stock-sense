@@ -16,6 +16,7 @@ import MarketTradeAlert from './components/analysis/MarketTradeAlert'
 import SignalPanel from './components/analysis/SignalPanel'
 import AdvancedTrendsPanel from './components/analysis/AdvancedTrendsPanel'
 import AnalysisResultCard from './components/analysis/AnalysisResultCard'
+import PaperTradingPanel from './components/analysis/PaperTradingPanel'
 import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
 import AnalysisSidebar from './components/analysis/AnalysisSidebar'
 import HeroSection from './components/marketing/HeroSection'
@@ -30,6 +31,7 @@ import TradeActionCard from './components/ui/TradeActionCard'
 import { fmtVolume, fmtPercent } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
+import usePaperTrading from './hooks/usePaperTrading'
 import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
 import { TRADER_TEXT } from './lib/traderColors'
 
@@ -104,6 +106,7 @@ export default function App() {
   const { data: multiTimeframe, isLoading: isMultiTimeframeLoading } = useMultiTimeframe(currentTicker)
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
   const { data: technicalAnalysis, isLoading: isTechnicalAnalysisLoading, error: technicalAnalysisError } = useTechnicalAnalysis(currentTicker)
+  const paperTrading = usePaperTrading(`${currentTicker}-${snapshot?.price ?? 'na'}`)
 
   const [fearGreed, setFearGreed] = useState(null)
   const [earnings, setEarnings] = useState(null)
@@ -226,6 +229,8 @@ export default function App() {
       extended: isHebrew ? 'פירוט' : 'Details',
     }
   }
+
+  copy.tabs.paper = isHebrew ? 'דמו' : 'Paper'
 
   const loadingSteps = useMemo(() => ([
     {
@@ -404,6 +409,7 @@ export default function App() {
                     { id: 'chart', label: copy.tabs.chart },
                     { id: 'intelligence', label: copy.tabs.intelligence },
                     { id: 'extended', label: copy.tabs.extended },
+                    { id: 'paper', label: copy.tabs.paper },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -431,6 +437,7 @@ export default function App() {
                         indicators={indicators}
                         signal={signal}
                         technicalAnalysis={technicalAnalysis}
+                        paperTradingAccount={paperTrading.account}
                         isLoading={isLoading}
                       />
                     </div>
@@ -482,6 +489,26 @@ export default function App() {
                       />
                     </div>
                   )}
+
+                  {activeMainTab === 'paper' && (
+                    <div className="space-y-6">
+                      <PaperTradingPanel
+                        currentTicker={currentTicker}
+                        snapshot={snapshot}
+                        decision={signal?.decision}
+                        language={language}
+                        account={paperTrading.account}
+                        isLoading={paperTrading.isLoading}
+                        isSaving={paperTrading.isSaving}
+                        error={paperTrading.error}
+                        onCreateOrder={paperTrading.createOrder}
+                        onCancelOrder={paperTrading.cancelOrder}
+                        onClosePosition={paperTrading.closePosition}
+                        onResetAccount={paperTrading.resetAccount}
+                        onUpdateSettings={paperTrading.updateSettings}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -502,6 +529,7 @@ export default function App() {
                   { id: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
                   { id: 'intelligence', label: isHebrew ? 'סיכום' : 'Summary' },
                   { id: 'extended', label: isHebrew ? 'פירוט' : 'Details' },
+                  { id: 'paper', label: isHebrew ? 'דמו' : 'Paper' },
                 ].map(tab => (
                   <button
                     key={tab.id}
