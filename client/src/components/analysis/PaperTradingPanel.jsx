@@ -207,6 +207,61 @@ function buildBotPlan({ account, currentTicker, snapshot, decision, language }) 
   }
 }
 
+function buildControlledBotPlan({ account, currentTicker, snapshot, decision, language, tradingBot }) {
+  const isEnglish = language === 'en'
+  const basePlan = buildBotPlan({ account, currentTicker, snapshot, decision, language })
+
+  if (!tradingBot) {
+    return {
+      ...basePlan,
+      mode: 'wait',
+      tone: 'neutral',
+      title: isEnglish ? 'Bot control loading' : 'בקרת בוט נטענת',
+      summary: isEnglish ? 'Loading professional bot controls.' : 'טוען את בקרת הבוט המקצועית.',
+      reason: isEnglish ? 'Waiting for bot state from server.' : 'ממתין למצב הבוט מהשרת.',
+      buttonLabel: isEnglish ? 'Loading' : 'טוען',
+    }
+  }
+
+  if (tradingBot.killSwitch) {
+    return {
+      ...basePlan,
+      mode: 'wait',
+      tone: 'danger',
+      title: isEnglish ? 'Kill switch active' : 'Kill Switch פעיל',
+      summary: isEnglish ? 'Automated bot actions are blocked.' : 'פעולות אוטומטיות של הבוט חסומות.',
+      reason: isEnglish ? 'Disable the kill switch before allowing the bot to execute paper trades.' : 'יש לכבות את ה-Kill Switch לפני שהבוט יבצע עסקאות דמו.',
+      buttonLabel: isEnglish ? 'Blocked' : 'חסום',
+    }
+  }
+
+  if (!tradingBot.botEnabled) {
+    return {
+      ...basePlan,
+      mode: 'wait',
+      tone: 'neutral',
+      title: isEnglish ? 'Bot is paused' : 'הבוט מושהה',
+      summary: isEnglish ? 'Enable the professional bot first.' : 'יש להפעיל קודם את הבוט המקצועי.',
+      reason: isEnglish ? 'Bot automation is currently disabled in the control panel.' : 'האוטומציה של הבוט כבויה כרגע בלוח הבקרה.',
+      buttonLabel: isEnglish ? 'Paused' : 'מושהה',
+    }
+  }
+
+  if (tradingBot.mode !== 'paper') {
+    return {
+      ...basePlan,
+      mode: 'wait',
+      tone: 'neutral',
+      title: isEnglish ? 'Paper mode required' : 'נדרש מצב Paper',
+      summary: isEnglish ? 'Bot execution is currently allowed only in paper mode.' : 'הבוט יכול לפעול כרגע רק במצב Paper.',
+      reason: isEnglish ? `Current mode is ${tradingBot.mode}.` : `המצב הנוכחי הוא ${tradingBot.mode}.`,
+      buttonLabel: isEnglish ? 'Switch mode' : 'החלף מצב',
+    }
+  }
+
+  return basePlan
+}
+
 function Field({ children, label }) {
   return (
     <label className="space-y-2 text-sm text-slate-300">
@@ -234,11 +289,17 @@ export default function PaperTradingPanel({
   isLoading,
   isSaving,
   error,
+  tradingBot,
+  tradingBotLoading = false,
+  tradingBotSaving = false,
+  tradingBotError = '',
   onCreateOrder,
   onCancelOrder,
   onClosePosition,
   onResetAccount,
   onUpdateSettings,
+  onUpdateBotSettings,
+  onRecordBotEvent,
 }) {
   const isEnglish = language === 'en'
   const [side, setSide] = useState('long')
@@ -250,6 +311,7 @@ export default function PaperTradingPanel({
   const [notes, setNotes] = useState('')
   const [message, setMessage] = useState('')
   const [settingsDraft, setSettingsDraft] = useState(null)
+  const [botDraft, setBotDraft] = useState(null)
 
   useEffect(() => {
     const defaults = buildOrderDefaults({ side: 'long', orderType: 'market', snapshot, decision })
@@ -282,6 +344,21 @@ export default function PaperTradingPanel({
       shortSellingEnabled: account.riskSettings.shortSellingEnabled,
     })
   }, [account?.riskSettings])
+
+  useEffect(() => {
+    if (!tradingBot) return
+    setBotDraft({
+      mode: tradingBot.mode,
+      botEnabled: tradingBot.botEnabled,
+      killSwitch: tradingBot.killSwitch,
+      activeStrategy: tradingBot.activeStrategy,
+      cooldownMinutes: tradingBot.cooldownMinutes,
+      maxDailyLossPct: tradingBot.maxDailyLossPct,
+      maxRiskPerTradePct: tradingBot.maxRiskPerTradePct,
+      alertsEnabled: tradingBot.alertsEnabled,
+      userConfirmedLiveTrading: tradingBot.userConfirmedLiveTrading,
+    })
+  }, [tradingBot])
 
   const copy = {
     badge: isEnglish ? 'Demo mode' : 'מצב דמו',
@@ -357,12 +434,28 @@ export default function PaperTradingPanel({
     helperShortLimit: isEnglish ? 'Short limit waits above the market for a rally entry.' : 'שורט לימיט ממתין מעל המחיר לכניסה בריבאונד.',
     helperLongStop: isEnglish ? 'Long stop entry triggers only after a breakout higher.' : 'סטופ לונג יופעל רק אחרי פריצה כלפי מעלה.',
     helperShortStop: isEnglish ? 'Short stop entry triggers only after a breakdown lower.' : 'סטופ שורט יופעל רק אחרי שבירה כלפי מטה.',
+    botControl: isEnglish ? 'Professional bot control' : 'בקרת בוט מקצועית',
+    botMode: isEnglish ? 'Mode' : 'מצב',
+    botEnabled: isEnglish ? 'Bot enabled' : 'הבוט פעיל',
+    killSwitch: isEnglish ? 'Kill switch' : 'Kill Switch',
+    strategy: isEnglish ? 'Strategy' : 'אסטרטגיה',
+    cooldown: isEnglish ? 'Cooldown minutes' : 'דקות קירור',
+    alertsEnabled: isEnglish ? 'Alerts enabled' : 'התראות פעילות',
+    liveDisabled: isEnglish ? 'Live trading disabled' : 'מסחר חי מושבת',
+    paperMode: isEnglish ? 'Paper' : 'Paper',
+    backtestMode: isEnglish ? 'Backtest' : 'Backtest',
+    liveMode: isEnglish ? 'Live (disabled by default)' : 'Live (כבוי כברירת מחדל)',
+    saveBot: isEnglish ? 'Save bot settings' : 'שמור הגדרות בוט',
+    botEvents: isEnglish ? 'Recent bot audit trail' : 'Audit trail אחרון של הבוט',
+    noBotEvents: isEnglish ? 'No bot events logged yet.' : 'עדיין לא נרשמו אירועי בוט.',
+    lastRun: isEnglish ? 'Last run' : 'ריצה אחרונה',
+    botSaved: isEnglish ? 'Bot settings updated.' : 'הגדרות הבוט עודכנו.',
   }
 
   const orderHelperText = side === 'long'
     ? (orderType === 'market' ? copy.helperLongMarket : orderType === 'limit' ? copy.helperLongLimit : copy.helperLongStop)
     : (orderType === 'market' ? copy.helperShortMarket : orderType === 'limit' ? copy.helperShortLimit : copy.helperShortStop)
-  const botPlan = buildBotPlan({ account, currentTicker, snapshot, decision, language })
+  const botPlan = buildControlledBotPlan({ account, currentTicker, snapshot, decision, language, tradingBot })
 
   async function handleCreateOrder(event) {
     event.preventDefault()
@@ -438,12 +531,45 @@ export default function PaperTradingPanel({
     setMessage('')
     try {
       if (botPlan.mode === 'open' && botPlan.orderPayload) {
-        await onCreateOrder(botPlan.orderPayload)
+        const nextAccount = await onCreateOrder(botPlan.orderPayload)
+        await onRecordBotEvent?.({
+          eventType: 'order_created',
+          ticker: currentTicker,
+          orderId: nextAccount?.openPositions?.[0]?.orderId ?? null,
+          message: `Bot opened ${botPlan.orderPayload.side} paper order on ${currentTicker}.`,
+          metadata: {
+            action: 'open',
+            side: botPlan.orderPayload.side,
+            quantity: botPlan.orderPayload.quantity,
+            strategy: tradingBot?.activeStrategy,
+          },
+        })
         setMessage(copy.created)
       } else if (botPlan.mode === 'close' && botPlan.positionId) {
         await onClosePosition(botPlan.positionId)
+        await onRecordBotEvent?.({
+          eventType: 'position_closed',
+          ticker: currentTicker,
+          message: `Bot closed paper position on ${currentTicker}.`,
+          metadata: {
+            action: 'close',
+            strategy: tradingBot?.activeStrategy,
+          },
+        })
         setMessage(copy.positionClosed)
       }
+    } catch (nextError) {
+      setMessage(nextError.message)
+    }
+  }
+
+  async function handleSaveBotSettings(event) {
+    event.preventDefault()
+    if (!botDraft) return
+    setMessage('')
+    try {
+      await onUpdateBotSettings?.(botDraft)
+      setMessage(copy.botSaved)
     } catch (nextError) {
       setMessage(nextError.message)
     }
@@ -523,6 +649,71 @@ export default function PaperTradingPanel({
             {botPlan.buttonLabel}
           </Button>
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/8 bg-slate-950/35 p-6">
+        <div className="text-sm font-bold text-white">{copy.botControl}</div>
+        {botDraft && (
+          <form className="mt-4 space-y-4" onSubmit={handleSaveBotSettings}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={copy.botMode}>
+                <select
+                  className="w-full rounded-2xl border border-white/8 bg-slate-950/55 px-4 py-3 text-white outline-none transition focus:border-primary/50"
+                  onChange={event => setBotDraft(current => ({ ...current, mode: event.target.value }))}
+                  value={botDraft.mode}
+                >
+                  <option value="paper">{copy.paperMode}</option>
+                  <option value="backtest">{copy.backtestMode}</option>
+                  <option value="live">{copy.liveMode}</option>
+                </select>
+              </Field>
+
+              <Field label={copy.strategy}>
+                <ControlInput onChange={event => setBotDraft(current => ({ ...current, activeStrategy: event.target.value }))} type="text" value={botDraft.activeStrategy} />
+              </Field>
+
+              <Field label={copy.cooldown}>
+                <ControlInput onChange={event => setBotDraft(current => ({ ...current, cooldownMinutes: event.target.value }))} step="1" type="number" value={botDraft.cooldownMinutes} />
+              </Field>
+
+              <Field label={copy.riskPerTradePct}>
+                <ControlInput onChange={event => setBotDraft(current => ({ ...current, maxRiskPerTradePct: event.target.value }))} step="0.1" type="number" value={botDraft.maxRiskPerTradePct} />
+              </Field>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
+                <input checked={botDraft.botEnabled} onChange={event => setBotDraft(current => ({ ...current, botEnabled: event.target.checked }))} type="checkbox" />
+                <span>{copy.botEnabled}</span>
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
+                <input checked={botDraft.killSwitch} onChange={event => setBotDraft(current => ({ ...current, killSwitch: event.target.checked }))} type="checkbox" />
+                <span>{copy.killSwitch}</span>
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
+                <input checked={botDraft.alertsEnabled} onChange={event => setBotDraft(current => ({ ...current, alertsEnabled: event.target.checked }))} type="checkbox" />
+                <span>{copy.alertsEnabled}</span>
+              </label>
+              <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                {copy.liveDisabled}: {tradingBot?.liveTradingEnabled ? 'ON' : 'OFF'}
+              </div>
+            </div>
+
+            {(tradingBotError || tradingBot?.warnings?.length) ? (
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                {tradingBotError || tradingBot.warnings.join(' ')}
+              </div>
+            ) : null}
+
+            <div className="text-xs text-slate-500">
+              {copy.lastRun}: {tradingBot?.lastRunAt ? new Date(tradingBot.lastRunAt).toLocaleString(isEnglish ? 'en-US' : 'he-IL') : '-'}
+            </div>
+
+            <Button disabled={isSaving || tradingBotSaving || tradingBotLoading} type="submit" variant="secondary">
+              {copy.saveBot}
+            </Button>
+          </form>
+        )}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -755,6 +946,26 @@ export default function PaperTradingPanel({
                 <div>{copy.closed}: {new Date(trade.closedAt).toLocaleString(isEnglish ? 'en-US' : 'he-IL')}</div>
                 <div>{copy.assumption}: {trade.executionAssumption}</div>
                 <div>{copy.notes}: {trade.notes || '-'}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/8 bg-slate-950/35 p-6">
+        <div className="text-sm font-bold text-white">{copy.botEvents}</div>
+        <div className="mt-4 space-y-3">
+          {(tradingBot?.recentEvents ?? []).length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/30 p-5 text-sm text-slate-400">{copy.noBotEvents}</div>
+          ) : tradingBot.recentEvents.map(event => (
+            <div key={event.id} className="rounded-2xl border border-white/8 bg-slate-950/45 p-4">
+              <div className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="text-white font-bold">{event.eventType}</div>
+                <div>{event.ticker ?? '-'}</div>
+                <div>{event.mode}</div>
+                <div>{event.strategyId ?? '-'}</div>
+                <div>{new Date(event.timestamp).toLocaleString(isEnglish ? 'en-US' : 'he-IL')}</div>
+                <div className="sm:col-span-2 xl:col-span-5">{event.message}</div>
               </div>
             </div>
           ))}

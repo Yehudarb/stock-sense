@@ -10,6 +10,7 @@ import rateLimit from 'express-rate-limit'
 import marketRouter from './routes/market.js'
 import watchlistRouter from './routes/watchlist.js'
 import paperTradingRouter from './routes/paperTrading.js'
+import tradingBotRouter from './routes/tradingBot.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { initSocketBridge } from './services/socketBridge.js'
 
@@ -47,6 +48,7 @@ app.use(rateLimit({
 app.use('/api/market', marketRouter)
 app.use('/api/watchlist', watchlistRouter)
 app.use('/api/paper-trading', paperTradingRouter)
+app.use('/api/trading-bot', tradingBotRouter)
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }))
 
 if (hasClientBuild) {

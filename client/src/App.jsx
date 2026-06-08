@@ -32,6 +32,7 @@ import { fmtVolume, fmtPercent } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
 import usePaperTrading from './hooks/usePaperTrading'
+import useTradingBot from './hooks/useTradingBot'
 import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
 import { TRADER_TEXT } from './lib/traderColors'
 
@@ -107,6 +108,7 @@ export default function App() {
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
   const { data: technicalAnalysis, isLoading: isTechnicalAnalysisLoading, error: technicalAnalysisError } = useTechnicalAnalysis(currentTicker)
   const paperTrading = usePaperTrading(`${currentTicker}-${snapshot?.price ?? 'na'}`)
+  const tradingBot = useTradingBot(currentTicker)
 
   const [fearGreed, setFearGreed] = useState(null)
   const [earnings, setEarnings] = useState(null)
@@ -501,11 +503,17 @@ export default function App() {
                         isLoading={paperTrading.isLoading}
                         isSaving={paperTrading.isSaving}
                         error={paperTrading.error}
+                        tradingBot={tradingBot.bot}
+                        tradingBotLoading={tradingBot.isLoading}
+                        tradingBotSaving={tradingBot.isSaving}
+                        tradingBotError={tradingBot.error}
                         onCreateOrder={paperTrading.createOrder}
                         onCancelOrder={paperTrading.cancelOrder}
                         onClosePosition={paperTrading.closePosition}
                         onResetAccount={paperTrading.resetAccount}
                         onUpdateSettings={paperTrading.updateSettings}
+                        onUpdateBotSettings={tradingBot.updateSettings}
+                        onRecordBotEvent={tradingBot.recordEvent}
                       />
                     </div>
                   )}
