@@ -24,6 +24,45 @@ function inputValue(value) {
   return value == null || Number.isNaN(Number(value)) ? '' : String(value)
 }
 
+function roundPrice(value) {
+  if (value == null || Number.isNaN(Number(value))) return ''
+  return String(Math.round(Number(value) * 100) / 100)
+}
+
+function buildOrderDefaults({ side, orderType, snapshot, decision }) {
+  const marketPrice = Number(snapshot?.price)
+  const fallbackPrice = Number(decision?.currentPrice)
+  const baseEntry = Number.isFinite(marketPrice) ? marketPrice : (Number.isFinite(fallbackPrice) ? fallbackPrice : null)
+  const longStop = Number(decision?.invalidation ?? decision?.stopLoss)
+  const longTarget = Number(decision?.takeProfit ?? decision?.holdUntil)
+  const fallbackRiskPct = Math.abs(Number(decision?.downsidePct)) > 0 ? Math.abs(Number(decision?.downsidePct)) / 100 : 0.02
+  const fallbackRewardPct = Math.abs(Number(decision?.upsidePct)) > 0 ? Math.abs(Number(decision?.upsidePct)) / 100 : 0.03
+
+  let entry = baseEntry
+  let stop = Number.isFinite(longStop) ? longStop : (Number.isFinite(baseEntry) ? baseEntry * (1 - fallbackRiskPct) : null)
+  let target = Number.isFinite(longTarget) ? longTarget : (Number.isFinite(baseEntry) ? baseEntry * (1 + fallbackRewardPct) : null)
+
+  if (side === 'short' && Number.isFinite(baseEntry)) {
+    const riskDistance = Number.isFinite(stop) ? Math.abs(baseEntry - stop) : baseEntry * fallbackRiskPct
+    const rewardDistance = Number.isFinite(target) ? Math.abs(target - baseEntry) : baseEntry * fallbackRewardPct
+    stop = baseEntry + riskDistance
+    target = Math.max(0.01, baseEntry - rewardDistance)
+  }
+
+  if ((orderType === 'limit' || orderType === 'stop') && Number.isFinite(baseEntry)) {
+    const offset = baseEntry * 0.003
+    entry = side === 'long'
+      ? (orderType === 'limit' ? baseEntry - offset : baseEntry + offset)
+      : (orderType === 'limit' ? baseEntry + offset : baseEntry - offset)
+  }
+
+  return {
+    entryPrice: roundPrice(entry),
+    stopLoss: roundPrice(stop),
+    takeProfit: roundPrice(target),
+  }
+}
+
 function Field({ children, label }) {
   return (
     <label className="space-y-2 text-sm text-slate-300">
@@ -69,11 +108,23 @@ export default function PaperTradingPanel({
   const [settingsDraft, setSettingsDraft] = useState(null)
 
   useEffect(() => {
-    setEntryPrice(inputValue(snapshot?.price))
-    setStopLoss(inputValue(decision?.invalidation ?? decision?.stopLoss))
-    setTakeProfit(inputValue(decision?.takeProfit ?? decision?.holdUntil))
+    const defaults = buildOrderDefaults({ side: 'long', orderType: 'market', snapshot, decision })
+    setSide('long')
+    setOrderType('market')
+    setEntryPrice(defaults.entryPrice)
+    setStopLoss(defaults.stopLoss)
+    setTakeProfit(defaults.takeProfit)
     setNotes('')
-  }, [currentTicker, snapshot?.price, decision?.invalidation, decision?.stopLoss, decision?.takeProfit, decision?.holdUntil])
+    setMessage('')
+  }, [currentTicker, snapshot?.price, decision?.currentPrice, decision?.invalidation, decision?.stopLoss, decision?.takeProfit, decision?.holdUntil, decision?.downsidePct, decision?.upsidePct])
+
+  useEffect(() => {
+    const defaults = buildOrderDefaults({ side, orderType, snapshot, decision })
+    setEntryPrice(defaults.entryPrice)
+    setStopLoss(defaults.stopLoss)
+    setTakeProfit(defaults.takeProfit)
+    setMessage('')
+  }, [side, orderType, snapshot, decision])
 
   useEffect(() => {
     if (!account?.riskSettings) return
@@ -156,7 +207,17 @@ export default function PaperTradingPanel({
     orderCancelled: isEnglish ? 'Pending order cancelled.' : 'הפקודה בוטלה.',
     resetDone: isEnglish ? 'Simulator reset complete.' : 'הסימולטור אופס.',
     currentSignal: isEnglish ? 'Prefilled from current analysis' : 'הוזן לפי הניתוח הנוכחי',
+    helperLongMarket: isEnglish ? 'Market long keeps stop below price and target above price.' : 'לונג מרקט שומר סטופ מתחת למחיר ויעד מעל המחיר.',
+    helperShortMarket: isEnglish ? 'Market short keeps stop above price and target below price.' : 'שורט מרקט שומר סטופ מעל המחיר ויעד מתחת למחיר.',
+    helperLongLimit: isEnglish ? 'Long limit waits below the market for a pullback entry.' : 'לונג לימיט ממתין מתחת למחיר לכניסת פולבק.',
+    helperShortLimit: isEnglish ? 'Short limit waits above the market for a rally entry.' : 'שורט לימיט ממתין מעל המחיר לכניסה בריבאונד.',
+    helperLongStop: isEnglish ? 'Long stop entry triggers only after a breakout higher.' : 'סטופ לונג יופעל רק אחרי פריצה כלפי מעלה.',
+    helperShortStop: isEnglish ? 'Short stop entry triggers only after a breakdown lower.' : 'סטופ שורט יופעל רק אחרי שבירה כלפי מטה.',
   }
+
+  const orderHelperText = side === 'long'
+    ? (orderType === 'market' ? copy.helperLongMarket : orderType === 'limit' ? copy.helperLongLimit : copy.helperLongStop)
+    : (orderType === 'market' ? copy.helperShortMarket : orderType === 'limit' ? copy.helperShortLimit : copy.helperShortStop)
 
   async function handleCreateOrder(event) {
     event.preventDefault()
@@ -356,6 +417,10 @@ export default function PaperTradingPanel({
                   value={notes}
                 />
               </Field>
+            </div>
+
+            <div className="rounded-2xl border border-cyan-400/18 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100">
+              {orderHelperText}
             </div>
 
             {(error || message) ? (
