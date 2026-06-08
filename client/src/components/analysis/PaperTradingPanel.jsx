@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Button from '../ui/Button'
+import Card from '../ui/Card'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import { TRADER_TEXT } from '../../lib/traderColors'
 
@@ -10,6 +11,53 @@ function MetricCard({ label, value, accent = 'text-white', subtext = '' }) {
       <div className={`mt-2 text-2xl font-black tracking-tight ${accent}`}>{value}</div>
       {subtext ? <div className="mt-1 text-xs text-slate-500">{subtext}</div> : null}
     </div>
+  )
+}
+
+function SectionHeader({ eyebrow, title, description, action = null }) {
+  return (
+    <div className="flex flex-col gap-4 border-b border-white/8 pb-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        {eyebrow ? <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-200/80">{eyebrow}</div> : null}
+        <div className="mt-1 text-lg font-black tracking-tight text-white">{title}</div>
+        {description ? <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">{description}</p> : null}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+function StatusPill({ children, tone = 'neutral' }) {
+  const toneClass = {
+    neutral: 'border-white/10 bg-slate-950/45 text-slate-200',
+    positive: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
+    danger: 'border-rose-400/20 bg-rose-400/10 text-rose-200',
+    info: 'border-cyan-400/20 bg-cyan-400/10 text-cyan-100',
+    warning: 'border-amber-400/20 bg-amber-400/10 text-amber-100',
+  }
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${toneClass[tone] ?? toneClass.neutral}`}>
+      {children}
+    </span>
+  )
+}
+
+function SegmentedOption({ active, children, onClick, tone = 'primary' }) {
+  const activeClass = tone === 'positive'
+    ? 'border-emerald-300/60 bg-emerald-400/18 text-emerald-100 shadow-[0_10px_24px_rgba(16,185,129,0.15)]'
+    : 'border-cyan-300/60 bg-cyan-400/16 text-cyan-50 shadow-[0_10px_24px_rgba(56,189,248,0.14)]'
+
+  return (
+    <button
+      className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-bold transition-all ${
+        active ? activeClass : 'border-white/8 bg-slate-950/45 text-slate-300 hover:border-white/14 hover:text-white'
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {children}
+    </button>
   )
 }
 
@@ -456,6 +504,9 @@ export default function PaperTradingPanel({
     ? (orderType === 'market' ? copy.helperLongMarket : orderType === 'limit' ? copy.helperLongLimit : copy.helperLongStop)
     : (orderType === 'market' ? copy.helperShortMarket : orderType === 'limit' ? copy.helperShortLimit : copy.helperShortStop)
   const botPlan = buildControlledBotPlan({ account, currentTicker, snapshot, decision, language, tradingBot })
+  const marketPrice = Number(snapshot?.price ?? decision?.currentPrice)
+  const activePosition = account?.openPositions?.find(position => position.ticker === currentTicker) ?? null
+  const pendingForTicker = (account?.pendingOrders ?? []).filter(order => order.ticker === currentTicker)
 
   async function handleCreateOrder(event) {
     event.preventDefault()
@@ -619,42 +670,87 @@ export default function PaperTradingPanel({
         </div>
       </section>
 
-      <section className={`rounded-3xl border p-6 ${
+      <Card className={`rounded-3xl p-6 ${
         botPlan.tone === 'positive'
-          ? 'border-emerald-400/18 bg-emerald-400/8'
+          ? 'border-emerald-400/18 bg-[linear-gradient(180deg,rgba(16,185,129,0.14),rgba(15,23,42,0.92))]'
           : botPlan.tone === 'danger'
-            ? 'border-rose-400/18 bg-rose-400/8'
-            : 'border-amber-300/18 bg-amber-300/8'
+            ? 'border-rose-400/18 bg-[linear-gradient(180deg,rgba(244,63,94,0.14),rgba(15,23,42,0.92))]'
+            : 'border-amber-300/18 bg-[linear-gradient(180deg,rgba(245,158,11,0.12),rgba(15,23,42,0.92))]'
       }`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-200">{botPlan.badge}</div>
-            <div className="mt-2 text-2xl font-black text-white">{botPlan.title}</div>
-            <p className="mt-2 text-sm text-slate-200">{botPlan.summary}</p>
-            <p className="mt-2 text-sm text-slate-300">{botPlan.reason}</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-200">
-              <span className="rounded-full border border-white/10 bg-slate-950/30 px-3 py-1">
-                {isEnglish ? `Suggested size: ${botPlan.recommendedQuantity}` : `כמות מוצעת: ${botPlan.recommendedQuantity}`}
-              </span>
-              <span className="rounded-full border border-white/10 bg-slate-950/30 px-3 py-1">
-                {botPlan.warning}
-              </span>
-            </div>
-          </div>
-          <Button
-            disabled={isSaving || !['open', 'close'].includes(botPlan.mode)}
-            onClick={handleBotAction}
-            variant={botPlan.tone === 'danger' ? 'secondary' : 'primary'}
-          >
-            {botPlan.buttonLabel}
-          </Button>
-        </div>
-      </section>
+        <SectionHeader
+          eyebrow={botPlan.badge}
+          title={botPlan.title}
+          description={botPlan.summary}
+          action={(
+            <Button
+              disabled={isSaving || !['open', 'close'].includes(botPlan.mode)}
+              onClick={handleBotAction}
+              variant={botPlan.tone === 'danger' ? 'secondary' : 'primary'}
+            >
+              {botPlan.buttonLabel}
+            </Button>
+          )}
+        />
 
-      <section className="rounded-3xl border border-white/8 bg-slate-950/35 p-6">
-        <div className="text-sm font-bold text-white">{copy.botControl}</div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.orderTicket}</div>
+            <div className="mt-2 text-2xl font-black text-white">{currentTicker}</div>
+            <div className="mt-1 text-xs text-slate-400">{Number.isFinite(marketPrice) ? fmtPrice(marketPrice) : '-'}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.pendingOrders}</div>
+            <div className="mt-2 text-2xl font-black text-white">{pendingForTicker.length}</div>
+            <div className="mt-1 text-xs text-slate-400">{copy.status}: {tradingBot?.mode ?? copy.paperMode}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.openPositions}</div>
+            <div className="mt-2 text-2xl font-black text-white">{activePosition ? 1 : 0}</div>
+            <div className="mt-1 text-xs text-slate-400">{activePosition ? `${copy.side}: ${activePosition.side === 'long' ? copy.long : copy.short}` : copy.noOpen}</div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/8 bg-slate-950/35 p-4">
+          <div className="flex flex-wrap gap-2">
+            <StatusPill tone={botPlan.tone === 'positive' ? 'positive' : botPlan.tone === 'danger' ? 'danger' : 'warning'}>
+              {`Suggested size ${botPlan.recommendedQuantity}`}
+            </StatusPill>
+            <StatusPill tone="info">{botPlan.warning}</StatusPill>
+            <StatusPill tone={tradingBot?.killSwitch ? 'danger' : 'positive'}>
+              {copy.killSwitch}: {tradingBot?.killSwitch ? 'ON' : 'OFF'}
+            </StatusPill>
+          </div>
+          <p className="mt-4 text-sm leading-6 text-slate-300">{botPlan.reason}</p>
+        </div>
+      </Card>
+
+      <Card className="rounded-3xl p-6">
+        <SectionHeader
+          eyebrow={copy.botMode}
+          title={copy.botControl}
+          description={copy.noAdvice}
+        />
         {botDraft && (
-          <form className="mt-4 space-y-4" onSubmit={handleSaveBotSettings}>
+          <form className="mt-5 space-y-4" onSubmit={handleSaveBotSettings}>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.botMode}</div>
+                <div className="mt-2"><StatusPill tone="info">{botDraft.mode}</StatusPill></div>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.strategy}</div>
+                <div className="mt-2 text-sm font-semibold text-white">{botDraft.activeStrategy}</div>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.cooldown}</div>
+                <div className="mt-2 text-sm font-semibold text-white">{botDraft.cooldownMinutes}</div>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.riskPerTradePct}</div>
+                <div className="mt-2 text-sm font-semibold text-white">{botDraft.maxRiskPerTradePct}%</div>
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={copy.botMode}>
                 <select
@@ -682,17 +778,17 @@ export default function PaperTradingPanel({
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex items-center gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
-                <input checked={botDraft.botEnabled} onChange={event => setBotDraft(current => ({ ...current, botEnabled: event.target.checked }))} type="checkbox" />
+              <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
                 <span>{copy.botEnabled}</span>
+                <input checked={botDraft.botEnabled} onChange={event => setBotDraft(current => ({ ...current, botEnabled: event.target.checked }))} type="checkbox" />
               </label>
-              <label className="flex items-center gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
-                <input checked={botDraft.killSwitch} onChange={event => setBotDraft(current => ({ ...current, killSwitch: event.target.checked }))} type="checkbox" />
+              <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
                 <span>{copy.killSwitch}</span>
+                <input checked={botDraft.killSwitch} onChange={event => setBotDraft(current => ({ ...current, killSwitch: event.target.checked }))} type="checkbox" />
               </label>
-              <label className="flex items-center gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
-                <input checked={botDraft.alertsEnabled} onChange={event => setBotDraft(current => ({ ...current, alertsEnabled: event.target.checked }))} type="checkbox" />
+              <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
                 <span>{copy.alertsEnabled}</span>
+                <input checked={botDraft.alertsEnabled} onChange={event => setBotDraft(current => ({ ...current, alertsEnabled: event.target.checked }))} type="checkbox" />
               </label>
               <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
                 {copy.liveDisabled}: {tradingBot?.liveTradingEnabled ? 'ON' : 'OFF'}
@@ -705,8 +801,11 @@ export default function PaperTradingPanel({
               </div>
             ) : null}
 
-            <div className="text-xs text-slate-500">
-              {copy.lastRun}: {tradingBot?.lastRunAt ? new Date(tradingBot.lastRunAt).toLocaleString(isEnglish ? 'en-US' : 'he-IL') : '-'}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-slate-950/35 px-4 py-3 text-xs text-slate-400">
+              <span>{copy.lastRun}: {tradingBot?.lastRunAt ? new Date(tradingBot.lastRunAt).toLocaleString(isEnglish ? 'en-US' : 'he-IL') : '-'}</span>
+              <StatusPill tone={tradingBot?.botEnabled ? 'positive' : 'neutral'}>
+                {tradingBot?.botEnabled ? copy.botEnabled : copy.status}
+              </StatusPill>
             </div>
 
             <Button disabled={isSaving || tradingBotSaving || tradingBotLoading} type="submit" variant="secondary">
@@ -714,60 +813,74 @@ export default function PaperTradingPanel({
             </Button>
           </form>
         )}
-      </section>
+      </Card>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <section className="rounded-3xl border border-white/8 bg-slate-950/35 p-6">
-          <div className="text-sm font-bold text-white">{copy.orderTicket}</div>
-          <div className="mt-1 text-xs text-slate-500">{currentTicker} · {copy.currentSignal}</div>
+          <SectionHeader
+            eyebrow={currentTicker}
+            title={copy.orderTicket}
+            description={`${copy.currentSignal}${Number.isFinite(marketPrice) ? ` · ${fmtPrice(marketPrice)}` : ''}`}
+          />
 
           <form className="mt-5 space-y-4" onSubmit={handleCreateOrder}>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.side}</div>
+                <div className="mt-2 text-sm font-semibold text-white">{side === 'long' ? copy.long : copy.short}</div>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.orderType}</div>
+                <div className="mt-2 text-sm font-semibold text-white">{copy[orderType]}</div>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{copy.riskPerTradePct}</div>
+                <div className="mt-2 text-sm font-semibold text-white">{account?.riskSettings?.riskPerTradePct ?? '-'}%</div>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={copy.side}>
-                <div className="flex gap-2">
+                <div className="rounded-3xl border border-white/8 bg-slate-950/35 p-2">
+                  <div className="flex gap-2">
                   {[
                     { id: 'long', label: copy.long },
                     { id: 'short', label: copy.short },
                   ].map(option => (
-                    <button
+                    <SegmentedOption
                       key={option.id}
-                      className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-bold transition-all ${
-                        side === option.id
-                          ? 'border-primary bg-primary/20 text-primary'
-                          : 'border-white/8 bg-slate-950/45 text-slate-300'
-                      }`}
+                      active={side === option.id}
                       onClick={() => setSide(option.id)}
-                      type="button"
+                      tone="primary"
                     >
                       {option.label}
-                    </button>
+                    </SegmentedOption>
                   ))}
+                  </div>
                 </div>
               </Field>
 
               <Field label={copy.orderType}>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-3xl border border-white/8 bg-slate-950/35 p-2">
+                  <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'market', label: copy.market },
                     { id: 'limit', label: copy.limit },
                     { id: 'stop', label: copy.stop },
                   ].map(option => (
-                    <button
+                    <SegmentedOption
                       key={option.id}
-                      className={`rounded-2xl border px-3 py-3 text-sm font-bold transition-all ${
-                        orderType === option.id
-                          ? 'border-emerald-400 bg-emerald-400/15 text-emerald-200'
-                          : 'border-white/8 bg-slate-950/45 text-slate-300'
-                      }`}
+                      active={orderType === option.id}
                       onClick={() => {
                         setOrderType(option.id)
                         if (option.id === 'market') setEntryPrice(inputValue(snapshot?.price))
                       }}
-                      type="button"
+                      tone="positive"
                     >
                       {option.label}
-                    </button>
+                    </SegmentedOption>
                   ))}
+                  </div>
                 </div>
               </Field>
 
