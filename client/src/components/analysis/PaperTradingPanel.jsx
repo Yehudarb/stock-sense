@@ -63,6 +63,150 @@ function buildOrderDefaults({ side, orderType, snapshot, decision }) {
   }
 }
 
+function computeBotQuantity({ snapshotPrice, stopLoss, settings, equity }) {
+  const price = Number(snapshotPrice)
+  const stop = Number(stopLoss)
+  const riskPct = Number(settings?.riskPerTradePct ?? 1)
+  if (!Number.isFinite(price) || !Number.isFinite(stop) || price <= 0 || stop <= 0 || !Number.isFinite(equity) || equity <= 0) {
+    return 1
+  }
+
+  const riskPerShare = Math.abs(price - stop)
+  if (!riskPerShare) return 1
+
+  const maxRisk = equity * (riskPct / 100)
+  const qty = Math.floor(maxRisk / riskPerShare)
+  return Math.max(1, Math.min(5000, qty))
+}
+
+function buildBotPlan({ account, currentTicker, snapshot, decision, language }) {
+  const isEnglish = language === 'en'
+  const position = account?.openPositions?.find(item => item.ticker === currentTicker) ?? null
+  const currentPrice = Number(snapshot?.price ?? decision?.currentPrice)
+  const stopLoss = Number(decision?.invalidation ?? decision?.stopLoss)
+  const takeProfit = Number(decision?.takeProfit ?? decision?.holdUntil)
+  const recommendedQuantity = computeBotQuantity({
+    snapshotPrice: currentPrice,
+    stopLoss,
+    settings: account?.riskSettings,
+    equity: Number(account?.equity ?? account?.cash),
+  })
+
+  const base = {
+    badge: isEnglish ? 'Demo Bot' : 'בוט דמו',
+    warning: isEnglish ? 'Educational assistant only. Not live trading.' : 'עוזר לימודי בלבד. לא מסחר חי.',
+    recommendedQuantity,
+  }
+
+  if (position) {
+    const shouldExitLong = position.side === 'long' && ['SELL', 'STRONG_SELL'].includes(decision?.action)
+    const shouldExitShort = position.side === 'short' && ['BUY', 'STRONG_BUY'].includes(decision?.action)
+    const stopBreached = position.side === 'long'
+      ? currentPrice <= Number(position.stopLoss)
+      : currentPrice >= Number(position.stopLoss)
+    const targetReached = position.takeProfit != null && (
+      position.side === 'long'
+        ? currentPrice >= Number(position.takeProfit)
+        : currentPrice <= Number(position.takeProfit)
+    )
+
+    if (shouldExitLong || shouldExitShort || stopBreached || targetReached) {
+      return {
+        ...base,
+        mode: 'close',
+        tone: 'danger',
+        title: isEnglish ? 'Bot suggests exit' : 'הבוט מציע יציאה',
+        summary: isEnglish
+          ? `Close the current ${position.side} demo position on ${currentTicker}.`
+          : `לסגור את פוזיציית ה-${position.side === 'long' ? 'לונג' : 'שורט'} הנוכחית ב-${currentTicker}.`,
+        reason: targetReached
+          ? (isEnglish ? 'Target was reached.' : 'היעד הושג.')
+          : stopBreached
+            ? (isEnglish ? 'Stop was breached.' : 'הסטופ נשבר.')
+            : isEnglish
+              ? 'The current signal flipped against the open position.'
+              : 'הסיגנל הנוכחי התהפך נגד הפוזיציה הפתוחה.',
+        buttonLabel: isEnglish ? 'Close with bot' : 'סגור עם הבוט',
+        positionId: position.id,
+      }
+    }
+
+    return {
+      ...base,
+      mode: 'hold',
+      tone: 'neutral',
+      title: isEnglish ? 'Bot suggests hold' : 'הבוט מציע להחזיק',
+      summary: isEnglish
+        ? `Keep the ${position.side} demo position open while the setup remains valid.`
+        : `להשאיר את פוזיציית ה-${position.side === 'long' ? 'לונג' : 'שורט'} פתוחה כל עוד הסטאפ נשאר תקין.`,
+      reason: isEnglish
+        ? 'Signal still aligns with the open position. Monitor stop and target.'
+        : 'הסיגנל עדיין תומך בפוזיציה. לעקוב אחרי הסטופ והיעד.',
+      buttonLabel: isEnglish ? 'No action now' : 'אין פעולה כרגע',
+    }
+  }
+
+  if (['BUY', 'STRONG_BUY'].includes(decision?.action)) {
+    return {
+      ...base,
+      mode: 'open',
+      tone: 'positive',
+      title: isEnglish ? 'Bot suggests long entry' : 'הבוט מציע כניסת לונג',
+      summary: isEnglish ? `Open a demo long on ${currentTicker}.` : `לפתוח עסקת לונג דמו ב-${currentTicker}.`,
+      reason: isEnglish
+        ? `Current signal is ${decision?.primaryAction ?? 'bullish'} with defined stop and target.`
+        : `הסיגנל הנוכחי הוא ${decision?.primaryAction ?? 'חיובי'} עם סטופ ויעד מוגדרים.`,
+      buttonLabel: isEnglish ? 'Open long with bot' : 'פתח לונג עם הבוט',
+      orderPayload: {
+        ticker: currentTicker,
+        side: 'long',
+        orderType: 'market',
+        quantity: recommendedQuantity,
+        entryPrice: currentPrice,
+        stopLoss,
+        takeProfit,
+        notes: isEnglish ? 'Demo Bot long setup' : 'סטאפ לונג של בוט דמו',
+      },
+    }
+  }
+
+  if (['SELL', 'STRONG_SELL'].includes(decision?.action) && account?.riskSettings?.shortSellingEnabled) {
+    return {
+      ...base,
+      mode: 'open',
+      tone: 'danger',
+      title: isEnglish ? 'Bot suggests short entry' : 'הבוט מציע כניסת שורט',
+      summary: isEnglish ? `Open a demo short on ${currentTicker}.` : `לפתוח עסקת שורט דמו ב-${currentTicker}.`,
+      reason: isEnglish
+        ? 'The active signal is bearish and short selling is enabled in demo mode.'
+        : 'הסיגנל הפעיל דובי ומסחר שורט מופעל במצב דמו.',
+      buttonLabel: isEnglish ? 'Open short with bot' : 'פתח שורט עם הבוט',
+      orderPayload: {
+        ticker: currentTicker,
+        side: 'short',
+        orderType: 'market',
+        quantity: recommendedQuantity,
+        entryPrice: currentPrice,
+        stopLoss,
+        takeProfit,
+        notes: isEnglish ? 'Demo Bot short setup' : 'סטאפ שורט של בוט דמו',
+      },
+    }
+  }
+
+  return {
+    ...base,
+    mode: 'wait',
+    tone: 'neutral',
+    title: isEnglish ? 'Bot suggests waiting' : 'הבוט מציע להמתין',
+    summary: isEnglish ? `No clean demo setup on ${currentTicker} right now.` : `אין כרגע סטאפ דמו נקי ב-${currentTicker}.`,
+    reason: isEnglish
+      ? 'Current signal does not justify a new entry.'
+      : 'הסיגנל הנוכחי לא מצדיק כניסה חדשה.',
+    buttonLabel: isEnglish ? 'Wait for setup' : 'המתן לסטאפ',
+  }
+}
+
 function Field({ children, label }) {
   return (
     <label className="space-y-2 text-sm text-slate-300">
@@ -218,6 +362,7 @@ export default function PaperTradingPanel({
   const orderHelperText = side === 'long'
     ? (orderType === 'market' ? copy.helperLongMarket : orderType === 'limit' ? copy.helperLongLimit : copy.helperLongStop)
     : (orderType === 'market' ? copy.helperShortMarket : orderType === 'limit' ? copy.helperShortLimit : copy.helperShortStop)
+  const botPlan = buildBotPlan({ account, currentTicker, snapshot, decision, language })
 
   async function handleCreateOrder(event) {
     event.preventDefault()
@@ -289,6 +434,21 @@ export default function PaperTradingPanel({
     }
   }
 
+  async function handleBotAction() {
+    setMessage('')
+    try {
+      if (botPlan.mode === 'open' && botPlan.orderPayload) {
+        await onCreateOrder(botPlan.orderPayload)
+        setMessage(copy.created)
+      } else if (botPlan.mode === 'close' && botPlan.positionId) {
+        await onClosePosition(botPlan.positionId)
+        setMessage(copy.positionClosed)
+      }
+    } catch (nextError) {
+      setMessage(nextError.message)
+    }
+  }
+
   if (isLoading && !account) {
     return (
       <div className="rounded-3xl border border-white/8 bg-slate-950/40 p-6 text-sm text-slate-300">
@@ -330,6 +490,38 @@ export default function PaperTradingPanel({
 
         <div className="mt-3 text-xs text-slate-500">
           {copy.updated}: {account.updatedAt ? new Date(account.updatedAt).toLocaleString(isEnglish ? 'en-US' : 'he-IL') : '-'}
+        </div>
+      </section>
+
+      <section className={`rounded-3xl border p-6 ${
+        botPlan.tone === 'positive'
+          ? 'border-emerald-400/18 bg-emerald-400/8'
+          : botPlan.tone === 'danger'
+            ? 'border-rose-400/18 bg-rose-400/8'
+            : 'border-amber-300/18 bg-amber-300/8'
+      }`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-200">{botPlan.badge}</div>
+            <div className="mt-2 text-2xl font-black text-white">{botPlan.title}</div>
+            <p className="mt-2 text-sm text-slate-200">{botPlan.summary}</p>
+            <p className="mt-2 text-sm text-slate-300">{botPlan.reason}</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-200">
+              <span className="rounded-full border border-white/10 bg-slate-950/30 px-3 py-1">
+                {isEnglish ? `Suggested size: ${botPlan.recommendedQuantity}` : `כמות מוצעת: ${botPlan.recommendedQuantity}`}
+              </span>
+              <span className="rounded-full border border-white/10 bg-slate-950/30 px-3 py-1">
+                {botPlan.warning}
+              </span>
+            </div>
+          </div>
+          <Button
+            disabled={isSaving || !['open', 'close'].includes(botPlan.mode)}
+            onClick={handleBotAction}
+            variant={botPlan.tone === 'danger' ? 'secondary' : 'primary'}
+          >
+            {botPlan.buttonLabel}
+          </Button>
         </div>
       </section>
 
