@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  executeAutoPaperCycle,
   getTradingBotState,
   recordTradingBotEvent,
   updateTradingBotSettings,
@@ -26,6 +27,14 @@ router.patch('/settings', (req, res, next) => {
 router.post('/events', (req, res, next) => {
   try {
     res.status(201).json(recordTradingBotEvent(req.body ?? {}))
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/auto-execute', async (req, res, next) => {
+  try {
+    res.json(await executeAutoPaperCycle(req.body ?? {}))
   } catch (error) {
     next(error)
   }

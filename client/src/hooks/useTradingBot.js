@@ -5,6 +5,7 @@ export default function useTradingBot(refreshKey) {
   const [bot, setBot] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isExecuting, setIsExecuting] = useState(false)
   const [error, setError] = useState('')
 
   async function refresh() {
@@ -42,13 +43,31 @@ export default function useTradingBot(refreshKey) {
     }
   }
 
+  async function runAutoCycle(payload) {
+    setIsExecuting(true)
+    setError('')
+    try {
+      const response = await axios.post('/api/trading-bot/auto-execute', payload)
+      if (response.data?.bot) setBot(response.data.bot)
+      return response.data
+    } catch (nextError) {
+      const message = nextError?.response?.data?.error ?? nextError.message ?? 'Trading bot auto execution failed'
+      setError(message)
+      throw new Error(message)
+    } finally {
+      setIsExecuting(false)
+    }
+  }
+
   return {
     bot,
     isLoading,
     isSaving,
+    isExecuting,
     error,
     refresh,
     updateSettings: payload => runMutation(() => axios.patch('/api/trading-bot/settings', payload), true),
     recordEvent: payload => runMutation(() => axios.post('/api/trading-bot/events', payload), false),
+    runAutoCycle,
   }
 }

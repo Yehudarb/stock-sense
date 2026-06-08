@@ -47,6 +47,7 @@ export default function usePaperTrading(refreshKey) {
     isLoading,
     isSaving,
     error,
+    setAccount,
     refresh,
     createOrder: payload => runMutation(() => axios.post('/api/paper-trading/orders', payload)),
     cancelOrder: id => runMutation(() => axios.post(`/api/paper-trading/orders/${id}/cancel`)),

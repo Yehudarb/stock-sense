@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import useStore from './store/useStore'
 import useTicker from './hooks/useTicker'
@@ -118,6 +118,7 @@ export default function App() {
   const [timeframeToast, setTimeframeToast] = useState('')
   const [showMoreKpis, setShowMoreKpis] = useState(false)
   const [activeMainTab, setActiveMainTab] = useState('chart')
+  const autoBotRunRef = useRef(false)
 
   useTicker()
 
@@ -191,6 +192,54 @@ export default function App() {
     const timer = window.setTimeout(() => setTimeframeToast(''), 1800)
     return () => window.clearTimeout(timer)
   }, [interval, intervalRefreshing, isHebrew])
+
+  useEffect(() => {
+    const bot = tradingBot.bot
+    if (!bot?.botEnabled || bot.mode !== 'paper' || bot.killSwitch) return undefined
+    if (!currentTicker || !snapshot?.price || !signal?.decision) return undefined
+
+    let cancelled = false
+
+    async function runCycle() {
+      if (autoBotRunRef.current) return
+      autoBotRunRef.current = true
+      try {
+        const result = await tradingBot.runAutoCycle({
+          ticker: currentTicker,
+          snapshot,
+          decision: signal.decision,
+          language,
+        })
+        if (!cancelled && result?.account) {
+          paperTrading.setAccount(result.account)
+        }
+      } catch {
+        // surface errors via the existing trading bot hook state
+      } finally {
+        autoBotRunRef.current = false
+      }
+    }
+
+    runCycle()
+    const timer = window.setInterval(runCycle, 30000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [
+    currentTicker,
+    language,
+    snapshot?.price,
+    signal?.decision?.action,
+    signal?.decision?.currentPrice,
+    signal?.decision?.invalidation,
+    signal?.decision?.stopLoss,
+    signal?.decision?.takeProfit,
+    signal?.decision?.holdUntil,
+    tradingBot.bot?.botEnabled,
+    tradingBot.bot?.mode,
+    tradingBot.bot?.killSwitch,
+  ])
 
   const regime = signal?.gates?.trend?.regime
   const regimeLabel = {
