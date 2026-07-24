@@ -1200,7 +1200,7 @@ export default function ChartWorkspace({
           subtitle={chartCopy.priceChartSubtitle}
           height="h-auto"
           className="transition-[width] duration-150"
-          bodyClassName="relative"
+          bodyClassName="relative flex flex-col"
           bodyStyle={{ height: `${resolvedPriceChartHeight}px` }}
           onWheel={handlePriceChartWheel}
           headerRight={(
@@ -1212,16 +1212,16 @@ export default function ChartWorkspace({
             </div>
           )}
         >
-          <div className="mb-3 hidden items-center justify-between gap-3 text-xs text-slate-400 lg:flex">
+          <div className="mb-3 hidden shrink-0 items-center justify-between gap-3 text-xs text-slate-400 lg:flex">
             <span>{resizeHint}</span>
             <span>{activeVisibleBars} bars · Y {priceScale.toFixed(2)}x</span>
           </div>
-          <div className="mb-2 flex items-center gap-2 text-sm text-slate-400 md:hidden">
+          <div className="mb-2 flex shrink-0 items-center gap-2 text-sm text-slate-400 md:hidden">
             <span>{language === 'he' ? 'צופה ב-' : 'Viewing:'}</span>
             <strong className="text-white">{INTERVAL_LABELS[language]?.[interval] ?? interval}</strong>
           </div>
           {mainChartKeys.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className="mb-3 flex shrink-0 flex-wrap gap-2">
               {mainChartKeys.map(item => <SeriesKey key={`${item.label}-${item.color}`} label={item.label} color={item.color} />)}
             </div>
           )}
@@ -1248,6 +1248,13 @@ export default function ChartWorkspace({
               signal={signal}
               interval={interval}
               language={language}
+              showSMA={showSMA}
+              showBB={showBB}
+              visibleBars={activeVisibleBars}
+              viewOffset={viewOffset}
+              hoveredIndex={hoveredIndex}
+              onHoverIndexChange={setHoveredIndex}
+              onPanBars={panBy}
             />
           </SafeChart>
         </ChartContainer>
