@@ -19,6 +19,7 @@ import AnalysisResultCard from './components/analysis/AnalysisResultCard'
 import PaperTradingPanel from './components/analysis/PaperTradingPanel'
 import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
 import AnalysisSidebar from './components/analysis/AnalysisSidebar'
+import FinnhubPanel from './components/analysis/FinnhubPanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -527,6 +528,7 @@ export default function App() {
                           ? 'רק המידע המשלים שנחוץ כדי להבין את התמונה: סיגנל, הקשר שוק, ואירועים קרובים.'
                           : 'Only the supporting context that helps explain the setup: signal, market context, and upcoming events.'}
                       </div>
+                      <FinnhubPanel ticker={currentTicker} language={language} />
                       <AnalysisSidebar 
                         forecast={forecast}
                         marketContext={marketContext}
