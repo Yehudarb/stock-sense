@@ -1470,6 +1470,16 @@ export default function PriceChart({
       }
     }
 
+    // Dragging is split by where it starts, TradingView-style, so a single
+    // gesture never moves both axes at once (which felt erratic): the
+    // price-axis label strip on the right pans price vertically, the rest
+    // of the chart pans time horizontally.
+    const isOverPriceAxis = event => {
+      const rect = canvas.getBoundingClientRect()
+      const localX = event.clientX - rect.left
+      return localX > (chart.chartArea?.right ?? Infinity)
+    }
+
     const handlePointerDown = event => {
       if (measurementEnabled) {
         event.preventDefault()
@@ -1480,9 +1490,19 @@ export default function PriceChart({
         return
       }
 
-      if (!onPanBars || event.button !== 0) return
+      if (event.button !== 0) return
+      const axisMode = Boolean(onPanPrice) && isOverPriceAxis(event)
+      if (axisMode) {
+        event.preventDefault()
+        panRef.current = { active: true, mode: 'price', startX: event.clientX, startY: event.clientY }
+        canvas.setPointerCapture?.(event.pointerId)
+        canvas.style.cursor = 'ns-resize'
+        return
+      }
+
+      if (!onPanBars) return
       event.preventDefault()
-      panRef.current = { active: true, startX: event.clientX, startY: event.clientY }
+      panRef.current = { active: true, mode: 'time', startX: event.clientX, startY: event.clientY }
       canvas.setPointerCapture?.(event.pointerId)
       canvas.style.cursor = 'grabbing'
     }
@@ -1495,29 +1515,38 @@ export default function PriceChart({
         return
       }
 
-      if (!panRef.current.active || !onPanBars) return
+      if (!panRef.current.active) {
+        // Hover feedback so the price-axis drag target is discoverable
+        // even though it has no visible border.
+        if (!measurementEnabled && onPanPrice) {
+          canvas.style.cursor = isOverPriceAxis(event) ? 'ns-resize' : (onPanBars ? 'grab' : '')
+        }
+        return
+      }
+
+      if (panRef.current.mode === 'price') {
+        if (!onPanPrice) return
+        const deltaY = event.clientY - panRef.current.startY
+        const chartHeight = Math.max(chart.chartArea?.height ?? 1, 1)
+        const priceDeltaPct = deltaY / chartHeight
+        if (Math.abs(priceDeltaPct) > 0.002) {
+          event.preventDefault()
+          // Dragging down moves the view down (reveals lower prices), so
+          // subtract: positive deltaY (drag down) -> negative offset shift.
+          onPanPrice(-priceDeltaPct)
+          panRef.current.startY = event.clientY
+        }
+        return
+      }
+
+      if (!onPanBars) return
       const deltaX = event.clientX - panRef.current.startX
       const chartWidth = Math.max(chart.chartArea?.width ?? 1, 1)
       const barsDelta = Math.round((deltaX / chartWidth) * visibleOhlcv.length)
-
-      // Vertical drag pans the (zoomed-in) price window — same gesture,
-      // both axes move together like a single "drag to move" interaction.
-      const deltaY = event.clientY - panRef.current.startY
-      const chartHeight = Math.max(chart.chartArea?.height ?? 1, 1)
-      const priceDeltaPct = deltaY / chartHeight
-
-      if (barsDelta !== 0 || Math.abs(priceDeltaPct) > 0.002) {
+      if (barsDelta !== 0) {
         event.preventDefault()
-        if (barsDelta !== 0) {
-          onPanBars(barsDelta)
-          panRef.current.startX = event.clientX
-        }
-        if (Math.abs(priceDeltaPct) > 0.002) {
-          // Dragging down moves the view down (reveals lower prices), so
-          // subtract: positive deltaY (drag down) -> negative offset shift.
-          onPanPrice?.(-priceDeltaPct)
-          panRef.current.startY = event.clientY
-        }
+        onPanBars(barsDelta)
+        panRef.current.startX = event.clientX
       }
     }
 
@@ -1536,7 +1565,7 @@ export default function PriceChart({
       }
     }
 
-    if (measurementEnabled || onPanBars) {
+    if (measurementEnabled || onPanBars || onPanPrice) {
       canvas.style.cursor = measurementEnabled ? 'crosshair' : 'grab'
       canvas.addEventListener('pointerdown', handlePointerDown)
       canvas.addEventListener('pointermove', handlePointerMove)

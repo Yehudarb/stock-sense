@@ -493,6 +493,7 @@ export default function App() {
                         paperTradingAccount={paperTrading.account}
                         isLoading={isLoading}
                       />
+                      <ForecastOpinionPanel forecast={forecast} isLoading={overallLoading} language={language} />
                     </div>
                   )}
 
