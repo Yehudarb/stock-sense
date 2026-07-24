@@ -7,6 +7,7 @@ import ChartErrorBoundary from './ChartErrorBoundary'
 import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
 import PriceChart from './PriceChart'
+import AdvancedPriceChart from './AdvancedPriceChart'
 import RsiChart from './RsiChart'
 import VolumeChart from './VolumeChart'
 
@@ -1241,43 +1242,11 @@ export default function ChartWorkspace({
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
-            <PriceChart
+            <AdvancedPriceChart
               ohlcv={ohlcv}
               indicators={indicators}
-              showSMA={showSMA}
-              showEMA={showEMA}
-              showWMA={showWMA}
-              showBB={showBB}
-              showVWAP={showVWAP}
-              showSupertrend={showSupertrend}
-              showIchimoku={showIchimoku}
-              showKeltner={showKeltner}
-              showDonchian={showDonchian}
-              showPivotPoints={showPivotPoints}
-              showPrevHighLow={showPrevHighLow}
-              showHighLow52={showHighLow52}
-              chartType={chartType}
-              patterns={signal?.patterns}
-              gaps={signal?.pro?.gaps}
-              showFibonacci={showFibonacci}
-              showFibExtension={showFibExtension}
-              showGaps={showGaps}
-              showPatterns={showPatterns}
-              showTriangles={showTriangles}
-              showLevels={showLevels}
-              ticker={currentTicker}
-              decision={signal?.decision}
+              signal={signal}
               language={language}
-              technicalAnalysis={technicalAnalysis}
-              demoAccount={paperTradingAccount}
-              interval={interval}
-              visibleBars={activeVisibleBars}
-              viewOffset={viewOffset}
-              priceScale={priceScale}
-              measurementEnabled={measureMode}
-              hoveredIndex={hoveredIndex}
-              onHoverIndexChange={setHoveredIndex}
-              onPanBars={panBy}
             />
           </SafeChart>
         </ChartContainer>
