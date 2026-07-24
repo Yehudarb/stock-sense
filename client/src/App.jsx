@@ -20,6 +20,7 @@ import PaperTradingPanel from './components/analysis/PaperTradingPanel'
 import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
 import AnalysisSidebar from './components/analysis/AnalysisSidebar'
 import FinnhubPanel from './components/analysis/FinnhubPanel'
+import TradingStopsPanel from './components/analysis/TradingStopsPanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -497,6 +498,14 @@ export default function App() {
 
                   {activeMainTab === 'intelligence' && (
                     <div className="space-y-6">
+                      <TradingStopsPanel
+                        ticker={currentTicker}
+                        currentPrice={snapshot?.price}
+                        atr={indicators?.atr14?.[indicators.atr14.length - 1]}
+                        supportPrice={null}
+                        language={language}
+                      />
+
                       {analysisResult && (
                         <AnalysisResultCard
                           language={language}
