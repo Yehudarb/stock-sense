@@ -149,10 +149,22 @@ function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci,
   return { min: min - pad, max: max + pad }
 }
 
-function applyPriceScale(range, priceScale = 1) {
-  if (range?.min == null || range?.max == null || priceScale === 1) return range
-  const center = (range.min + range.max) / 2
-  const halfRange = ((range.max - range.min) / 2) * priceScale
+// Applies vertical zoom (priceScale) and pan (offsetPct) to the auto-fit
+// price range. offsetPct is a normalized -1..1 fraction of how far to shift
+// the (possibly zoomed-in) window toward the top/bottom of the full range.
+// The shift is capped by how much smaller the zoomed window is than the
+// full range, so panning can never move the visible window past the data
+// it was computed from — zoomed out (priceScale >= 1) means no room to pan.
+function applyPriceScale(range, priceScale = 1, offsetPct = 0) {
+  if (range?.min == null || range?.max == null) return range
+  if (priceScale === 1 && !offsetPct) return range
+
+  const fullCenter = (range.min + range.max) / 2
+  const fullHalf = (range.max - range.min) / 2
+  const halfRange = fullHalf * priceScale
+  const maxShift = Math.max(0, fullHalf - halfRange)
+  const shift = clamp(offsetPct, -1, 1) * maxShift
+  const center = fullCenter + shift
 
   return {
     min: center - halfRange,
@@ -906,15 +918,17 @@ export default function PriceChart({
   visibleBars,
   viewOffset = 0,
   priceScale = 1,
+  priceOffsetPct = 0,
   measurementEnabled = false,
   hoveredIndex = null,
   onHoverIndexChange,
   onPanBars,
+  onPanPrice,
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
   const measurementRef = useRef({ active: false, start: null, end: null })
-  const panRef = useRef({ active: false, startX: 0 })
+  const panRef = useRef({ active: false, startX: 0, startY: 0 })
   const { theme } = useStore()
   const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768
 
@@ -1005,7 +1019,7 @@ export default function PriceChart({
       showIchimoku,
       showKeltner,
       showDonchian,
-    }, visiblePatterns, visibleGaps, fibonacci, decision, demoOverlayLevels), priceScale)
+    }, visiblePatterns, visibleGaps, fibonacci, decision, demoOverlayLevels), priceScale, priceOffsetPct)
     const breakoutLevel = technicalAnalysis?.keyLevels?.breakoutLevels?.[0] ?? null
     const invalidationLevel = technicalAnalysis?.riskAssessment?.stopLoss ?? technicalAnalysis?.keyLevels?.stopLossDangerZones?.[0] ?? null
     const zoneCandidates = [
@@ -1468,7 +1482,7 @@ export default function PriceChart({
 
       if (!onPanBars || event.button !== 0) return
       event.preventDefault()
-      panRef.current = { active: true, startX: event.clientX }
+      panRef.current = { active: true, startX: event.clientX, startY: event.clientY }
       canvas.setPointerCapture?.(event.pointerId)
       canvas.style.cursor = 'grabbing'
     }
@@ -1485,10 +1499,25 @@ export default function PriceChart({
       const deltaX = event.clientX - panRef.current.startX
       const chartWidth = Math.max(chart.chartArea?.width ?? 1, 1)
       const barsDelta = Math.round((deltaX / chartWidth) * visibleOhlcv.length)
-      if (barsDelta !== 0) {
+
+      // Vertical drag pans the (zoomed-in) price window — same gesture,
+      // both axes move together like a single "drag to move" interaction.
+      const deltaY = event.clientY - panRef.current.startY
+      const chartHeight = Math.max(chart.chartArea?.height ?? 1, 1)
+      const priceDeltaPct = deltaY / chartHeight
+
+      if (barsDelta !== 0 || Math.abs(priceDeltaPct) > 0.002) {
         event.preventDefault()
-        onPanBars(barsDelta)
-        panRef.current.startX = event.clientX
+        if (barsDelta !== 0) {
+          onPanBars(barsDelta)
+          panRef.current.startX = event.clientX
+        }
+        if (Math.abs(priceDeltaPct) > 0.002) {
+          // Dragging down moves the view down (reveals lower prices), so
+          // subtract: positive deltaY (drag down) -> negative offset shift.
+          onPanPrice?.(-priceDeltaPct)
+          panRef.current.startY = event.clientY
+        }
       }
     }
 
@@ -1528,7 +1557,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, theme, isMobileViewport])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

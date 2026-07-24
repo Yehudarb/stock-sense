@@ -563,6 +563,7 @@ export default function ChartWorkspace({
   const [showDetails, setShowDetails] = useState(false)
   const [pricePanelHeightPx, setPricePanelHeightPx] = useState(null)
   const [priceScale, setPriceScale] = useState(1)
+  const [priceOffsetPct, setPriceOffsetPct] = useState(0)
   const [layoutHydrated, setLayoutHydrated] = useState(false)
   const [resizeState, setResizeState] = useState(null)
 
@@ -623,6 +624,7 @@ export default function ChartWorkspace({
   useEffect(() => {
     setViewOffset(0)
     setHoveredIndex(null)
+    setPriceOffsetPct(0)
   }, [currentTicker, interval, n])
 
   useEffect(() => {
@@ -676,6 +678,7 @@ export default function ChartWorkspace({
     setSelectedPresetId(preset.id)
     setViewOffset(0)
     setHoveredIndex(null)
+    setPriceOffsetPct(0)
     if (interval !== preset.interval) {
       setInterval(preset.interval)
       return
@@ -714,6 +717,14 @@ export default function ChartWorkspace({
     setViewOffset(current => Math.max(0, Math.min(maxOffset, current + delta)))
   }
 
+  // Vertical pan: shifts the (possibly zoomed-in) price window up/down.
+  // deltaPct is a fraction of the full auto-fit price range; PriceChart
+  // clamps the effective shift so the window can never move past the
+  // full range of visible candles (priceScale === 1 => no-op).
+  function panPrice(deltaPct) {
+    setPriceOffsetPct(current => clamp(current + deltaPct, -1, 1))
+  }
+
   useEffect(() => {
     function handleKeyDown(event) {
       const target = event.target
@@ -735,10 +746,19 @@ export default function ChartWorkspace({
         event.preventDefault()
         panBy(-12)
       }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        panPrice(0.08)
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        panPrice(-0.08)
+      }
       if (event.key === '0') {
         event.preventDefault()
         setViewOffset(0)
         setPriceScale(1)
+        setPriceOffsetPct(0)
       }
     }
 
@@ -783,6 +803,7 @@ export default function ChartWorkspace({
     setChartExpanded(false)
     setMeasureMode(false)
     setPriceScale(1)
+    setPriceOffsetPct(0)
     setPricePanelHeightPx(null)
     setHoveredIndex(null)
     setViewOffset(0)
@@ -1274,10 +1295,12 @@ export default function ChartWorkspace({
               visibleBars={activeVisibleBars}
               viewOffset={viewOffset}
               priceScale={priceScale}
+              priceOffsetPct={priceOffsetPct}
               measurementEnabled={measureMode}
               hoveredIndex={hoveredIndex}
               onHoverIndexChange={setHoveredIndex}
               onPanBars={panBy}
+              onPanPrice={panPrice}
             />
           </SafeChart>
         </ChartContainer>
