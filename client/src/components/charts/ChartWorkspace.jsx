@@ -7,7 +7,6 @@ import ChartErrorBoundary from './ChartErrorBoundary'
 import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
 import PriceChart from './PriceChart'
-import AdvancedPriceChart from './AdvancedPriceChart'
 import RsiChart from './RsiChart'
 import VolumeChart from './VolumeChart'
 
@@ -1200,7 +1199,7 @@ export default function ChartWorkspace({
           subtitle={chartCopy.priceChartSubtitle}
           height="h-auto"
           className="transition-[width] duration-150"
-          bodyClassName="relative flex flex-col"
+          bodyClassName="relative"
           bodyStyle={{ height: `${resolvedPriceChartHeight}px` }}
           onWheel={handlePriceChartWheel}
           headerRight={(
@@ -1212,16 +1211,16 @@ export default function ChartWorkspace({
             </div>
           )}
         >
-          <div className="mb-3 hidden shrink-0 items-center justify-between gap-3 text-xs text-slate-400 lg:flex">
+          <div className="mb-3 hidden items-center justify-between gap-3 text-xs text-slate-400 lg:flex">
             <span>{resizeHint}</span>
             <span>{activeVisibleBars} bars · Y {priceScale.toFixed(2)}x</span>
           </div>
-          <div className="mb-2 flex shrink-0 items-center gap-2 text-sm text-slate-400 md:hidden">
+          <div className="mb-2 flex items-center gap-2 text-sm text-slate-400 md:hidden">
             <span>{language === 'he' ? 'צופה ב-' : 'Viewing:'}</span>
             <strong className="text-white">{INTERVAL_LABELS[language]?.[interval] ?? interval}</strong>
           </div>
           {mainChartKeys.length > 0 && (
-            <div className="mb-3 flex shrink-0 flex-wrap gap-2">
+            <div className="mb-3 flex flex-wrap gap-2">
               {mainChartKeys.map(item => <SeriesKey key={`${item.label}-${item.color}`} label={item.label} color={item.color} />)}
             </div>
           )}
@@ -1242,16 +1241,40 @@ export default function ChartWorkspace({
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
-            <AdvancedPriceChart
+            <PriceChart
               ohlcv={ohlcv}
               indicators={indicators}
-              signal={signal}
-              interval={interval}
-              language={language}
               showSMA={showSMA}
+              showEMA={showEMA}
+              showWMA={showWMA}
               showBB={showBB}
+              showVWAP={showVWAP}
+              showSupertrend={showSupertrend}
+              showIchimoku={showIchimoku}
+              showKeltner={showKeltner}
+              showDonchian={showDonchian}
+              showPivotPoints={showPivotPoints}
+              showPrevHighLow={showPrevHighLow}
+              showHighLow52={showHighLow52}
+              chartType={chartType}
+              patterns={signal?.patterns}
+              gaps={signal?.pro?.gaps}
+              showFibonacci={showFibonacci}
+              showFibExtension={showFibExtension}
+              showGaps={showGaps}
+              showPatterns={showPatterns}
+              showTriangles={showTriangles}
+              showLevels={showLevels}
+              ticker={currentTicker}
+              decision={signal?.decision}
+              language={language}
+              technicalAnalysis={technicalAnalysis}
+              demoAccount={paperTradingAccount}
+              interval={interval}
               visibleBars={activeVisibleBars}
               viewOffset={viewOffset}
+              priceScale={priceScale}
+              measurementEnabled={measureMode}
               hoveredIndex={hoveredIndex}
               onHoverIndexChange={setHoveredIndex}
               onPanBars={panBy}
