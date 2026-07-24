@@ -21,6 +21,8 @@ import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel
 import AnalysisSidebar from './components/analysis/AnalysisSidebar'
 import FinnhubPanel from './components/analysis/FinnhubPanel'
 import TradingStopsPanel from './components/analysis/TradingStopsPanel'
+import TradeChecklistPanel from './components/analysis/TradeChecklistPanel'
+import PositionSizeCalculator from './components/analysis/PositionSizeCalculator'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -499,14 +501,6 @@ export default function App() {
 
                   {activeMainTab === 'intelligence' && (
                     <div className="space-y-6">
-                      <TradingStopsPanel
-                        ticker={currentTicker}
-                        currentPrice={snapshot?.price}
-                        atr={indicators?.atr14?.[indicators.atr14.length - 1]}
-                        supportPrice={null}
-                        language={language}
-                      />
-
                       {analysisResult && (
                         <AnalysisResultCard
                           language={language}
@@ -522,6 +516,29 @@ export default function App() {
                           finalOutlook={analysisResult.finalOutlook}
                         />
                       )}
+
+                      <TradeChecklistPanel
+                        ohlcv={ohlcv}
+                        indicators={indicators}
+                        signal={signal}
+                        forecast={forecast}
+                        earnings={earnings}
+                        language={language}
+                      />
+
+                      <TradingStopsPanel
+                        ticker={currentTicker}
+                        currentPrice={snapshot?.price}
+                        atr={indicators?.atr14?.[indicators.atr14.length - 1]}
+                        supportPrice={null}
+                        language={language}
+                      />
+
+                      <PositionSizeCalculator
+                        currentPrice={snapshot?.price}
+                        suggestedStop={forecast?.invalidBelow}
+                        language={language}
+                      />
 
                       <TechnicalAnalysisPanel
                         analysis={technicalAnalysis}
