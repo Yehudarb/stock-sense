@@ -2,47 +2,6 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 
 /**
- * Hook: Fetch Finnhub Technical Indicators
- */
-export function useFinnhubIndicators(ticker, resolution = 'D') {
-  const [indicators, setIndicators] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    if (!ticker) return
-
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-
-    async function fetch() {
-      try {
-        const res = await axios.get(
-          `/api/finnhub/indicators/${ticker}?resolution=${resolution}`,
-          { timeout: 15000 }
-        )
-        if (!cancelled) {
-          setIndicators(res.data)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.response?.data?.error || err.message)
-          console.warn(`[Finnhub] Indicators error for ${ticker}:`, err.message)
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    fetch()
-    return () => { cancelled = true }
-  }, [ticker, resolution])
-
-  return { indicators, loading, error }
-}
-
-/**
  * Hook: Fetch Finnhub Company News
  */
 export function useFinnhubNews(ticker, limit = 10) {
@@ -155,5 +114,3 @@ export function useFinnhubQuote(ticker) {
 
   return { quote, loading, error }
 }
-
-export default useFinnhubIndicators
