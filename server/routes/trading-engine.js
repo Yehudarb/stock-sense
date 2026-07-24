@@ -1,63 +1,7 @@
 import { Router } from 'express'
-import { spawn } from 'child_process'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const pythonScriptPath = path.join(__dirname, '../trading-engine/stop_engine.py')
+import { calculateOptimalLevels } from '../services/stopEngine.js'
 
 const router = Router()
-
-/**
- * Helper: Execute Python stop_engine calculation
- * Returns parsed JSON result
- */
-function calculateStopsViaPython(entryPrice, atr, supportPrice = null, volatilityPct = 0.05) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      pythonScriptPath,
-      '--entry', entryPrice.toString(),
-      '--atr', atr.toString(),
-      '--volatility', volatilityPct.toString(),
-    ]
-
-    if (supportPrice !== null) {
-      args.push('--support', supportPrice.toString())
-    }
-
-    const python = spawn('python', args, {
-      timeout: 5000,
-    })
-
-    let stdout = ''
-    let stderr = ''
-
-    python.stdout.on('data', (data) => {
-      stdout += data.toString()
-    })
-
-    python.stderr.on('data', (data) => {
-      stderr += data.toString()
-    })
-
-    python.on('close', (code) => {
-      if (code !== 0) {
-        return reject(new Error(`Python error: ${stderr}`))
-      }
-
-      try {
-        const result = JSON.parse(stdout)
-        resolve(result)
-      } catch (e) {
-        reject(new Error(`Failed to parse Python output: ${stdout}`))
-      }
-    })
-
-    python.on('error', (err) => {
-      reject(err)
-    })
-  })
-}
 
 /**
  * GET /api/trading/calculate-stops/:ticker
@@ -115,7 +59,7 @@ router.get('/calculate-stops/:ticker', async (req, res, next) => {
     }
 
     // Calculate stops
-    const decision = await calculateStopsViaPython(entryPrice, atrValue, supportPrice, volatilityPct)
+    const decision = calculateOptimalLevels(entryPrice, atrValue, supportPrice, volatilityPct)
 
     res.json({
       ticker,
@@ -159,7 +103,7 @@ router.post('/calculate-stops', async (req, res, next) => {
     }
 
     // Calculate stops
-    const decision = await calculateStopsViaPython(entryPrice, atr, supportPrice, volatilityPct)
+    const decision = calculateOptimalLevels(entryPrice, atr, supportPrice, volatilityPct)
 
     res.json({
       ticker: ticker || 'UNKNOWN',
