@@ -1,6 +1,14 @@
 import { useFinnhubNews, useFinnhubProfile } from '../../hooks/useFinnhub'
 import { TRADER_TEXT } from '../../lib/traderColors'
 
+// Finnhub reports market cap in millions of USD
+function formatMarketCap(capInMillions) {
+  if (!capInMillions) return 'N/A'
+  if (capInMillions >= 1e6) return `$${(capInMillions / 1e6).toFixed(2)}T`
+  if (capInMillions >= 1e3) return `$${(capInMillions / 1e3).toFixed(1)}B`
+  return `$${capInMillions.toFixed(0)}M`
+}
+
 export default function FinnhubPanel({ ticker, language }) {
   const { profile, loading: profileLoading } = useFinnhubProfile(ticker)
   const { news, loading: newsLoading } = useFinnhubNews(ticker, 5)
@@ -56,7 +64,7 @@ export default function FinnhubPanel({ ticker, language }) {
                     {isHebrew ? 'ערך שוק' : 'Market Cap'}
                   </div>
                   <div className="font-semibold text-slate-300">
-                    {profile.marketCap ? `$${(profile.marketCap / 1e9).toFixed(1)}B` : 'N/A'}
+                    {formatMarketCap(profile.marketCap)}
                   </div>
                 </div>
               </div>

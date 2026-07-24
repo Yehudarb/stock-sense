@@ -1,0 +1,20 @@
+{
+  "mode": "paper",
+  "botEnabled": false,
+  "liveTradingEnabled": false,
+  "userConfirmedLiveTrading": false,
+  "killSwitch": false,
+  "activeStrategy": "signal_follow_demo",
+  "cooldownMinutes": 30,
+  "maxDailyLossPct": 3,
+  "maxRiskPerTradePct": 1,
+  "alertsEnabled": true,
+  "lastRunAt": null,
+  "lastActionAt": null,
+  "recentEvents": [],
+  "warnings": [
+    "Bot automation is currently disabled.",
+    "Live trading is disabled by default."
+  ],
+  "updatedAt": "2026-07-24T09:22:04.296Z"
+}
