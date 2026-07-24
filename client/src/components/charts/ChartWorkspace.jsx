@@ -1246,6 +1246,7 @@ export default function ChartWorkspace({
               ohlcv={ohlcv}
               indicators={indicators}
               signal={signal}
+              interval={interval}
               language={language}
             />
           </SafeChart>
