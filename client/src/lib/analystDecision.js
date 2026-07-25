@@ -68,11 +68,15 @@ function buildReasons({ signal, trend, rsi, macdLine, macdSig, price, sma20, sma
   if (pro?.gaps?.nearestOpen) {
     const gap = pro.gaps.nearestOpen
     const status = gap.status === 'partial' ? `נסגר חלקית ${gap.fillPct}%` : 'עדיין פתוח'
-    reasons.push(`גאפ ${gap.direction === 'up' ? 'עולה' : 'יורד'} ${status} באזור $${gap.zoneLow}-$${gap.zoneHigh}.`)
+    // ⁦...⁩ (LRI/PDI) force the "$low-$high" run to render in its
+    // own left-to-right order - without it, the hyphen between two LTR
+    // number runs sits inside RTL Hebrew text and the bidi algorithm can
+    // visually flip which number appears first.
+    reasons.push(`גאפ ${gap.direction === 'up' ? 'עולה' : 'יורד'} ${status} באזור ⁦$${gap.zoneLow}-$${gap.zoneHigh}⁩.`)
   }
   if (pro?.gaps?.recentlyClosed?.closeAgeBars != null && pro.gaps.recentlyClosed.closeAgeBars <= 15) {
     const gap = pro.gaps.recentlyClosed
-    reasons.push(`גאפ נסגר באזור $${gap.zoneLow}-$${gap.zoneHigh}.`)
+    reasons.push(`גאפ נסגר באזור ⁦$${gap.zoneLow}-$${gap.zoneHigh}⁩.`)
   }
   if (pro?.supportResistance?.nearSupport) reasons.push(`המחיר קרוב לתמיכה סביב $${pro.supportResistance.nearestSupport}.`)
   if (pro?.supportResistance?.nearResistance) reasons.push(`המחיר קרוב להתנגדות סביב $${pro.supportResistance.nearestResistance}.`)
@@ -180,6 +184,33 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
         primaryAction = 'להחזיק בזהירות / לצמצם אם נשבר יעד התבנית'
       }
     }
+  }
+
+  // Final sanity clamp. Every adjustment above can independently push
+  // invalidation/holdUntil further out (stale support/resistance from
+  // anywhere in history, a 20-bar high/low from before a sharp move, ATR
+  // that's currently inflated by a violent multi-day swing, a pattern
+  // target, etc). Any one of those alone is a reasonable input; combined,
+  // and especially right after a fast crash or spike, they can drift to
+  // levels no professional trader would actually call a "stop" or
+  // "target" - e.g. a stop 60% away isn't protecting anything, and a
+  // target 100%+ away isn't a near-term outlook, it's speculation. Cap
+  // both to a sane distance from the current price regardless of which
+  // branch/adjustment produced them, with the target ceiling roughly
+  // 2.5x the stop ceiling to keep a plausible risk/reward shape.
+  const MAX_STOP_DISTANCE_PCT = 0.12
+  const MAX_TARGET_DISTANCE_PCT = 0.30
+
+  if (invalidation != null) {
+    invalidation = invalidation < price
+      ? roundPrice(Math.max(invalidation, price * (1 - MAX_STOP_DISTANCE_PCT)))
+      : roundPrice(Math.min(invalidation, price * (1 + MAX_STOP_DISTANCE_PCT)))
+  }
+
+  if (holdUntil != null) {
+    holdUntil = holdUntil > price
+      ? roundPrice(Math.min(holdUntil, price * (1 + MAX_TARGET_DISTANCE_PCT)))
+      : roundPrice(Math.max(holdUntil, price * (1 - MAX_TARGET_DISTANCE_PCT)))
   }
 
   const reasons = buildReasons({
