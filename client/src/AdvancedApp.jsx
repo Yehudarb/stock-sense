@@ -23,6 +23,7 @@ import FinnhubPanel from './components/analysis/FinnhubPanel'
 import TradingStopsPanel from './components/analysis/TradingStopsPanel'
 import TradeChecklistPanel from './components/analysis/TradeChecklistPanel'
 import PositionSizeCalculator from './components/analysis/PositionSizeCalculator'
+import PlainVerdictCard from './components/analysis/PlainVerdictCard'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -35,6 +36,7 @@ import TradeActionCard from './components/ui/TradeActionCard'
 import { fmtVolume, fmtPercent } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
+import { buildTradeChecklist } from './lib/tradeChecklist'
 import usePaperTrading from './hooks/usePaperTrading'
 import useTradingBot from './hooks/useTradingBot'
 import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
@@ -168,6 +170,15 @@ export default function AdvancedApp() {
     marketContext,
     earnings,
   }), [earnings, forecast, marketContext, signal])
+
+  const checklist = useMemo(() => buildTradeChecklist({
+    ohlcv,
+    indicators,
+    signal,
+    forecast,
+    earnings,
+    language,
+  }), [ohlcv, indicators, signal, forecast, earnings, language])
 
   const n = ohlcv.length
   const last = ohlcv[n - 1]
@@ -501,6 +512,8 @@ export default function AdvancedApp() {
 
                   {activeMainTab === 'intelligence' && (
                     <div className="space-y-6">
+                      <PlainVerdictCard decision={signal?.decision} checklist={checklist} language={language} />
+
                       {analysisResult && (
                         <AnalysisResultCard
                           language={language}

@@ -2,13 +2,13 @@ import { fmtPrice } from '../../lib/formatters'
 import SignalBadge from '../components/SignalBadge'
 import GoalProgressBar from '../components/GoalProgressBar'
 import TaxShieldMeter from '../components/TaxShieldMeter'
-import TradeVerdictCard from '../components/TradeVerdictCard'
+import PlainVerdictCard from '../../components/analysis/PlainVerdictCard'
 import RiskPercentControl from '../components/RiskPercentControl'
 
 /**
  * Screen 1 - answers "Should I trade today?"
- * Price, signal, why (TradeVerdictCard), account value, total P&L, goal
- * progress, tax shield, and the risk-per-trade % control.
+ * Price, signal, one plain-language verdict paragraph, account value,
+ * total P&L, goal progress, tax shield, and the risk-per-trade % control.
  */
 export default function DashboardScreen({
   price,
@@ -44,7 +44,7 @@ export default function DashboardScreen({
 
       <SignalBadge action={simpleSignal.action} confidence={simpleSignal.confidence} language={language} />
 
-      <TradeVerdictCard decision={simpleSignal.decision} language={language} />
+      <PlainVerdictCard decision={simpleSignal.decision} language={language} />
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 text-center">
