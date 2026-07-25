@@ -187,17 +187,18 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
   }
 
   // Final sanity clamp. Every adjustment above can independently push
-  // invalidation/holdUntil further out (stale support/resistance from
-  // anywhere in history, a 20-bar high/low from before a sharp move, ATR
-  // that's currently inflated by a violent multi-day swing, a pattern
+  // entry/invalidation/holdUntil further out (stale support/resistance
+  // from anywhere in history, a 20-bar high/low from before a sharp move,
+  // ATR that's currently inflated by a violent multi-day swing, a pattern
   // target, etc). Any one of those alone is a reasonable input; combined,
   // and especially right after a fast crash or spike, they can drift to
-  // levels no professional trader would actually call a "stop" or
-  // "target" - e.g. a stop 60% away isn't protecting anything, and a
-  // target 100%+ away isn't a near-term outlook, it's speculation. Cap
-  // both to a sane distance from the current price regardless of which
-  // branch/adjustment produced them, with the target ceiling roughly
-  // 2.5x the stop ceiling to keep a plausible risk/reward shape.
+  // levels no professional trader would actually call an "entry," a
+  // "stop," or a "target" - e.g. an entry zone reaching 2x the current
+  // price isn't an entry zone, and a stop 60% away isn't protecting
+  // anything. Cap all of them to a sane distance from the current price
+  // regardless of which branch/adjustment produced them, with the target
+  // ceiling roughly 2.5x the entry/stop ceiling to keep a plausible
+  // risk/reward shape.
   const MAX_STOP_DISTANCE_PCT = 0.12
   const MAX_TARGET_DISTANCE_PCT = 0.30
 
@@ -211,6 +212,37 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
     holdUntil = holdUntil > price
       ? roundPrice(Math.min(holdUntil, price * (1 + MAX_TARGET_DISTANCE_PCT)))
       : roundPrice(Math.max(holdUntil, price * (1 - MAX_TARGET_DISTANCE_PCT)))
+  }
+
+  if (entryLow != null) {
+    entryLow = entryLow < price
+      ? roundPrice(Math.max(entryLow, price * (1 - MAX_STOP_DISTANCE_PCT)))
+      : roundPrice(Math.min(entryLow, price * (1 + MAX_STOP_DISTANCE_PCT)))
+  }
+
+  if (entryHigh != null) {
+    entryHigh = entryHigh < price
+      ? roundPrice(Math.max(entryHigh, price * (1 - MAX_STOP_DISTANCE_PCT)))
+      : roundPrice(Math.min(entryHigh, price * (1 + MAX_STOP_DISTANCE_PCT)))
+  }
+
+  // breakoutBuy/buyAbove feeds the same stale-high failure mode and is
+  // surfaced on its own (forecastOpinion.js falls back to it as a
+  // resistance level), so it needs the same cap.
+  const buyAbove = breakoutBuy > price
+    ? roundPrice(Math.min(breakoutBuy, price * (1 + MAX_STOP_DISTANCE_PCT)))
+    : roundPrice(breakoutBuy)
+
+  // Keep the whole picture internally consistent after clamping: an entry
+  // zone with a target below its own top, or a stop above its own bottom,
+  // would mean the "take profit"/"protection" level is a guaranteed loss
+  // relative to part of the entry zone - exactly the contradiction this
+  // fix exists to remove.
+  if (holdUntil != null && entryHigh != null && holdUntil <= entryHigh) {
+    holdUntil = roundPrice(Math.min(entryHigh * 1.05, price * (1 + MAX_TARGET_DISTANCE_PCT)))
+  }
+  if (invalidation != null && entryLow != null && invalidation >= entryLow) {
+    invalidation = roundPrice(Math.max(entryLow * 0.95, price * (1 - MAX_STOP_DISTANCE_PCT * 1.5)))
   }
 
   const reasons = buildReasons({
@@ -236,7 +268,7 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
     currentPrice: roundPrice(price),
     entryLow,
     entryHigh,
-    buyAbove: breakoutBuy,
+    buyAbove,
     holdUntil: roundPrice(holdUntil),
     takeProfit: roundPrice(takeProfit),
     stopLoss: roundPrice(stopLoss),
