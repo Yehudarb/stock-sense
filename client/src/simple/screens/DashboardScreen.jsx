@@ -2,10 +2,13 @@ import { fmtPrice } from '../../lib/formatters'
 import SignalBadge from '../components/SignalBadge'
 import GoalProgressBar from '../components/GoalProgressBar'
 import TaxShieldMeter from '../components/TaxShieldMeter'
+import TradeVerdictCard from '../components/TradeVerdictCard'
+import RiskPercentControl from '../components/RiskPercentControl'
 
 /**
  * Screen 1 - answers "Should I trade today?"
- * Exactly 5 numbers on screen: price, account value, total P&L, goal progress, tax shield.
+ * Price, signal, why (TradeVerdictCard), account value, total P&L, goal
+ * progress, tax shield, and the risk-per-trade % control.
  */
 export default function DashboardScreen({
   price,
@@ -17,6 +20,8 @@ export default function DashboardScreen({
   onOpenTradeSetup,
   onOpenPosition,
   hasOpenPosition,
+  onSaveRiskPct,
+  isSavingRiskPct,
 }) {
   const isHebrew = language === 'he'
   const totalPnl = (account?.realizedPnl ?? 0) + (account?.unrealizedPnl ?? 0)
@@ -39,6 +44,8 @@ export default function DashboardScreen({
 
       <SignalBadge action={simpleSignal.action} confidence={simpleSignal.confidence} language={language} />
 
+      <TradeVerdictCard decision={simpleSignal.decision} language={language} />
+
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-white/8 bg-slate-950/40 p-4 text-center">
           <div className="text-xs font-semibold text-slate-500">{copy.accountValue}</div>
@@ -54,6 +61,13 @@ export default function DashboardScreen({
 
       <GoalProgressBar equity={account?.equity} goal={goal} language={language} />
       <TaxShieldMeter taxShield={taxShield} language={language} />
+
+      <RiskPercentControl
+        riskPct={account?.riskSettings?.riskPerTradePct}
+        onSave={onSaveRiskPct}
+        isSaving={isSavingRiskPct}
+        language={language}
+      />
 
       {hasOpenPosition && (
         <button

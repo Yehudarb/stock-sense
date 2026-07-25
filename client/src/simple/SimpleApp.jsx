@@ -64,6 +64,8 @@ export default function SimpleApp() {
           hasOpenPosition={Boolean(openPosition)}
           onOpenTradeSetup={() => setScreen('trade-setup')}
           onOpenPosition={() => setScreen('position')}
+          onSaveRiskPct={riskPerTradePct => paperTrading.updateSettings({ riskPerTradePct })}
+          isSavingRiskPct={paperTrading.isSaving}
         />
       )}
 
