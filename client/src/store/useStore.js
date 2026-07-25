@@ -15,6 +15,9 @@ const useStore = create((set) => ({
   analysisNonce: 0,
   lastUpdateTime: null,
   intervalRefreshing: false,
+  simpleMode: localStorage.getItem('simpleMode')
+    ? localStorage.getItem('simpleMode') === 'true'
+    : (localStorage.getItem('lastTicker') ?? 'AAPL') === 'TSLL',
 
   setCurrentTicker: (ticker) => {
     localStorage.setItem('lastTicker', ticker)
@@ -27,6 +30,10 @@ const useStore = create((set) => ({
       analysisNonce: state.analysisNonce + 1,
       intervalRefreshing: false,
     }))
+  },
+  setSimpleMode: (simpleMode) => {
+    localStorage.setItem('simpleMode', String(simpleMode))
+    set({ simpleMode })
   },
   setLanguage: (language) => {
     localStorage.setItem('dashboardLanguage', language)

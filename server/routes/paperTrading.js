@@ -5,6 +5,7 @@ import {
   createPaperOrder,
   getPaperAccount,
   resetPaperAccount,
+  updatePaperTradingGoal,
   updatePaperTradingSettings,
 } from '../services/paperTradingStore.js'
 
@@ -46,6 +47,14 @@ router.post('/positions/:id/close', async (req, res, next) => {
 router.patch('/settings', async (req, res, next) => {
   try {
     res.json(await updatePaperTradingSettings(req.body ?? {}))
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.patch('/goal', async (req, res, next) => {
+  try {
+    res.json(await updatePaperTradingGoal(req.body ?? {}))
   } catch (error) {
     next(error)
   }

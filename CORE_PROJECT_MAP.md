@@ -19,6 +19,37 @@ The project is split into:
 - `server/` = Express API and trading logic
 - `shared/` = shared constants
 
+## Simple Mode (TSLL)
+
+For day-to-day TSLL trading, the app opens in a stripped-down 3-screen flow instead of the
+full multi-ticker dashboard described below. Toggle between the two with the mode button in
+the header (top-left pill, "Simple mode (TSLL)" / "Advanced mode"). Simple mode auto-activates
+whenever the last-loaded ticker is `TSLL`.
+
+- `client/src/App.jsx` — thin router: renders `SimpleApp` or `AdvancedApp` based on
+  `useStore().simpleMode`.
+- `client/src/AdvancedApp.jsx` — the full dashboard (unchanged logic, just renamed from the old
+  `App.jsx`).
+- `client/src/simple/SimpleApp.jsx` — owns which of the 3 screens is shown; wires the existing
+  `useSignal`/`usePaperTrading` hooks (no new signal or risk logic — only re-labels their output).
+  - **Screen 1 — `screens/DashboardScreen.jsx`**: "Should I trade today?" — price, BUY/SELL/
+    HOLD/WAIT signal, confidence, account value, total P&L, goal progress bar, tax-shield meter.
+  - **Screen 2 — `screens/TradeSetupScreen.jsx`**: "How exactly do I enter?" — entry, stop,
+    target, $ at risk / to gain, R:R, position size, trailing-stop rules, ENTER TRADE button
+    (calls `usePaperTrading().createOrder`).
+  - **Screen 3 — `screens/PositionTrackerScreen.jsx`**: "What do I do with my open trade?" —
+    entry vs. current price, live P&L, action recommendation (HOLD / MOVE STOP TO BREAK-EVEN /
+    SELL HALF / SELL ALL / STOP LOSS HIT), price ladder, CLOSE TRADE button, trade history.
+  - `hooks/useSimpleSignal.js` reduces `signal.decision` (from `lib/analystDecision.js`) into
+    BUY/SELL/HOLD/WAIT + Strong/Medium/Weak confidence, gated on R:R ≥ 2.5.
+  - `hooks/useGoalTracking.js` reads/writes the paper account's `goal`/`taxShield` fields.
+- `server/services/paperTradingStore.js` — extended (not replaced) with `goal: {start, target}`
+  and `taxShield: {total, used}` on the account record; `taxShield.used` auto-increments when a
+  position closes at a realized loss. `PATCH /api/paper-trading/goal` updates both.
+
+Every developer-facing feature (backtests, indicator internals, grid search, reason codes, raw
+JSON) stays exactly where it was, reachable only through Advanced mode.
+
 ## Read This First
 
 If you want to understand the project fast, read these files in this order:

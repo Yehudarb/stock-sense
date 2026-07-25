@@ -14,5 +14,13 @@
     "slippageBps": 5,
     "shortSellingEnabled": true
   },
-  "updatedAt": "2026-07-24T09:22:05.014Z"
+  "goal": {
+    "start": 11200,
+    "target": 22400
+  },
+  "taxShield": {
+    "total": 15000,
+    "used": 0
+  },
+  "updatedAt": "2026-07-25T21:43:50.858Z"
 }

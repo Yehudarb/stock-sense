@@ -7,6 +7,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', 'data')
 const DEFAULT_STORE_PATH = join(DATA_DIR, 'paperTrading.json')
 const DEFAULT_BALANCE = 100000
+const DEFAULT_GOAL = {
+  start: 11200,
+  target: 22400,
+}
+const DEFAULT_TAX_SHIELD = {
+  total: 15000,
+  used: 0,
+}
 const DEFAULT_SETTINGS = {
   riskPerTradePct: 1,
   maxDailyLossPct: 3,
@@ -70,6 +78,8 @@ function createDefaultState() {
     closedTrades: [],
     orderHistory: [],
     riskSettings: { ...DEFAULT_SETTINGS },
+    goal: { ...DEFAULT_GOAL },
+    taxShield: { ...DEFAULT_TAX_SHIELD },
     updatedAt: timestamp(),
   }
 }
@@ -86,6 +96,8 @@ function loadState() {
       closedTrades: parsed.closedTrades ?? [],
       orderHistory: parsed.orderHistory ?? [],
       riskSettings: { ...DEFAULT_SETTINGS, ...(parsed.riskSettings ?? {}) },
+      goal: { ...DEFAULT_GOAL, ...(parsed.goal ?? {}) },
+      taxShield: { ...DEFAULT_TAX_SHIELD, ...(parsed.taxShield ?? {}) },
     }
   } catch {
     return createDefaultState()
@@ -330,6 +342,13 @@ function closePositionInState(state, positionId, exitPrice, exitReason = 'manual
 
   state.openPositions.splice(index, 1)
   state.closedTrades.unshift(closedTrade)
+
+  if (realizedPnl < 0) {
+    const shield = state.taxShield ?? { ...DEFAULT_TAX_SHIELD }
+    shield.used = round(Math.min(shield.total, (shield.used ?? 0) + Math.abs(realizedPnl)))
+    state.taxShield = shield
+  }
+
   return closedTrade
 }
 
@@ -439,6 +458,16 @@ function enrichAccountState(state, snapshots) {
     openPositions,
     closedTrades: state.closedTrades.slice(0, 40),
     riskSettings: state.riskSettings,
+    goal: {
+      ...state.goal,
+      progressPct: round(Math.max(0, Math.min(100,
+        ((equity - state.goal.start) / (state.goal.target - state.goal.start)) * 100,
+      ))),
+    },
+    taxShield: {
+      ...state.taxShield,
+      remaining: round(Math.max(0, state.taxShield.total - state.taxShield.used)),
+    },
     stats: {
       openCount: openPositions.length,
       pendingCount: state.pendingOrders.length,
@@ -588,6 +617,26 @@ export function updatePaperTradingSettings(input = {}) {
     maxSymbolExposurePct: Math.max(1, next.maxSymbolExposurePct),
     commissionPerTrade: Math.max(0, next.commissionPerTrade),
     slippageBps: Math.max(0, next.slippageBps),
+  }
+
+  saveState(state)
+  return hydrateAccount()
+}
+
+export function updatePaperTradingGoal(input = {}) {
+  const state = loadState()
+  const goal = { ...state.goal }
+  const taxShield = { ...state.taxShield }
+
+  if (input.start != null) goal.start = normalizeNumber(input.start, goal.start)
+  if (input.target != null) goal.target = normalizeNumber(input.target, goal.target)
+  if (input.taxShieldTotal != null) taxShield.total = normalizeNumber(input.taxShieldTotal, taxShield.total)
+  if (input.taxShieldUsed != null) taxShield.used = normalizeNumber(input.taxShieldUsed, taxShield.used)
+
+  state.goal = goal
+  state.taxShield = {
+    ...taxShield,
+    used: Math.max(0, Math.min(taxShield.total, taxShield.used)),
   }
 
   saveState(state)

@@ -49,6 +49,8 @@ export default function Header({ isConnected }) {
     setIntervalRefreshing,
     theme,
     setTheme,
+    simpleMode,
+    setSimpleMode,
   } = useStore()
 
   const isHebrew = language === 'he'
@@ -63,6 +65,8 @@ export default function Header({ isConnected }) {
     noWatchlist: isHebrew ? 'אין עדיין סימבולים שמורים' : 'No saved symbols yet',
     lastUpdate: isHebrew ? 'עדכון אחרון' : 'Last update',
     refreshHint: isHebrew ? 'מחשב מחדש ניתוח לטווח החדש' : 'Recalculating analysis for the new timeframe',
+    simpleModeOn: isHebrew ? 'מצב מתקדם' : 'Advanced mode',
+    simpleModeOff: isHebrew ? 'מצב פשוט (TSLL)' : 'Simple mode (TSLL)',
   }
 
   const changeColor = snapshot?.change >= 0 ? 'text-green-400' : 'text-red-400'
@@ -144,6 +148,14 @@ export default function Header({ isConnected }) {
 
         <div className="-mx-1 overflow-x-auto px-1">
           <div className={`flex min-w-max flex-wrap items-center gap-2 pb-1 ${isHebrew ? 'flex-row-reverse' : ''}`}>
+            <button
+              type="button"
+              onClick={() => setSimpleMode(!simpleMode)}
+              className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
+            >
+              {simpleMode ? copy.simpleModeOn : copy.simpleModeOff}
+            </button>
+
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
