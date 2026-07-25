@@ -50,6 +50,30 @@ whenever the last-loaded ticker is `TSLL`.
 Every developer-facing feature (backtests, indicator internals, grid search, reason codes, raw
 JSON) stays exactly where it was, reachable only through Advanced mode.
 
+## Claude Code Skills (`.claude/skills/`)
+
+Analyst-grade research tools from
+[tradermonty/claude-trading-skills](https://github.com/tradermonty/claude-trading-skills),
+invoked ad hoc during a Claude Code session — they do not run inside the app itself
+(Python CLI scripts producing JSON/Markdown reports under `reports/`):
+
+- `technical-analyst` — weekly chart trend/S-R/scenario analysis from chart images
+- `position-sizer` — fixed-fractional / ATR / Kelly share-count sizing (tested against a
+  TSLL-scale example: 100k account, 1% risk, $7.50 entry / $6.90 stop → 1,666 shares)
+- `market-breadth-analyzer`, `uptrend-analyzer` — 0-100 market-breadth health scores from
+  public CSV data, no API key required
+- `exposure-coach` — synthesizes breadth/regime/flow skills into a net-exposure recommendation
+  (needs several upstream skills' JSON outputs plus an FMP API key — not fully wired without them)
+- `trader-memory-core` — tracks a trade idea's lifecycle (IDEA → ENTRY_READY → ACTIVE → CLOSED)
+  with postmortems; needs `pyyaml`/`jsonschema` (present) and optionally an FMP key for MAE/MFE
+- `signal-postmortem`, `backtest-expert` — after-the-fact signal/backtest quality review
+
+Requires `py` (Python 3.11+ launcher) with `requests`, `pyyaml`, `jsonschema` — already
+available in this environment. `exposure-coach` and `trader-memory-core` reference sibling
+skills (`macro-regime-detector`, `ftd-detector`, `theme-detector`, etc.) from the upstream repo
+that were **not** installed here; those two will run in a reduced/manual capacity until such
+inputs are supplied by hand.
+
 ## Read This First
 
 If you want to understand the project fast, read these files in this order:
