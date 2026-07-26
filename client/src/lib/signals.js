@@ -56,9 +56,43 @@ function reversalConfirm(ohlcv, volRatio) {
   return { passed: false, trigger: null }
 }
 
+// A "bullish setup" is a strong continuation/reversal pattern that is either
+// mid-formation (in the handle / base) or right at its breakout pivot. When one
+// exists, indicator cooling INSIDE the setup is EXPECTED behavior (that IS the
+// handle / pullback) — the analyst-brain read is "wait for the breakout / buy
+// the breakout," never "sell because the handle is red." This function surfaces
+// the strongest such setup so the main pipeline can suppress a knee-jerk SELL.
+function findBullishSetup(patterns) {
+  if (!Array.isArray(patterns) || !patterns.length) return null
+  const eligibleKeys = new Set([
+    'CUP_HANDLE', 'ASCENDING_TRIANGLE', 'BULLISH_FLAG', 'BULLISH_PENNANT',
+    'FALLING_WEDGE', 'INVERSE_HEAD_SHOULDERS', 'DOUBLE_BOTTOM', 'TRIPLE_BOTTOM',
+    'ROUNDED_BOTTOM', 'RECTANGLE_BULLISH', 'RETEST_AFTER_BREAKOUT',
+  ])
+  const candidates = patterns
+    .filter(p => p.direction === 'bullish' && eligibleKeys.has(p.key) && p.weight >= 55)
+    .filter(p => {
+      const stage = p.meta?.stage
+      if (stage) return ['in_handle', 'near_breakout', 'broken_out', 'cup_forming'].includes(stage)
+      // Fallback for patterns without explicit stage: accept if we have a
+      // breakoutLevel and current price isn't already far above it.
+      return p.meta?.breakoutLevel != null
+    })
+    .sort((a, b) => b.weight - a.weight)
+  return candidates[0] || null
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
-export function computeSignal(ohlcv, indicators, patternScore = 0) {
+// Third arg accepts EITHER the legacy scalar patternScore (for callers we
+// haven't migrated yet) OR the full detectPatterns() result — the object gives
+// us the metadata needed for setup-override reasoning.
+export function computeSignal(ohlcv, indicators, patternInput = 0) {
   if (!ohlcv?.length || !indicators) return null
+
+  const patternResult = typeof patternInput === 'number'
+    ? { score: patternInput, patterns: [], best: null }
+    : (patternInput || { score: 0, patterns: [], best: null })
+  const patternScore = patternResult.score || 0
 
   const last  = ohlcv.length - 1
   const price = ohlcv[last].c
@@ -158,6 +192,38 @@ export function computeSignal(ohlcv, indicators, patternScore = 0) {
   // Blocked by downtrend
   if (!trend.passed && (action === 'BUY' || action === 'STRONG_BUY')) action = 'HOLD'
 
+  // ── SETUP OVERRIDE ──────────────────────────────────────────────────
+  // If a strong bullish base/continuation pattern is in play, the "cooling"
+  // indicators inside its handle/base are a FEATURE of the setup, not evidence
+  // to sell. An analyst waits at the pivot; a naive engine sells the handle.
+  // Rules:
+  //   • Suppress SELL → SETUP_HOLD while the setup is intact and price still
+  //     above the pattern's invalidation level.
+  //   • Upgrade HOLD → BUY_SETUP once price is at or through the pivot.
+  //   • Only invalidate the setup when price falls below invalidationLevel.
+  const setup = findBullishSetup(patternResult.patterns)
+  let setupInfo = null
+  if (setup) {
+    const invalidated = setup.meta?.invalidationLevel != null && price < setup.meta.invalidationLevel
+    if (!invalidated) {
+      const stage = setup.meta?.stage
+      setupInfo = {
+        key: setup.key,
+        label: setup.label,
+        stage: stage || 'developing',
+        pivot: setup.meta?.breakoutLevel ?? null,
+        target: setup.meta?.pivotTarget ?? setup.targetPrice ?? null,
+        stopLoss: setup.meta?.invalidationLevel ?? null,
+        distanceToBreakoutPct: setup.meta?.distanceToBreakoutPct ?? null,
+        quality: setup.meta?.quality ?? null,
+      }
+      if (action === 'SELL' || action === 'STRONG_SELL') action = 'SETUP_HOLD'
+      if (action === 'HOLD' && (stage === 'broken_out' || stage === 'near_breakout')) {
+        action = 'BUY_SETUP'
+      }
+    }
+  }
+
   const buyProbability  = logisticProbability(netScore)
   const sellProbability = 100 - buyProbability
   const confidence      = Math.min(100, Math.round((Math.abs(netScore) / (MAX_BUY_SCORE * 1.5)) * 100))
@@ -204,6 +270,7 @@ export function computeSignal(ohlcv, indicators, patternScore = 0) {
     sellProbability,
     confidence,
     factors,
+    setup: setupInfo, // null when no eligible bullish setup is active
     gates: {
       trend:       { ...trend },
       confluence:  { ...confluence },

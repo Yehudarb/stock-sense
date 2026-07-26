@@ -364,35 +364,148 @@ function detectRoundedStructures(found, ohlcv) {
   }
 }
 
+// Cup & Handle: a bullish continuation base. Prior code assumed a rigid 40-bar
+// window with a 12/16/12 split — real cups form over widely varying lengths
+// (a daily cup can be 60–130 bars, weekly larger) and the "quality" comes from
+// PROPORTION between cup and handle, not fixed slots. We now search multiple
+// (window, handleLen) pairs, accept the tightest well-formed match, and expose:
+//   • stage:  cup_forming / in_handle / near_breakout / broken_out
+//   • breakoutLevel (the pivot the pattern trades off)
+//   • invalidationLevel (below handle = pattern is done)
+//   • pivotTarget (the price target on breakout)
+//   • distanceToBreakoutPct (how far the current price is under the pivot)
+// This is what lets the signal engine treat handle-pullback indicator weakness
+// as PATTERN feature, not a SELL setup.
 function detectCupHandle(found, ohlcv) {
-  const last40 = ohlcv.slice(-40)
-  if (last40.length < 35) return
-  const offset = ohlcv.length - last40.length
-  const left = last40.slice(0, 12)
-  const middle = last40.slice(12, 28)
-  const handle = last40.slice(28)
-  const leftRim = rangeHigh(left)
-  const cupLow = rangeLow(middle)
-  const rightRim = rangeHigh(last40.slice(22, 32))
-  const handleLow = rangeLow(handle)
-  const cupDepth = (leftRim - cupLow) / leftRim
-  const rimAligned = Math.abs(leftRim - rightRim) / leftRim < 0.045
-  const handleHealthy = handleLow > cupLow * 1.04 && handleLow < rightRim * 0.99
+  const n = ohlcv.length
+  if (n < 45) return
+  const current = ohlcv[n - 1].c
 
-  if (cupDepth > 0.06 && cupDepth < 0.35 && rimAligned && handleHealthy) {
-    const points = [
-      { index: offset + localExtremeIndex(left.map(bar => bar.h), 'high'), price: leftRim },
-      { index: offset + 12 + localExtremeIndex(middle.map(bar => bar.l), 'low'), price: cupLow },
-      { index: offset + 22 + localExtremeIndex(last40.slice(22, 32).map(bar => bar.h), 'high'), price: rightRim },
-      { index: offset + 28 + localExtremeIndex(handle.map(bar => bar.l), 'low'), price: handleLow },
-    ]
-    addPattern(found, 'CUP_HANDLE', ohlcv, 1.1, 'developing', buildVisual(ohlcv, offset, ohlcv.length - 1, points, [
+  // Try several sizes so real-world cups (short and long) both surface.
+  const configs = []
+  for (const windowSize of [60, 80, 100, 130]) {
+    if (windowSize > n) continue
+    for (const handleLen of [8, 12, 18, 25, 34]) {
+      if (handleLen >= windowSize * 0.4) continue // handle must be << cup
+      configs.push({ windowSize, handleLen })
+    }
+  }
+
+  let best = null
+  for (const { windowSize, handleLen } of configs) {
+    const window = ohlcv.slice(-windowSize)
+    const offset = n - windowSize
+    const cupBars = window.slice(0, windowSize - handleLen)
+    const handleBars = window.slice(windowSize - handleLen)
+    const leftRimBars = cupBars.slice(0, Math.max(3, Math.round(cupBars.length * 0.18)))
+    const rightRimBars = cupBars.slice(-Math.max(3, Math.round(cupBars.length * 0.18)))
+    const bottomBars = cupBars.slice(
+      Math.round(cupBars.length * 0.30),
+      Math.round(cupBars.length * 0.70),
+    )
+    if (!leftRimBars.length || !rightRimBars.length || !bottomBars.length) continue
+
+    const leftRim = rangeHigh(leftRimBars)
+    const rightRim = rangeHigh(rightRimBars)
+    const cupLow = rangeLow(bottomBars)
+    const rim = Math.max(leftRim, rightRim)
+    const handleHigh = rangeHigh(handleBars)
+    const handleLow = rangeLow(handleBars)
+
+    if (rim <= 0) continue
+    const cupDepth = (rim - cupLow) / rim
+    const rimAsym = Math.abs(leftRim - rightRim) / rim
+    const handlePullback = (rightRim - handleLow) / rightRim
+    const handleShallowerThanCup = (rightRim - handleLow) < (rightRim - cupLow) * 0.55
+
+    // Cup low should live near the middle of the cup — a V (early low) or a
+    // slope (late low) both disqualify a proper rounded base.
+    const cupLowIdxInBottom = localExtremeIndex(bottomBars.map(b => b.l), 'low')
+    const cupLowGlobalIdx = Math.round(cupBars.length * 0.30) + cupLowIdxInBottom
+    const cupLowPosition = cupLowGlobalIdx / cupBars.length // 0..1
+
+    // Structural validity — these are relatively generous so real charts pass.
+    const ok =
+      cupDepth >= 0.08 && cupDepth <= 0.50 &&
+      rimAsym <= 0.08 &&
+      handlePullback >= 0.005 && handlePullback <= 0.20 &&
+      handleShallowerThanCup &&
+      cupLowPosition >= 0.30 && cupLowPosition <= 0.75 &&
+      handleHigh <= rim * 1.005
+
+    if (!ok) continue
+
+    // Quality score — closer to the classic O'Neil proportions = higher.
+    // Reward moderate depth (~15–30%), tight handles (~3–10%), tight rims.
+    const depthScore   = 1 - Math.abs(cupDepth   - 0.20) / 0.30
+    const handleScore  = 1 - Math.abs(handlePullback - 0.06) / 0.15
+    const rimScore     = 1 - (rimAsym / 0.08)
+    const quality = clamp01((depthScore + handleScore + rimScore) / 3)
+    if (best && quality <= best.quality) continue
+
+    best = {
+      quality, offset, window, cupBars, handleBars,
+      leftRim, rightRim, cupLow, rim, handleHigh, handleLow,
+      cupDepth, rimAsym, handlePullback, handleLen, windowSize,
+    }
+  }
+
+  if (!best) return
+
+  // Where is the price relative to the pivot? That decides the STAGE.
+  const pivot = best.rim
+  const cupDollarDepth = pivot - best.cupLow
+  const pivotTarget = pivot + cupDollarDepth * (PATTERN_DEFS.CUP_HANDLE.targetFactor || 0.9)
+  const distToBreakoutPct = (pivot - current) / pivot
+  let stage
+  if (current >= pivot * 1.005) stage = 'broken_out'
+  else if (distToBreakoutPct <= 0.02) stage = 'near_breakout'
+  else if (current <= best.handleHigh) stage = 'in_handle'
+  else stage = 'cup_forming'
+
+  const strength = 1 + (best.quality * 0.3) // 1.0–1.3 based on quality
+  const cupLowIdx = best.offset + Math.round(best.cupBars.length * 0.30) +
+    localExtremeIndex(best.cupBars.slice(
+      Math.round(best.cupBars.length * 0.30),
+      Math.round(best.cupBars.length * 0.70),
+    ).map(bar => bar.l), 'low')
+  const rightRimIdx = best.offset + best.cupBars.length -
+    Math.max(3, Math.round(best.cupBars.length * 0.18)) +
+    localExtremeIndex(best.cupBars.slice(-Math.max(3, Math.round(best.cupBars.length * 0.18))).map(bar => bar.h), 'high')
+  const handleLowIdx = best.offset + best.cupBars.length +
+    localExtremeIndex(best.handleBars.map(bar => bar.l), 'low')
+  const points = [
+    { index: best.offset, price: best.leftRim },
+    { index: cupLowIdx, price: best.cupLow },
+    { index: rightRimIdx, price: best.rightRim },
+    { index: handleLowIdx, price: best.handleLow },
+  ]
+
+  addPattern(
+    found,
+    'CUP_HANDLE',
+    ohlcv,
+    strength,
+    stage === 'broken_out' ? 'confirmed' : 'developing',
+    buildVisual(ohlcv, best.offset, n - 1, points, [
       { from: points[0], to: points[1] },
       { from: points[1], to: points[2] },
       { from: points[2], to: points[3] },
-    ]), { breakoutLevel: rightRim, invalidationLevel: handleLow })
-  }
+    ]),
+    {
+      breakoutLevel: pivot,
+      invalidationLevel: best.handleLow,
+      pivotTarget,
+      cupDepth: best.cupDepth,
+      handlePullback: best.handlePullback,
+      distanceToBreakoutPct: distToBreakoutPct,
+      stage,
+      quality: best.quality,
+    },
+  )
 }
+
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v }
 
 function detectBreakoutsAndGaps(found, ohlcv) {
   const n = ohlcv.length

@@ -12,7 +12,10 @@ export default function useSignal(ohlcv, indicators, language = 'he') {
   return useMemo(() => {
     if (!ohlcv?.length || !indicators) return null
     const patternResult = detectPatterns(ohlcv)
-    const signal        = computeSignal(ohlcv, indicators, patternResult.score)
+    // Pass the full result — computeSignal now needs the pattern LIST (not just
+    // the aggregate score) to apply setup-override logic that keeps a valid
+    // bullish base from being SOLD out of because its handle looks weak.
+    const signal        = computeSignal(ohlcv, indicators, patternResult)
     if (!signal) return null
     const analysis = generateAnalysis(ohlcv, indicators, signal, patternResult, language)
     const pro      = computeProfessionalFeatures(ohlcv, indicators, signal)

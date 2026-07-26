@@ -74,6 +74,8 @@ function generateEnglishAnalysis(ohlcv, indicators, signal, patterns) {
   const conclusions = {
     STRONG_BUY: 'Summary: most indicators point to a strong buy opportunity.',
     BUY: 'Summary: indicators lean toward a buy setup.',
+    BUY_SETUP: 'Summary: a bullish setup is confirmed at the pivot — buy the breakout with the pattern stop.',
+    SETUP_HOLD: 'Summary: a bullish base is in play; the current pullback is part of the setup, not a sell signal. Wait at the pivot.',
     HOLD: 'Summary: signals are mixed, so waiting for clearer confirmation is preferable.',
     SELL: 'Summary: indicators lean toward reducing exposure.',
     STRONG_SELL: 'Summary: most indicators point to strong selling pressure.',
@@ -102,6 +104,32 @@ export function generateAnalysis(ohlcv, indicators, signal, patterns, language =
   const sma200   = indicators.sma200?.[last]
 
   const parts = []
+
+  // Setup-first framing: when a strong bullish base/continuation is in play
+  // the setup story anchors the whole analysis, so lead with it — indicator
+  // readings that follow are then interpreted through that lens (weakness in
+  // a handle is expected, not a sell signal).
+  const setup = signal?.setup
+  if (setup) {
+    const fmt = (v) => v == null ? '—' : (v >= 100 ? v.toFixed(2) : v.toFixed(3))
+    const stageText = {
+      cup_forming:    'הגביע עדיין בגיבוש (הצד הימני עוד לא הושלם)',
+      in_handle:      'המחיר בתוך ההידית — פולבק צפוי אחרי הגביע',
+      near_breakout:  'המחיר קרוב מאוד לנקודת הפריצה — לצפות בסניף לפריצה בנפח',
+      broken_out:     'התבנית פרצה מעל הפיווט — כניסה בברייקאאוט מאושרת',
+      developing:     'התבנית בפיתוח',
+    }[setup.stage] || 'התבנית בפיתוח'
+    const distTxt = setup.distanceToBreakoutPct != null
+      ? ` (${(setup.distanceToBreakoutPct * 100).toFixed(1)}% מתחת לפיווט)`
+      : ''
+    const setupLabel = setup.key === 'CUP_HANDLE' ? 'קאפ אנד הנדל (Cup & Handle)'
+      : setup.label || setup.key
+    parts.push(`זוהתה תבנית ${setupLabel}. ${stageText}${distTxt}.`)
+    if (setup.pivot != null) parts.push(`נקודת פריצה (Pivot): $${fmt(setup.pivot)}.`)
+    if (setup.target != null) parts.push(`יעד מדוד לאחר פריצה: $${fmt(setup.target)}.`)
+    if (setup.stopLoss != null) parts.push(`Stop / Invalidation: מתחת ל-$${fmt(setup.stopLoss)} — סגירה שם מבטלת את התבנית.`)
+    parts.push('חולשת אינדיקטורים בתוך התבנית היא חלק מהמבנה, לא סיבה למכור.')
+  }
 
   // Trend / Regime
   if (sma50 && sma200) {
@@ -175,6 +203,8 @@ export function generateAnalysis(ohlcv, indicators, signal, patterns, language =
   const conclusions = {
     STRONG_BUY:  'סיכום: רוב האינדיקטורים מצביעים על הזדמנות קנייה חזקה.',
     BUY:         'סיכום: האינדיקטורים מצביעים על נטייה לקנייה.',
+    BUY_SETUP:   'סיכום: התבנית הבישית פרצה את הפיווט — כניסת ברייקאאוט עם עצירה של התבנית.',
+    SETUP_HOLD:  'סיכום: תבנית בסיס בישית בפיתוח — הפולבק הנוכחי חלק מהמבנה, לא סיבה למכור. להמתין ולעקוב לפריצת הפיווט.',
     HOLD:        'סיכום: הסיגנלים מעורבים — המתן לאיתות ברור יותר.',
     SELL:        'סיכום: האינדיקטורים מצביעים על נטייה למכירה.',
     STRONG_SELL: 'סיכום: רוב האינדיקטורים מצביעים על לחץ מכירה חזק.',
