@@ -1,5 +1,7 @@
 // Multi-gate signal pipeline (inspired by stock-checker architecture)
-// Gate 1: Trend Gate → Gate 2: Gradient Scoring → Gate 3: Confluence → Gate 4: Reversal → Final
+// Gate 1: Trend Gate (structure-first) → Gate 2: Gradient Scoring →
+// Gate 3: Confluence → Gate 4: Reversal → Setup Override → Final
+import { analyzeMarketStructure, allowsBullishEntry, allowsBearishEntry } from './marketStructure'
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
@@ -27,15 +29,68 @@ function sellGradient(value, oversold, overbought) {
 // Sigmoid calibration → probability 0-100
 
 // ── Gate 1: Trend / Regime ────────────────────────────────────────────────
-function trendGate(price, sma50, sma200) {
-  if (!sma50 || !sma200) return { regime: 'unknown', passed: true, strength: 50 }
-  const aboveSma50  = price > sma50
-  const aboveSma200 = price > sma200
-  const smaOrder    = sma50 > sma200
+// Market STRUCTURE (HH/HL vs LH/LL sequence) is the primary trend signal —
+// SMAs only corroborate. A stock in a valid Cup & Handle handle is briefly
+// below SMA20/50 but its structure is still bullish; the old SMA-only gate
+// downgraded it to "sideways" and blocked bullish reads. The structure-aware
+// gate keeps it as "uptrend" (weaker strength if SMAs disagree) and lets the
+// setup override do its job.
+function trendGate(price, sma50, sma200, structure) {
+  const smaSays =
+    (sma50 && sma200 && price > sma50 && sma50 > sma200) ? 'up'   :
+    (sma50 && sma200 && price < sma50 && sma50 < sma200) ? 'down' : 'flat'
 
-  if (aboveSma50 && aboveSma200 && smaOrder)  return { regime: 'uptrend',  passed: true,  strength: 80 }
-  if (!aboveSma50 && !aboveSma200 && !smaOrder) return { regime: 'downtrend', passed: false, strength: 20 }
-  return { regime: 'sideways', passed: true, strength: 50 }
+  // Structure is decisive when present.
+  if (structure) {
+    if (structure.trend === 'bullish') {
+      // BOS up = trend is being actively confirmed → maximum strength.
+      // CHoCH down = early warning; still passable but downgraded.
+      let strength = 65
+      if (smaSays === 'up')  strength += 15
+      if (structure.bosDirection === 'up') strength += 10
+      if (structure.chochDirection === 'down') strength = Math.max(50, strength - 20)
+      return {
+        regime: 'uptrend',
+        passed: true,
+        strength: Math.min(95, strength),
+        source: 'structure',
+        structureTrend: 'bullish',
+        bos: structure.bosDirection,
+        choch: structure.chochDirection,
+      }
+    }
+    if (structure.trend === 'bearish') {
+      // Bearish structure blocks bullish reads UNLESS a CHoCH up has fired —
+      // the earliest evidence of a possible reversal, worth watching but not
+      // yet fully passable. Also blocks the pipeline's BUY / STRONG_BUY.
+      const passed = structure.chochDirection === 'up'
+      return {
+        regime: 'downtrend',
+        passed,
+        strength: passed ? 45 : 20,
+        source: 'structure',
+        structureTrend: 'bearish',
+        bos: structure.bosDirection,
+        choch: structure.chochDirection,
+      }
+    }
+    // Consolidating: no directional trend. Passable but weak.
+    return {
+      regime: 'sideways',
+      passed: true,
+      strength: 50,
+      source: 'structure',
+      structureTrend: 'consolidating',
+      bos: structure.bosDirection,
+      choch: structure.chochDirection,
+    }
+  }
+
+  // Fallback: legacy SMA-only classifier when structure data isn't available.
+  if (!sma50 || !sma200) return { regime: 'unknown', passed: true, strength: 50, source: 'sma' }
+  if (smaSays === 'up')   return { regime: 'uptrend',   passed: true,  strength: 80, source: 'sma' }
+  if (smaSays === 'down') return { regime: 'downtrend', passed: false, strength: 20, source: 'sma' }
+  return { regime: 'sideways', passed: true, strength: 50, source: 'sma' }
 }
 
 // ── Gate 3: Confluence ────────────────────────────────────────────────────
@@ -148,6 +203,11 @@ export function computeSignal(ohlcv, indicators, patternInput = 0) {
   const last  = ohlcv.length - 1
   const price = ohlcv[last].c
 
+  // Market structure is computed FIRST — every gate below reads through it.
+  // The pivots-based HH/HL vs LH/LL sequence is a more honest read on trend
+  // than SMA alignment (which lags and misreads pullbacks inside a trend).
+  const structure = analyzeMarketStructure(ohlcv)
+
   const rsi      = indicators.rsi14[last]
   const stochK   = indicators.stoch.k[last]
   const willR    = indicators.willR[last]
@@ -165,8 +225,8 @@ export function computeSignal(ohlcv, indicators, patternInput = 0) {
   const sma200   = indicators.sma200[last]
   const volRatio = indicators.volRatio
 
-  // Gate 1 — Trend
-  const trend = trendGate(price, sma50, sma200)
+  // Gate 1 — Trend (structure-aware; SMAs are corroboration only)
+  const trend = trendGate(price, sma50, sma200, structure)
   const factors = []
 
   // ── Buy-side gradient scores ──────────────────────────────────────────
@@ -242,6 +302,13 @@ export function computeSignal(ohlcv, indicators, patternInput = 0) {
 
   // Blocked by downtrend
   if (!trend.passed && (action === 'BUY' || action === 'STRONG_BUY')) action = 'HOLD'
+
+  // Structural veto: never take a BUY when structure is bearish AND no CHoCH
+  // up has fired, and never take a SELL when structure is bullish AND no CHoCH
+  // down has fired. "Don't fight the trend" is more important than any single
+  // indicator reading.
+  if ((action === 'BUY' || action === 'STRONG_BUY') && !allowsBullishEntry(structure)) action = 'HOLD'
+  if ((action === 'SELL' || action === 'STRONG_SELL') && !allowsBearishEntry(structure)) action = 'HOLD'
 
   // ── SETUP OVERRIDE ──────────────────────────────────────────────────
   // Analyst-brain framing: if a strong base/continuation pattern is in play,
@@ -344,7 +411,8 @@ export function computeSignal(ohlcv, indicators, patternInput = 0) {
     sellProbability,
     confidence,
     factors,
-    setup: setupInfo, // null when no eligible bullish setup is active
+    setup: setupInfo,       // null when no eligible bullish setup is active
+    structure: structure,   // pivot-based HH/HL sequence, BOS / CHoCH events
     gates: {
       trend:       { ...trend },
       confluence:  { ...confluence },

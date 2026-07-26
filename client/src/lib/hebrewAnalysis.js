@@ -106,6 +106,45 @@ export function generateAnalysis(ohlcv, indicators, signal, patterns, language =
   const sma200   = indicators.sma200?.[last]
 
   const parts = []
+  const fmtLevel = (v) => v == null ? '—' : (v >= 100 ? v.toFixed(2) : v.toFixed(3))
+
+  // Market structure — described FIRST, before setups and indicators.
+  // Analysts read the chart as a sequence of pivots; whether the last two swings
+  // made a HH/HL (bullish continuation) or an LH/LL (bearish continuation) tells
+  // you more about the regime than any oscillator. BOS / CHoCH events, when
+  // present, are called out because they're the actionable structural triggers.
+  const structure = signal?.structure
+  if (structure && structure.lastPivots?.length) {
+    const trendText = {
+      bullish:       'מבנה שוק עולה — רצף של שיאים גבוהים ושפלים גבוהים (HH/HL)',
+      bearish:       'מבנה שוק יורד — רצף של שיאים נמוכים ושפלים נמוכים (LH/LL)',
+      consolidating: 'מבנה שוק צדדי — אין רצף פיוטים דומיננטי',
+    }[structure.trend] || 'מבנה השוק לא מובהק'
+    const strengthTxt = structure.strength >= 80 ? ' (מבנה נקי)'
+                     : structure.strength >= 60 ? ''
+                     : ' (מבנה מעורב)'
+    parts.push(`${trendText}${strengthTxt}. חוזק מבנה: ${structure.strength}%.`)
+
+    const kl = structure.keyLevels
+    if (structure.trend === 'bullish') {
+      if (kl.lastSwingHigh != null) parts.push(`שיא אחרון: $${fmtLevel(kl.lastSwingHigh)} (השבירה מעליו מאשרת BOS).`)
+      if (kl.lastSwingLow  != null) parts.push(`שפל תמיכה קריטי (HL אחרון): $${fmtLevel(kl.lastSwingLow)} — שבירתו למטה = CHoCH ראשוני של היפוך.`)
+    } else if (structure.trend === 'bearish') {
+      if (kl.lastSwingLow  != null) parts.push(`שפל אחרון: $${fmtLevel(kl.lastSwingLow)} (השבירה מתחתיו מאשרת BOS).`)
+      if (kl.lastSwingHigh != null) parts.push(`שיא התנגדות קריטי (LH אחרון): $${fmtLevel(kl.lastSwingHigh)} — פריצה מעליו = CHoCH ראשוני של היפוך.`)
+    }
+
+    if (structure.bosDirection === 'up') {
+      parts.push('BOS ↑ מאושר — המחיר שבר את השיא המבני הקודם וממשיך את המגמה.')
+    } else if (structure.bosDirection === 'down') {
+      parts.push('BOS ↓ מאושר — המחיר שבר את השפל המבני הקודם וממשיך את המגמה.')
+    }
+    if (structure.chochDirection === 'up') {
+      parts.push('⚠️ CHoCH ↑ — לראשונה נשבר שיא מבני נגד המגמה היורדת. אזהרה מוקדמת של אפשרות היפוך. עדיין דורש BOS למעלה כדי לפעול לונג.')
+    } else if (structure.chochDirection === 'down') {
+      parts.push('⚠️ CHoCH ↓ — לראשונה נשבר שפל מבני נגד המגמה העולה. אזהרה מוקדמת של אפשרות היפוך. עדיין דורש BOS למטה כדי לפעול שורט.')
+    }
+  }
 
   // Setup-first framing: when a strong base/continuation pattern is in play the
   // setup story anchors the analysis, so lead with it. Indicator readings that
