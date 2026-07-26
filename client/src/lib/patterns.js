@@ -1,4 +1,5 @@
 import { detectPivotTriangles } from './advancedTrends'
+import { detectTrendlineBreaks } from './trendlines'
 
 const PATTERN_DEFS = {
   BULLISH_FLAG: { label: 'Bull Flag', category: 'Continuation', weight: 75, direction: 'bullish', targetFactor: 1.0 },
@@ -18,6 +19,15 @@ const PATTERN_DEFS = {
   ASCENDING_TRIANGLE: { label: 'Ascending Triangle', category: 'Continuation', weight: 75, direction: 'bullish', targetFactor: 0.8 },
   DESCENDING_TRIANGLE: { label: 'Descending Triangle', category: 'Continuation', weight: -75, direction: 'bearish', targetFactor: 0.8 },
   SYMMETRICAL_TRIANGLE: { label: 'Symmetrical Triangle', category: 'Continuation', weight: 35, direction: 'neutral', targetFactor: 0.65 },
+  // Directional promotions of the symmetrical triangle — once the coil has
+  // actually broken, "neutral" is the wrong stance and its weight jumps to
+  // reflect the resolved edge.
+  SYMMETRICAL_TRIANGLE_BREAK_UP:   { label: 'Symmetrical Triangle Breakout (up)',   category: 'Continuation', weight:  74, direction: 'bullish', targetFactor: 0.85 },
+  SYMMETRICAL_TRIANGLE_BREAK_DOWN: { label: 'Symmetrical Triangle Breakdown',       category: 'Continuation', weight: -74, direction: 'bearish', targetFactor: 0.85 },
+  // Standalone trendline breaks (not part of a triangle). Higher-lows uptrend
+  // line failing = bearish; lower-highs downtrend line breaking = bullish.
+  TRENDLINE_BREAK_UP:   { label: 'Downtrend Line Break',  category: 'Breakout / Breakdown', weight:  72, direction: 'bullish', targetFactor: 0.7 },
+  TRENDLINE_BREAK_DOWN: { label: 'Uptrend Line Break',    category: 'Breakout / Breakdown', weight: -72, direction: 'bearish', targetFactor: 0.7 },
   EXPANDING_TRIANGLE: { label: 'Megaphone / Expanding Triangle', category: 'Continuation', weight: 0, direction: 'neutral', targetFactor: 0.75 },
   RECTANGLE_BULLISH: { label: 'Rectangle Consolidation', category: 'Continuation', weight: 62, direction: 'bullish', targetFactor: 0.7 },
   RECTANGLE_BEARISH: { label: 'Rectangle Consolidation', category: 'Continuation', weight: -62, direction: 'bearish', targetFactor: 0.7 },
@@ -165,22 +175,84 @@ function addPattern(found, key, ohlcv, strength = 1, status = 'developing', visu
 
 function addPivotTrianglePatterns(found, ohlcv) {
   detectPivotTriangles(ohlcv).forEach(triangle => {
-    if (found.some(pattern => pattern.key === triangle.key)) return
-    const def = PATTERN_DEFS[triangle.key]
+    // A symmetrical triangle that has already resolved (broken UP or DOWN)
+    // stops being a "neutral" coil — the resolution IS the trade. Promote it
+    // to a directional key so the setup override and the UI can treat it as
+    // a real bullish / bearish signal with proper weight.
+    let key = triangle.key
+    if (triangle.key === 'SYMMETRICAL_TRIANGLE') {
+      if (triangle.status === 'breakout_up')   key = 'SYMMETRICAL_TRIANGLE_BREAK_UP'
+      else if (triangle.status === 'breakout_down') key = 'SYMMETRICAL_TRIANGLE_BREAK_DOWN'
+    }
+    if (found.some(pattern => pattern.key === key)) return
+    const def = PATTERN_DEFS[key]
     if (!def) return
     const current = ohlcv[ohlcv.length - 1].c
-    const targetPrice = triangle.direction === 'bearish' ? triangle.targetDown : triangle.targetUp
+    const isBearishKey = def.weight < 0
+    const targetPrice = isBearishKey ? triangle.targetDown : triangle.targetUp
+    const breakoutLevel = isBearishKey ? triangle.support : triangle.resistance
+    const invalidationLevel = isBearishKey ? triangle.resistance : triangle.support
+
+    // Map raw status → the stage vocabulary the setup override understands.
+    let stage
+    if (triangle.status === 'breakout_up' || triangle.status === 'breakout_down') stage = 'broken_out'
+    else if (triangle.completionPct >= 70) stage = 'near_breakout'
+    else stage = 'developing'
+
+    // For directional-break variants, also record how far past the pivot we are.
+    const distanceToBreakoutPct = breakoutLevel && current
+      ? (isBearishKey ? (current - breakoutLevel) / breakoutLevel
+                      : (breakoutLevel - current) / breakoutLevel)
+      : null
+
     found.push({
-      key: triangle.key,
+      key,
       label: def.label,
       category: def.category,
       weight: Math.round((def.weight || 0) * (triangle.strength / 2)),
       direction: def.direction,
-      status: triangle.status === 'breakout_up' || triangle.status === 'breakout_down' ? 'confirmed' : 'developing',
+      status: stage === 'broken_out' ? 'confirmed' : 'developing',
       targetPrice,
       potentialPct: Number((((targetPrice - current) / current) * 100).toFixed(2)),
       visual: triangle.visual,
-      meta: { ...triangle, breakoutLevel: triangle.resistance, invalidationLevel: triangle.support },
+      meta: {
+        ...triangle,
+        breakoutLevel,
+        invalidationLevel,
+        stage,
+        distanceToBreakoutPct,
+        pivotTarget: targetPrice,
+      },
+    })
+  })
+}
+
+// Standalone trendline break patterns — not a triangle, just a line that
+// connected several highs / lows and finally cracked. Analysts read these as
+// regime-change triggers.
+function addTrendlineBreakPatterns(found, ohlcv) {
+  detectTrendlineBreaks(ohlcv).forEach(hit => {
+    if (found.some(p => p.key === hit.key)) return
+    const def = PATTERN_DEFS[hit.key]
+    if (!def) return
+    const current = ohlcv[ohlcv.length - 1].c
+    const target = hit.meta?.pivotTarget ?? current
+    const potentialPct = Number((((target - current) / current) * 100).toFixed(2))
+    const visual = buildVisual(ohlcv, hit.points?.[0]?.index ?? Math.max(0, ohlcv.length - 60), ohlcv.length - 1, hit.points, [
+      // Connect the pivots that anchor the trendline plus its projection to now.
+      ...hit.points.slice(0, -1).map((from, i) => ({ from, to: hit.points[i + 1] })),
+    ])
+    found.push({
+      key: hit.key,
+      label: def.label,
+      category: def.category,
+      weight: hit.weight, // already correctly signed by the detector
+      direction: def.direction,
+      status: hit.stage === 'broken_out' ? 'confirmed' : 'developing',
+      targetPrice: target,
+      potentialPct,
+      visual,
+      meta: hit.meta,
     })
   })
 }
@@ -590,6 +662,7 @@ export function detectPatterns(ohlcv) {
   detectRoundedStructures(patterns, ohlcv)
   detectCupHandle(patterns, ohlcv)
   detectBreakoutsAndGaps(patterns, ohlcv)
+  addTrendlineBreakPatterns(patterns, ohlcv)
   detectCandlesticks(patterns, ohlcv)
 
   const score = patterns.reduce((sum, pattern) => sum + pattern.weight, 0)

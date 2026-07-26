@@ -17,6 +17,14 @@ function standardDeviation(values) {
   return variance == null ? null : Math.sqrt(variance)
 }
 
+// Exported so the trendline detector (trendlines.js) can reuse the same
+// pivot / linear-fit primitives instead of duplicating them and drifting.
+export function findPivotsExt(ohlcv, field, type, strength = 5) {
+  return findPivots(ohlcv, field, type, strength)
+}
+export function fitLineExt(points) { return fitLine(points) }
+export function priceAtExt(line, index) { return priceAt(line, index) }
+
 function fitLine(points) {
   if (points.length < 2) return null
   const n = points.length

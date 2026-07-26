@@ -137,6 +137,10 @@ export function generateAnalysis(ohlcv, indicators, signal, patterns, language =
     const setupLabel = setup.key === 'CUP_HANDLE' ? 'קאפ אנד הנדל (Cup & Handle)'
       : setup.key === 'HEAD_SHOULDERS' ? 'ראש וכתפיים (Head & Shoulders)'
       : setup.key === 'INVERSE_HEAD_SHOULDERS' ? 'ראש וכתפיים הפוכה (Inverse H&S)'
+      : setup.key === 'SYMMETRICAL_TRIANGLE_BREAK_UP' ? 'פריצת משולש מתכנס כלפי מעלה'
+      : setup.key === 'SYMMETRICAL_TRIANGLE_BREAK_DOWN' ? 'שבירת משולש מתכנס כלפי מטה'
+      : setup.key === 'TRENDLINE_BREAK_UP' ? 'פריצת קו מגמה יורד (Downtrend Line Break)'
+      : setup.key === 'TRENDLINE_BREAK_DOWN' ? 'שבירת קו מגמה עולה (Uptrend Line Break)'
       : setup.label || setup.key
     const patternType = isBearish ? 'תבנית טופ בישית' : 'תבנית בסיס בישית'
     parts.push(`זוהתה ${patternType} — ${setupLabel}. ${stageText}${distTxt}.`)

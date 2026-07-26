@@ -92,6 +92,9 @@ function findBullishSetup(patterns, price) {
     'CUP_HANDLE', 'ASCENDING_TRIANGLE', 'BULLISH_FLAG', 'BULLISH_PENNANT',
     'FALLING_WEDGE', 'INVERSE_HEAD_SHOULDERS', 'DOUBLE_BOTTOM', 'TRIPLE_BOTTOM',
     'ROUNDED_BOTTOM', 'RECTANGLE_BULLISH', 'RETEST_AFTER_BREAKOUT',
+    // Directional break of a converging triangle & standalone trendline break —
+    // both are pivot-anchored bullish triggers the setup framework should honor.
+    'SYMMETRICAL_TRIANGLE_BREAK_UP', 'TRENDLINE_BREAK_UP',
   ])
   const withStage = patterns
     .filter(p => p.direction === 'bullish' && eligibleKeys.has(p.key) && p.weight >= 55)
@@ -116,6 +119,8 @@ function findBearishSetup(patterns, price) {
     'HEAD_SHOULDERS', 'DESCENDING_TRIANGLE', 'BEARISH_FLAG', 'BEARISH_PENNANT',
     'RISING_WEDGE', 'DOUBLE_TOP', 'TRIPLE_TOP', 'ROUNDED_TOP',
     'RECTANGLE_BEARISH', 'INVERSE_CUP_HANDLE',
+    // Bearish mirror: symmetrical triangle breaking DOWN, uptrend line failing.
+    'SYMMETRICAL_TRIANGLE_BREAK_DOWN', 'TRENDLINE_BREAK_DOWN',
   ])
   const withStage = patterns
     .filter(p => p.direction === 'bearish' && eligibleKeys.has(p.key) && p.weight <= -55)
