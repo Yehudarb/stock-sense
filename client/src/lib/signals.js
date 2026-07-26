@@ -56,30 +56,76 @@ function reversalConfirm(ohlcv, volRatio) {
   return { passed: false, trigger: null }
 }
 
+// Compute a stage on-the-fly for patterns whose detector didn't set one.
+// The stage is the analyst-brain framing: where are we in the setup's life?
+//  - developing    : too far from the pivot to be actionable yet
+//  - in_handle     : pulled back from the last rally but pivot still overhead
+//  - near_breakout : within ~2% of the pivot — the actionable zone
+//  - broken_out    : trading above the pivot — thesis is confirmed
+function inferStage(price, breakoutLevel, direction = 'bullish') {
+  if (breakoutLevel == null || !Number.isFinite(breakoutLevel)) return 'developing'
+  if (direction === 'bearish') {
+    // Bearish: pivot is a support/neckline BELOW price. Breakout DOWN is the trigger.
+    const dist = (price - breakoutLevel) / breakoutLevel // >0 while price still above pivot
+    if (price <= breakoutLevel * 0.995) return 'broken_out'
+    if (dist <= 0.02) return 'near_breakout'
+    if (dist <= 0.08) return 'in_handle'
+    return 'developing'
+  }
+  // Bullish (default): pivot is a resistance ABOVE price. Breakout UP is the trigger.
+  const dist = (breakoutLevel - price) / breakoutLevel
+  if (price >= breakoutLevel * 1.005) return 'broken_out'
+  if (dist <= 0.02) return 'near_breakout'
+  if (dist <= 0.08) return 'in_handle'
+  return 'developing'
+}
+
 // A "bullish setup" is a strong continuation/reversal pattern that is either
 // mid-formation (in the handle / base) or right at its breakout pivot. When one
 // exists, indicator cooling INSIDE the setup is EXPECTED behavior (that IS the
 // handle / pullback) — the analyst-brain read is "wait for the breakout / buy
 // the breakout," never "sell because the handle is red." This function surfaces
 // the strongest such setup so the main pipeline can suppress a knee-jerk SELL.
-function findBullishSetup(patterns) {
+function findBullishSetup(patterns, price) {
   if (!Array.isArray(patterns) || !patterns.length) return null
   const eligibleKeys = new Set([
     'CUP_HANDLE', 'ASCENDING_TRIANGLE', 'BULLISH_FLAG', 'BULLISH_PENNANT',
     'FALLING_WEDGE', 'INVERSE_HEAD_SHOULDERS', 'DOUBLE_BOTTOM', 'TRIPLE_BOTTOM',
     'ROUNDED_BOTTOM', 'RECTANGLE_BULLISH', 'RETEST_AFTER_BREAKOUT',
   ])
-  const candidates = patterns
+  const withStage = patterns
     .filter(p => p.direction === 'bullish' && eligibleKeys.has(p.key) && p.weight >= 55)
-    .filter(p => {
-      const stage = p.meta?.stage
-      if (stage) return ['in_handle', 'near_breakout', 'broken_out', 'cup_forming'].includes(stage)
-      // Fallback for patterns without explicit stage: accept if we have a
-      // breakoutLevel and current price isn't already far above it.
-      return p.meta?.breakoutLevel != null
+    .map(p => {
+      const stage = p.meta?.stage || inferStage(price, p.meta?.breakoutLevel, 'bullish')
+      return { ...p, meta: { ...p.meta, stage } }
     })
+    .filter(p => ['in_handle', 'near_breakout', 'broken_out', 'cup_forming'].includes(p.meta.stage))
     .sort((a, b) => b.weight - a.weight)
-  return candidates[0] || null
+  return withStage[0] || null
+}
+
+// Bearish mirror: a valid distribution / topping pattern deserves the same
+// analyst treatment on the down side. Rising indicator readings inside a
+// head-and-shoulders right shoulder look like BUY momentum but the pattern
+// context says NO — the analyst waits for a break of the neckline and shorts /
+// gets out. Suppress "BUY" out of a valid bearish setup, escalate HOLD → SELL_SETUP
+// when the pattern breaks its pivot.
+function findBearishSetup(patterns, price) {
+  if (!Array.isArray(patterns) || !patterns.length) return null
+  const eligibleKeys = new Set([
+    'HEAD_SHOULDERS', 'DESCENDING_TRIANGLE', 'BEARISH_FLAG', 'BEARISH_PENNANT',
+    'RISING_WEDGE', 'DOUBLE_TOP', 'TRIPLE_TOP', 'ROUNDED_TOP',
+    'RECTANGLE_BEARISH', 'INVERSE_CUP_HANDLE',
+  ])
+  const withStage = patterns
+    .filter(p => p.direction === 'bearish' && eligibleKeys.has(p.key) && p.weight <= -55)
+    .map(p => {
+      const stage = p.meta?.stage || inferStage(price, p.meta?.breakoutLevel, 'bearish')
+      return { ...p, meta: { ...p.meta, stage } }
+    })
+    .filter(p => ['in_handle', 'near_breakout', 'broken_out', 'cup_forming', 'developing'].includes(p.meta.stage) && p.meta.stage !== 'developing')
+    .sort((a, b) => a.weight - b.weight) // most bearish first (most negative weight)
+  return withStage[0] || null
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
@@ -193,34 +239,57 @@ export function computeSignal(ohlcv, indicators, patternInput = 0) {
   if (!trend.passed && (action === 'BUY' || action === 'STRONG_BUY')) action = 'HOLD'
 
   // ── SETUP OVERRIDE ──────────────────────────────────────────────────
-  // If a strong bullish base/continuation pattern is in play, the "cooling"
-  // indicators inside its handle/base are a FEATURE of the setup, not evidence
-  // to sell. An analyst waits at the pivot; a naive engine sells the handle.
-  // Rules:
-  //   • Suppress SELL → SETUP_HOLD while the setup is intact and price still
-  //     above the pattern's invalidation level.
-  //   • Upgrade HOLD → BUY_SETUP once price is at or through the pivot.
-  //   • Only invalidate the setup when price falls below invalidationLevel.
-  const setup = findBullishSetup(patternResult.patterns)
+  // Analyst-brain framing: if a strong base/continuation pattern is in play,
+  // the "cooling" (bullish setup) or "warming" (bearish setup) inside it is a
+  // FEATURE of the pattern, not evidence to trade against it. The engine now
+  // treats bullish AND bearish setups symmetrically.
+  //
+  // Bullish setup (cup, IH&S, base, ascending triangle, bull flag, …):
+  //   • SELL / STRONG_SELL → SETUP_HOLD  while price is above invalidationLevel
+  //   • HOLD → BUY_SETUP  at pivot break (broken_out or near_breakout)
+  //
+  // Bearish setup (H&S, descending triangle, bear flag, double top, …):
+  //   • BUY / STRONG_BUY → SETUP_AVOID  while price is below invalidationLevel
+  //   • HOLD → SELL_SETUP  at pivot break down (broken_out or near_breakout)
+  const bullSetup = findBullishSetup(patternResult.patterns, price)
+  const bearSetup = findBearishSetup(patternResult.patterns, price)
   let setupInfo = null
-  if (setup) {
-    const invalidated = setup.meta?.invalidationLevel != null && price < setup.meta.invalidationLevel
+
+  if (bullSetup) {
+    const invalidated = bullSetup.meta?.invalidationLevel != null && price < bullSetup.meta.invalidationLevel
     if (!invalidated) {
-      const stage = setup.meta?.stage
+      const stage = bullSetup.meta?.stage
       setupInfo = {
-        key: setup.key,
-        label: setup.label,
+        direction: 'bullish',
+        key: bullSetup.key,
+        label: bullSetup.label,
         stage: stage || 'developing',
-        pivot: setup.meta?.breakoutLevel ?? null,
-        target: setup.meta?.pivotTarget ?? setup.targetPrice ?? null,
-        stopLoss: setup.meta?.invalidationLevel ?? null,
-        distanceToBreakoutPct: setup.meta?.distanceToBreakoutPct ?? null,
-        quality: setup.meta?.quality ?? null,
+        pivot: bullSetup.meta?.breakoutLevel ?? null,
+        target: bullSetup.meta?.pivotTarget ?? bullSetup.targetPrice ?? null,
+        stopLoss: bullSetup.meta?.invalidationLevel ?? null,
+        distanceToBreakoutPct: bullSetup.meta?.distanceToBreakoutPct ?? null,
+        quality: bullSetup.meta?.quality ?? null,
       }
       if (action === 'SELL' || action === 'STRONG_SELL') action = 'SETUP_HOLD'
-      if (action === 'HOLD' && (stage === 'broken_out' || stage === 'near_breakout')) {
-        action = 'BUY_SETUP'
+      if (action === 'HOLD' && (stage === 'broken_out' || stage === 'near_breakout')) action = 'BUY_SETUP'
+    }
+  } else if (bearSetup) {
+    const invalidated = bearSetup.meta?.invalidationLevel != null && price > bearSetup.meta.invalidationLevel
+    if (!invalidated) {
+      const stage = bearSetup.meta?.stage
+      setupInfo = {
+        direction: 'bearish',
+        key: bearSetup.key,
+        label: bearSetup.label,
+        stage: stage || 'developing',
+        pivot: bearSetup.meta?.breakoutLevel ?? null,
+        target: bearSetup.meta?.pivotTarget ?? bearSetup.targetPrice ?? null,
+        stopLoss: bearSetup.meta?.invalidationLevel ?? null,
+        distanceToBreakoutPct: bearSetup.meta?.distanceToBreakoutPct ?? null,
+        quality: bearSetup.meta?.quality ?? null,
       }
+      if (action === 'BUY' || action === 'STRONG_BUY') action = 'SETUP_AVOID'
+      if (action === 'HOLD' && (stage === 'broken_out' || stage === 'near_breakout')) action = 'SELL_SETUP'
     }
   }
 

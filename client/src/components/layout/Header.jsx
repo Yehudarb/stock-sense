@@ -51,6 +51,7 @@ export default function Header({ isConnected }) {
     setTheme,
     simpleMode,
     setSimpleMode,
+    setShowScanner,
   } = useStore()
 
   const isHebrew = language === 'he'
@@ -154,6 +155,15 @@ export default function Header({ isConnected }) {
               className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
             >
               {simpleMode ? copy.simpleModeOn : copy.simpleModeOff}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+              title={isHebrew ? 'סורק תבניות Cup & Handle' : 'Cup & Handle scanner'}
+            >
+              {isHebrew ? 'סורק Cup & Handle' : 'C&H Scanner'}
             </button>
 
             <div className="relative" ref={dropdownRef}>

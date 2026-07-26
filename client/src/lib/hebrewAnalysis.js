@@ -76,6 +76,8 @@ function generateEnglishAnalysis(ohlcv, indicators, signal, patterns) {
     BUY: 'Summary: indicators lean toward a buy setup.',
     BUY_SETUP: 'Summary: a bullish setup is confirmed at the pivot — buy the breakout with the pattern stop.',
     SETUP_HOLD: 'Summary: a bullish base is in play; the current pullback is part of the setup, not a sell signal. Wait at the pivot.',
+    SELL_SETUP: 'Summary: a topping pattern broke its neckline — exit longs / short with the pattern stop.',
+    SETUP_AVOID: 'Summary: a valid topping pattern is still intact — do not buy here. Wait for the pattern to invalidate or break down before acting.',
     HOLD: 'Summary: signals are mixed, so waiting for clearer confirmation is preferable.',
     SELL: 'Summary: indicators lean toward reducing exposure.',
     STRONG_SELL: 'Summary: most indicators point to strong selling pressure.',
@@ -105,30 +107,56 @@ export function generateAnalysis(ohlcv, indicators, signal, patterns, language =
 
   const parts = []
 
-  // Setup-first framing: when a strong bullish base/continuation is in play
-  // the setup story anchors the whole analysis, so lead with it — indicator
-  // readings that follow are then interpreted through that lens (weakness in
-  // a handle is expected, not a sell signal).
+  // Setup-first framing: when a strong base/continuation pattern is in play the
+  // setup story anchors the analysis, so lead with it. Indicator readings that
+  // follow are then interpreted through that lens (weakness in a handle is
+  // expected, strength inside a right-shoulder is expected).
   const setup = signal?.setup
   if (setup) {
+    const isBearish = setup.direction === 'bearish'
     const fmt = (v) => v == null ? '—' : (v >= 100 ? v.toFixed(2) : v.toFixed(3))
-    const stageText = {
+    const bullStageText = {
       cup_forming:    'הגביע עדיין בגיבוש (הצד הימני עוד לא הושלם)',
       in_handle:      'המחיר בתוך ההידית — פולבק צפוי אחרי הגביע',
       near_breakout:  'המחיר קרוב מאוד לנקודת הפריצה — לצפות בסניף לפריצה בנפח',
       broken_out:     'התבנית פרצה מעל הפיווט — כניסה בברייקאאוט מאושרת',
       developing:     'התבנית בפיתוח',
-    }[setup.stage] || 'התבנית בפיתוח'
+    }
+    const bearStageText = {
+      in_handle:      'המחיר עוד מעל קו הצוואר / התמיכה — הבסיס בישי אך טרם שבור',
+      near_breakout:  'המחיר קרוב מאוד לקו הצוואר / התמיכה — לצפות לשבירה כלפי מטה',
+      broken_out:     'התבנית שברה את קו הצוואר — יעד מדוד למטה מאושר',
+      developing:     'התבנית בפיתוח',
+    }
+    const stageText = (isBearish ? bearStageText : bullStageText)[setup.stage] || 'התבנית בפיתוח'
     const distTxt = setup.distanceToBreakoutPct != null
-      ? ` (${(setup.distanceToBreakoutPct * 100).toFixed(1)}% מתחת לפיווט)`
+      ? isBearish
+        ? ` (${(setup.distanceToBreakoutPct * 100).toFixed(1)}% מעל קו הצוואר)`
+        : ` (${(setup.distanceToBreakoutPct * 100).toFixed(1)}% מתחת לפיווט)`
       : ''
     const setupLabel = setup.key === 'CUP_HANDLE' ? 'קאפ אנד הנדל (Cup & Handle)'
+      : setup.key === 'HEAD_SHOULDERS' ? 'ראש וכתפיים (Head & Shoulders)'
+      : setup.key === 'INVERSE_HEAD_SHOULDERS' ? 'ראש וכתפיים הפוכה (Inverse H&S)'
       : setup.label || setup.key
-    parts.push(`זוהתה תבנית ${setupLabel}. ${stageText}${distTxt}.`)
-    if (setup.pivot != null) parts.push(`נקודת פריצה (Pivot): $${fmt(setup.pivot)}.`)
-    if (setup.target != null) parts.push(`יעד מדוד לאחר פריצה: $${fmt(setup.target)}.`)
-    if (setup.stopLoss != null) parts.push(`Stop / Invalidation: מתחת ל-$${fmt(setup.stopLoss)} — סגירה שם מבטלת את התבנית.`)
-    parts.push('חולשת אינדיקטורים בתוך התבנית היא חלק מהמבנה, לא סיבה למכור.')
+    const patternType = isBearish ? 'תבנית טופ בישית' : 'תבנית בסיס בישית'
+    parts.push(`זוהתה ${patternType} — ${setupLabel}. ${stageText}${distTxt}.`)
+    if (setup.pivot != null) {
+      const pivotLabel = isBearish ? 'קו צוואר / תמיכה' : 'נקודת פריצה (Pivot)'
+      parts.push(`${pivotLabel}: $${fmt(setup.pivot)}.`)
+    }
+    if (setup.target != null) {
+      const targetLabel = isBearish ? 'יעד מדוד למטה לאחר שבירה' : 'יעד מדוד לאחר פריצה'
+      parts.push(`${targetLabel}: $${fmt(setup.target)}.`)
+    }
+    if (setup.stopLoss != null) {
+      const stopLabel = isBearish
+        ? `Stop / Invalidation: מעל $${fmt(setup.stopLoss)} — סגירה שם מבטלת את התבנית.`
+        : `Stop / Invalidation: מתחת ל-$${fmt(setup.stopLoss)} — סגירה שם מבטלת את התבנית.`
+      parts.push(stopLabel)
+    }
+    parts.push(isBearish
+      ? 'התחזקות אינדיקטורים בתוך הכתף הימנית / בסיס הטופ היא חלק מהמבנה, לא סיבה לקנות.'
+      : 'חולשת אינדיקטורים בתוך התבנית היא חלק מהמבנה, לא סיבה למכור.')
   }
 
   // Trend / Regime
@@ -205,6 +233,8 @@ export function generateAnalysis(ohlcv, indicators, signal, patterns, language =
     BUY:         'סיכום: האינדיקטורים מצביעים על נטייה לקנייה.',
     BUY_SETUP:   'סיכום: התבנית הבישית פרצה את הפיווט — כניסת ברייקאאוט עם עצירה של התבנית.',
     SETUP_HOLD:  'סיכום: תבנית בסיס בישית בפיתוח — הפולבק הנוכחי חלק מהמבנה, לא סיבה למכור. להמתין ולעקוב לפריצת הפיווט.',
+    SELL_SETUP:  'סיכום: תבנית טופ שברה את קו הצוואר / התמיכה — יציאה מלונג / כניסת שורט עם עצירה של התבנית.',
+    SETUP_AVOID: 'סיכום: תבנית טופ בישית עדיין תקפה — לא הזמן להיכנס בלונג. להמתין לביטול התבנית או לשבירה כדי לפעול.',
     HOLD:        'סיכום: הסיגנלים מעורבים — המתן לאיתות ברור יותר.',
     SELL:        'סיכום: האינדיקטורים מצביעים על נטייה למכירה.',
     STRONG_SELL: 'סיכום: רוב האינדיקטורים מצביעים על לחץ מכירה חזק.',

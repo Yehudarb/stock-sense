@@ -18,6 +18,9 @@ const useStore = create((set) => ({
   simpleMode: localStorage.getItem('simpleMode')
     ? localStorage.getItem('simpleMode') === 'true'
     : (localStorage.getItem('lastTicker') ?? 'AAPL') === 'TSLL',
+  // Cup & Handle scanner modal — open/close state; the scan runs when the
+  // modal mounts, so this is the sole trigger for a fresh scan.
+  showScanner: false,
 
   setCurrentTicker: (ticker) => {
     localStorage.setItem('lastTicker', ticker)
@@ -35,6 +38,7 @@ const useStore = create((set) => ({
     localStorage.setItem('simpleMode', String(simpleMode))
     set({ simpleMode })
   },
+  setShowScanner: (showScanner) => set({ showScanner }),
   setLanguage: (language) => {
     localStorage.setItem('dashboardLanguage', language)
     set({ language })
