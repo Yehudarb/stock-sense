@@ -1,6 +1,6 @@
 # Stock Sense / Stock Analysis Pro
 
-This repository now includes a Python `stock_analysis_pro` decision-support engine alongside the existing JS app.
+This repository includes a Python `stock_analysis_pro` decision-support engine inside `.claude/skills/stock-analysis-pro/scripts`, alongside the existing JS app. The root `cli.py` is a thin wrapper so the required command remains stable.
 
 Example:
 
@@ -33,7 +33,7 @@ Copy `.env.example` values into your environment before using paid data provider
 ## Tests
 
 ```bash
-python -m pytest tests
+py -m pytest .claude/skills/stock-analysis-pro/scripts/tests
 ```
 
 The tests use deterministic in-memory bars and do not require API keys.

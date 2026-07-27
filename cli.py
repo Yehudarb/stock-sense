@@ -4,6 +4,11 @@ import argparse
 import json
 import logging
 import sys
+from pathlib import Path
+
+SKILL_SCRIPTS = Path(__file__).resolve().parent / ".claude" / "skills" / "stock-analysis-pro" / "scripts"
+if str(SKILL_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SKILL_SCRIPTS))
 
 from stock_analysis_pro import analyze
 from stock_analysis_pro.models import AnalysisInput, TargetGain

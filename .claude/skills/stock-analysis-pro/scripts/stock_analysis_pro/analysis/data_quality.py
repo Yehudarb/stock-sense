@@ -41,6 +41,10 @@ def validate_data(
         warnings.append("MISSING_OR_INSUFFICIENT_BARS")
         status = "invalid"
 
+    if quote and quote.is_delayed and status == "verified":
+        status = "acceptable"
+        warnings.append("DELAYED_DATA")
+
     if last_ts is None:
         warnings.append("MISSING_TIMESTAMP")
         status = "invalid"

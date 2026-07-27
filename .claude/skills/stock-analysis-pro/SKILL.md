@@ -7,6 +7,34 @@ description: Performs rigorous, evidence-based stock and ETF analysis using tech
 
 Analyze the security named in `$ARGUMENTS`. If no ticker or company is provided, ask for it.
 
+## Decision engine CLI
+
+This skill now includes a rule-based and score-based Python decision engine under
+`scripts/stock_analysis_pro`. From the repository root, run:
+
+```bash
+py cli.py analyze TSLA --style swing --account-size 25000 --risk-percent 1 --target-min 5 --target-max 12
+```
+
+The root `cli.py` is intentionally only a wrapper. Keep engine code, tests, and strategy
+configuration inside this skill directory:
+
+- `scripts/stock_analysis_pro/`
+- `scripts/tests/`
+- `config/settings.yaml`
+- `config/strategies.yaml`
+
+The engine must return one primary action from:
+
+`BUY_NOW`, `WAIT_FOR_BREAKOUT`, `WAIT_FOR_PULLBACK`, `HOLD`,
+`ADD_ONLY_IF_CONFIRMED`, `TAKE_PARTIAL_PROFIT`, `MOVE_STOP`, `EXIT_POSITION`,
+`AVOID`, `INSUFFICIENT_DATA`.
+
+It also returns JSON with data quality, market regime, technical analysis, fundamentals,
+news, entry scenarios, trigger, stop loss, stop management, TP1/TP2/TP3, position sizing,
+risk/reward, reason codes, alerts, next review conditions, and a concise Hebrew human
+response.
+
 ## Core rule
 
 Never invent prices, financial results, dates, estimates, news, analyst targets, technical levels, or probabilities.

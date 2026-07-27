@@ -24,7 +24,7 @@ def scenario_from_setup(setup: Setup) -> dict[str, object]:
 
 
 def build_entry_scenarios(setups: list[Setup], support: float | None) -> list[dict[str, object]]:
-    scenarios = [scenario_from_setup(s) for s in setups if s.entry_zone or s.valid]
+    scenarios = [scenario_from_setup(s) for s in setups if s.name != "NO_TRADE" and (s.entry_zone or s.valid)]
     if support:
         scenarios.append({
             "name": "breakdown",
