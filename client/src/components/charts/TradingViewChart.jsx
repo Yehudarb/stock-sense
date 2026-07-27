@@ -5,56 +5,77 @@ import {
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
 
-// TradingView-quality chart. lightweight-charts is the actual library
-// TradingView ships (open-sourced, MIT) so we get:
-//   • Mouse-wheel zoom on the time axis
-//   • Click-and-drag pan
-//   • Crosshair with synchronized price / time readouts
-//   • Right-side price axis with the current-price marker
-//   • Volume histogram below, time-axis synced
-//   • Overlays (SMA/EMA/BB) as native line/area series
-//
-// The old Chart.js-based PriceChart stays intact for now (~1600 lines, still
-// used by parts of the app); this component is the modern replacement mounted
-// side-by-side under a toggle.
+// TradingView-quality chart (lightweight-charts, MIT). Rendering + navigation
+// (mouse-wheel zoom, click-drag pan, native crosshair, right-side price axis,
+// synced volume) come free from the library. The interesting work is wiring
+// every indicator toggle the app's ChartControls exposes to the right kind of
+// series, so the button in the header actually changes what's drawn.
 
-const OVERLAY_COLORS = {
-  sma20: '#f59e0b',
-  sma50: '#3b82f6',
-  sma200: '#a855f7',
-  ema20: '#10b981',
-  ema50: '#ef4444',
+// Distinct colors per overlay so a busy chart is still readable.
+const C = {
+  sma20:   '#f59e0b',
+  sma50:   '#3b82f6',
+  sma100:  '#a855f7',
+  sma200:  '#ec4899',
+  ema20:   '#10b981',
+  ema50:   '#ef4444',
+  wma20:   '#facc15',
+  wma50:   '#8b5cf6',
   bbUpper: '#94a3b8',
   bbLower: '#94a3b8',
-  bbMid: '#64748b',
+  bbMid:   '#64748b',
+  vwap:    '#22d3ee',
+  supertrendUp:   '#10b981',
+  supertrendDown: '#ef4444',
+  ichConv: '#f59e0b',
+  ichBase: '#3b82f6',
+  ichSpanA: 'rgba(16, 185, 129, 0.5)',
+  ichSpanB: 'rgba(239, 68, 68, 0.5)',
+  keltUpper: '#0ea5e9',
+  keltLower: '#0ea5e9',
+  donchUpper: '#f97316',
+  donchLower: '#f97316',
+  pivotP:  '#94a3b8',
+  pivotR1: '#10b981',
+  pivotS1: '#ef4444',
+  prevHigh: '#22d3ee',
+  prevLow:  '#f97316',
+  high52: '#84cc16',
+  low52:  '#f43f5e',
 }
 
-// Convert our OHLCV format {t, o, h, l, c, v} → the shape lightweight-charts
-// expects: { time: unix_seconds, open, high, low, close } for candles and
-// { time, value, color } for the volume histogram.
-function toChartBars(ohlcv) {
-  if (!Array.isArray(ohlcv)) return { candles: [], volume: [] }
-  const candles = []
-  const volume = []
-  for (const bar of ohlcv) {
-    if (!Number.isFinite(bar.c) || !Number.isFinite(bar.o)) continue
-    const time = Math.floor((bar.t || 0) / 1000)
+// ── Data adapters ────────────────────────────────────────────────────────
+// Convert our {t,o,h,l,c,v} bars to the shapes lightweight-charts expects.
+function toCandles(ohlcv) {
+  if (!Array.isArray(ohlcv)) return []
+  const out = []
+  for (const b of ohlcv) {
+    const time = Math.floor((b.t || 0) / 1000)
     if (!Number.isFinite(time) || time <= 0) continue
-    candles.push({ time, open: bar.o, high: bar.h, low: bar.l, close: bar.c })
-    volume.push({
+    if (!Number.isFinite(b.c) || !Number.isFinite(b.o)) continue
+    out.push({ time, open: b.o, high: b.h, low: b.l, close: b.c })
+  }
+  return out
+}
+function toVolume(ohlcv) {
+  if (!Array.isArray(ohlcv)) return []
+  const out = []
+  for (const b of ohlcv) {
+    const time = Math.floor((b.t || 0) / 1000)
+    if (!Number.isFinite(time) || time <= 0) continue
+    out.push({
       time,
-      value: bar.v || 0,
-      color: bar.c >= bar.o ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+      value: b.v || 0,
+      color: b.c >= b.o ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)',
     })
   }
-  return { candles, volume }
+  return out
 }
-
-// Overlays get one point per bar with the indicator's value at that bar.
-function toLineData(ohlcv, values) {
+function toLine(ohlcv, values) {
   if (!Array.isArray(ohlcv) || !Array.isArray(values)) return []
   const out = []
-  for (let i = 0; i < Math.min(ohlcv.length, values.length); i += 1) {
+  const n = Math.min(ohlcv.length, values.length)
+  for (let i = 0; i < n; i += 1) {
     const v = values[i]
     if (v == null || !Number.isFinite(v)) continue
     const time = Math.floor((ohlcv[i].t || 0) / 1000)
@@ -63,58 +84,76 @@ function toLineData(ohlcv, values) {
   }
   return out
 }
-
-// Toggle chip — small on/off pill for choosing which overlays to show.
-function OverlayChip({ label, color, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '4px 10px', borderRadius: 999,
-        border: `1px solid ${active ? color : '#334155'}`,
-        background: active ? color + '22' : 'transparent',
-        color: active ? color : '#94a3b8',
-        fontSize: 11, fontWeight: 600, cursor: 'pointer',
-        transition: 'all 100ms',
-      }}
-    >
-      <span style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
-      {label}
-    </button>
-  )
+function toClose(ohlcv) {
+  if (!Array.isArray(ohlcv)) return []
+  return ohlcv
+    .filter(b => Number.isFinite(b.c) && Number.isFinite(b.t))
+    .map(b => ({ time: Math.floor(b.t / 1000), value: b.c }))
 }
 
-export default function TradingViewChart({ ohlcv, indicators, height = 460 }) {
+// Supertrend has direction switches; a single line series looks best when we
+// split it into "up" (green) and "down" (red) segments and let the color
+// change tell the story. We build two aligned arrays with gaps at the
+// direction changes so each series only draws its half of the signal.
+function toSupertrendSeries(ohlcv, supertrend) {
+  if (!Array.isArray(supertrend?.value)) return { up: [], down: [] }
+  const up = []
+  const down = []
+  const n = Math.min(ohlcv.length, supertrend.value.length)
+  for (let i = 0; i < n; i += 1) {
+    const v = supertrend.value[i]
+    if (v == null || !Number.isFinite(v)) continue
+    const time = Math.floor((ohlcv[i].t || 0) / 1000)
+    if (!Number.isFinite(time) || time <= 0) continue
+    // supertrend.direction[i] > 0 means uptrend (line under price, green)
+    const dir = supertrend.direction?.[i]
+    if (dir === 1)      up.push({ time, value: v })
+    else if (dir === -1) down.push({ time, value: v })
+  }
+  return { up, down }
+}
+
+export default function TradingViewChart({
+  ohlcv,
+  indicators,
+  height = 460,
+  // Overlay toggles routed from ChartControls in the header. Any missing
+  // prop is treated as false — the chart just doesn't draw that series.
+  showSMA = false,
+  showEMA = false,
+  showWMA = false,
+  showBB = false,
+  showVWAP = false,
+  showSupertrend = false,
+  showIchimoku = false,
+  showKeltner = false,
+  showDonchian = false,
+  showPivotPoints = false,
+  showPrevHighLow = false,
+  showHighLow52 = false,
+  chartType = 'candle', // 'candle' | 'line'
+}) {
   const containerRef  = useRef(null)
   const chartRef      = useRef(null)
-  const seriesRef     = useRef({}) // { candles, volume, sma20, sma50, sma200, ema50, bbUpper, bbLower, bbFill }
+  const seriesRef     = useRef({})       // { candle, volume, sma20, ... }
+  const priceLinesRef = useRef([])       // horizontal lines (pivots, hi/lo)
   const theme         = useStore(s => s.theme) || 'dark'
   const currentTicker = useStore(s => s.currentTicker)
+  const [hovered, setHovered] = useState(null)
 
-  const [overlays, setOverlays] = useState({
-    sma20: true,
-    sma50: true,
-    sma200: false,
-    ema50: false,
-    bb: false,
-  })
-  const [hovered, setHovered] = useState(null) // { open, high, low, close, time }
-
-  const { candles, volume } = useMemo(() => toChartBars(ohlcv), [ohlcv])
-
-  // Palette adapts to the dashboard theme so the chart matches the app.
   const palette = useMemo(() => (theme === 'light' ? {
-    bg: '#ffffff', text: '#111827', grid: '#e5e7eb',
-    axis: '#94a3b8', up: '#10b981', down: '#ef4444',
-    wickUp: '#10b981', wickDown: '#ef4444',
+    bg: '#ffffff', text: '#111827', grid: '#e5e7eb', axis: '#94a3b8',
+    up: '#10b981', down: '#ef4444', wickUp: '#10b981', wickDown: '#ef4444',
   } : {
-    bg: '#0b0f19', text: '#e5e7eb', grid: '#1f2937',
-    axis: '#4b5563', up: '#10b981', down: '#ef4444',
-    wickUp: '#34d399', wickDown: '#f87171',
+    bg: '#0b0f19', text: '#e5e7eb', grid: '#1f2937', axis: '#4b5563',
+    up: '#10b981', down: '#ef4444', wickUp: '#34d399', wickDown: '#f87171',
   }), [theme])
 
-  // Build the chart once; ResizeObserver keeps it fluid with the container.
+  const candles = useMemo(() => toCandles(ohlcv), [ohlcv])
+  const volume  = useMemo(() => toVolume(ohlcv),  [ohlcv])
+  const lineData = useMemo(() => toClose(ohlcv),  [ohlcv])
+
+  // ── Chart lifecycle ────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return
     const chart = createChart(containerRef.current, {
@@ -128,12 +167,7 @@ export default function TradingViewChart({ ohlcv, indicators, height = 460 }) {
         horzLines: { color: palette.grid, style: LineStyle.Dotted },
       },
       rightPriceScale: { borderColor: palette.axis, scaleMargins: { top: 0.08, bottom: 0.25 } },
-      timeScale: {
-        borderColor: palette.axis,
-        timeVisible: true,
-        secondsVisible: false,
-        rightOffset: 8,
-      },
+      timeScale: { borderColor: palette.axis, timeVisible: true, secondsVisible: false, rightOffset: 8 },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: palette.axis, width: 1, style: LineStyle.Dashed, labelBackgroundColor: palette.axis },
@@ -145,17 +179,22 @@ export default function TradingViewChart({ ohlcv, indicators, height = 460 }) {
     })
     chartRef.current = chart
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: palette.up,
-      downColor: palette.down,
-      borderUpColor: palette.up,
-      borderDownColor: palette.down,
-      wickUpColor: palette.wickUp,
-      wickDownColor: palette.wickDown,
-      priceLineVisible: true,
-      lastValueVisible: true,
-    })
-    seriesRef.current.candles = candleSeries
+    // Primary series is either candles or a line-of-closes — respects the app
+    // "chart type" toggle without duplicating rendering.
+    const priceSeries = chartType === 'line'
+      ? chart.addSeries(AreaSeries, {
+          topColor: 'rgba(59,130,246,0.35)',
+          bottomColor: 'rgba(59,130,246,0)',
+          lineColor: '#3b82f6', lineWidth: 2,
+          priceLineVisible: true, lastValueVisible: true,
+        })
+      : chart.addSeries(CandlestickSeries, {
+          upColor: palette.up, downColor: palette.down,
+          borderUpColor: palette.up, borderDownColor: palette.down,
+          wickUpColor: palette.wickUp, wickDownColor: palette.wickDown,
+          priceLineVisible: true, lastValueVisible: true,
+        })
+    seriesRef.current.price = priceSeries
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#94a3b8',
@@ -165,50 +204,55 @@ export default function TradingViewChart({ ohlcv, indicators, height = 460 }) {
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } })
     seriesRef.current.volume = volumeSeries
 
-    // Crosshair-driven tooltip — shows the OHLC of the bar under the cursor.
     chart.subscribeCrosshairMove(param => {
       if (!param.time || !param.seriesData?.size) { setHovered(null); return }
-      const candleData = param.seriesData.get(candleSeries)
-      if (!candleData) { setHovered(null); return }
-      setHovered({
-        time: param.time,
-        open: candleData.open, high: candleData.high,
-        low: candleData.low,   close: candleData.close,
-      })
+      const bar = param.seriesData.get(priceSeries)
+      if (!bar) { setHovered(null); return }
+      // Candle bars carry OHLC; line/area bars only carry `value`.
+      setHovered(bar.open != null
+        ? { open: bar.open, high: bar.high, low: bar.low, close: bar.close }
+        : { close: bar.value })
     })
 
-    return () => { chart.remove(); chartRef.current = null; seriesRef.current = {} }
-  // Rebuild on theme swap so palette applies cleanly.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [palette.bg])
+    return () => { chart.remove(); chartRef.current = null; seriesRef.current = {}; priceLinesRef.current = [] }
+  // Rebuild when the palette (theme) or the chart type changes.
+  }, [palette.bg, palette.up, palette.down, chartType])
 
-  // Push candles + volume whenever the data changes.
+  // ── Primary data ─────────────────────────────────────────────────
   useEffect(() => {
-    const { candles: c, volume: v } = seriesRef.current
-    if (!c || !v) return
-    c.setData(candles)
-    v.setData(volume)
-    // Fit content on first data load so the user sees the whole series.
+    const { price, volume: vol } = seriesRef.current
+    if (!price) return
+    price.setData(chartType === 'line' ? lineData : candles)
+    if (vol) vol.setData(volume)
     if (candles.length && !chartRef.current._fittedOnce) {
       chartRef.current.timeScale().fitContent()
       chartRef.current._fittedOnce = true
     }
-  }, [candles, volume])
+  }, [candles, volume, lineData, chartType])
 
-  // Reset the "fitted" flag when ticker changes so a fresh symbol re-fits.
   useEffect(() => {
     if (chartRef.current) chartRef.current._fittedOnce = false
   }, [currentTicker])
 
-  // Overlay series — created lazily when their toggle is turned on, torn down
-  // when off. Avoids paying for series that aren't being viewed.
+  // ── Overlay wiring ───────────────────────────────────────────────
+  // Each overlay is created lazily and torn down when its toggle turns off so
+  // we don't pay for chart series the user isn't looking at.
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !ohlcv?.length) return
+    if (!chart || !ohlcv?.length || !indicators) return
 
-    const ensure = (key, factory) => {
-      if (!seriesRef.current[key]) seriesRef.current[key] = factory()
-      return seriesRef.current[key]
+    const ensureLine = (key, values, color, opts = {}) => {
+      if (!values) return remove(key)
+      const data = toLine(ohlcv, values)
+      if (!data.length) return remove(key)
+      if (!seriesRef.current[key]) {
+        seriesRef.current[key] = chart.addSeries(LineSeries, {
+          color, lineWidth: opts.width || 2,
+          priceLineVisible: false, lastValueVisible: true,
+          lineStyle: opts.style || LineStyle.Solid,
+        })
+      }
+      seriesRef.current[key].setData(data)
     }
     const remove = (key) => {
       if (seriesRef.current[key]) {
@@ -217,99 +261,168 @@ export default function TradingViewChart({ ohlcv, indicators, height = 460 }) {
       }
     }
 
-    const applyLine = (key, values, color) => {
-      if (!values) return
-      const data = toLineData(ohlcv, values)
-      if (!data.length) return
-      const s = ensure(key, () => chart.addSeries(LineSeries, {
-        color, lineWidth: 2, priceLineVisible: false, lastValueVisible: true,
-      }))
-      s.setData(data)
+    // Moving averages — when the SMA/EMA/WMA family toggle is on we show the
+    // classic pair (20 + 50) because that's what most analysts want to see;
+    // SMA200 gets its own toggle via the chip UI in a later pass.
+    if (showSMA) { ensureLine('sma20', indicators.sma20, C.sma20); ensureLine('sma50', indicators.sma50, C.sma50); ensureLine('sma200', indicators.sma200, C.sma200) }
+    else         { remove('sma20'); remove('sma50'); remove('sma200') }
+
+    if (showEMA) { ensureLine('ema20', indicators.ema20, C.ema20); ensureLine('ema50', indicators.ema50, C.ema50) }
+    else         { remove('ema20'); remove('ema50') }
+
+    if (showWMA) { ensureLine('wma20', indicators.wma20, C.wma20); ensureLine('wma50', indicators.wma50, C.wma50) }
+    else         { remove('wma20'); remove('wma50') }
+
+    if (showBB && indicators.bb20) {
+      ensureLine('bbUpper', indicators.bb20.upper, C.bbUpper, { width: 1, style: LineStyle.Dashed })
+      ensureLine('bbLower', indicators.bb20.lower, C.bbLower, { width: 1, style: LineStyle.Dashed })
+      ensureLine('bbMid',   indicators.bb20.middle, C.bbMid,  { width: 1 })
+    } else { remove('bbUpper'); remove('bbLower'); remove('bbMid') }
+
+    if (showVWAP) ensureLine('vwap', indicators.vwap, C.vwap, { width: 2 })
+    else          remove('vwap')
+
+    if (showSupertrend && indicators.supertrend) {
+      const { up, down } = toSupertrendSeries(ohlcv, indicators.supertrend)
+      // Two separate series (up / down) so the color tells the story.
+      const setSplit = (key, data, color) => {
+        if (!data.length) return remove(key)
+        if (!seriesRef.current[key]) {
+          seriesRef.current[key] = chart.addSeries(LineSeries, {
+            color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
+          })
+        }
+        seriesRef.current[key].setData(data)
+      }
+      setSplit('supertrendUp',   up,   C.supertrendUp)
+      setSplit('supertrendDown', down, C.supertrendDown)
+    } else { remove('supertrendUp'); remove('supertrendDown') }
+
+    if (showIchimoku && indicators.ichimoku) {
+      ensureLine('ichConv', indicators.ichimoku.conversion, C.ichConv, { width: 1 })
+      ensureLine('ichBase', indicators.ichimoku.base,       C.ichBase, { width: 1 })
+      ensureLine('ichSpanA', indicators.ichimoku.spanA,     C.ichSpanA, { width: 1 })
+      ensureLine('ichSpanB', indicators.ichimoku.spanB,     C.ichSpanB, { width: 1 })
+    } else { remove('ichConv'); remove('ichBase'); remove('ichSpanA'); remove('ichSpanB') }
+
+    if (showKeltner && indicators.keltner) {
+      ensureLine('keltUpper', indicators.keltner.upper, C.keltUpper, { width: 1, style: LineStyle.Dashed })
+      ensureLine('keltLower', indicators.keltner.lower, C.keltLower, { width: 1, style: LineStyle.Dashed })
+    } else { remove('keltUpper'); remove('keltLower') }
+
+    if (showDonchian && indicators.donchian) {
+      ensureLine('donchUpper', indicators.donchian.upper, C.donchUpper, { width: 1, style: LineStyle.Dashed })
+      ensureLine('donchLower', indicators.donchian.lower, C.donchLower, { width: 1, style: LineStyle.Dashed })
+    } else { remove('donchUpper'); remove('donchLower') }
+  }, [
+    ohlcv, indicators,
+    showSMA, showEMA, showWMA, showBB, showVWAP,
+    showSupertrend, showIchimoku, showKeltner, showDonchian,
+  ])
+
+  // ── Horizontal price lines (pivots, prev high/low, 52-week hi/lo) ──
+  // These are per-level and don't need per-bar data, so createPriceLine on
+  // the primary series is the right tool.
+  useEffect(() => {
+    const { price } = seriesRef.current
+    if (!price) return
+
+    // Wipe old horizontal lines before recreating (toggles change frequently).
+    for (const line of priceLinesRef.current) {
+      try { price.removePriceLine(line) } catch {}
+    }
+    priceLinesRef.current = []
+
+    const addLine = ({ value, color, title, style = LineStyle.Dotted, width = 1 }) => {
+      if (value == null || !Number.isFinite(value)) return
+      const line = price.createPriceLine({ price: value, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title })
+      priceLinesRef.current.push(line)
     }
 
-    if (overlays.sma20  && indicators?.sma20)  applyLine('sma20',  indicators.sma20,  OVERLAY_COLORS.sma20);   else remove('sma20')
-    if (overlays.sma50  && indicators?.sma50)  applyLine('sma50',  indicators.sma50,  OVERLAY_COLORS.sma50);   else remove('sma50')
-    if (overlays.sma200 && indicators?.sma200) applyLine('sma200', indicators.sma200, OVERLAY_COLORS.sma200);  else remove('sma200')
-    if (overlays.ema50  && indicators?.ema50)  applyLine('ema50',  indicators.ema50,  OVERLAY_COLORS.ema50);   else remove('ema50')
-
-    // Bollinger bands: two lines. Kept simple — no fill (cleaner readability).
-    if (overlays.bb && indicators?.bb20) {
-      applyLine('bbUpper', indicators.bb20.upper, OVERLAY_COLORS.bbUpper)
-      applyLine('bbLower', indicators.bb20.lower, OVERLAY_COLORS.bbLower)
-      applyLine('bbMid',   indicators.bb20.middle, OVERLAY_COLORS.bbMid)
-    } else {
-      remove('bbUpper'); remove('bbLower'); remove('bbMid')
+    if (showPivotPoints && indicators?.pivotPoints) {
+      const p = indicators.pivotPoints
+      addLine({ value: p.P,  color: C.pivotP,  title: 'P',  width: 1 })
+      addLine({ value: p.R1, color: C.pivotR1, title: 'R1' })
+      addLine({ value: p.R2, color: C.pivotR1, title: 'R2' })
+      addLine({ value: p.S1, color: C.pivotS1, title: 'S1' })
+      addLine({ value: p.S2, color: C.pivotS1, title: 'S2' })
     }
-  }, [overlays, indicators, ohlcv])
+    if (showPrevHighLow && ohlcv?.length >= 2) {
+      const prev = ohlcv[ohlcv.length - 2]
+      addLine({ value: prev.h, color: C.prevHigh, title: 'PDH' })
+      addLine({ value: prev.l, color: C.prevLow,  title: 'PDL' })
+    }
+    if (showHighLow52 && ohlcv?.length) {
+      const window = ohlcv.slice(-252) // ~1 trading year
+      const hi = Math.max(...window.map(b => b.h))
+      const lo = Math.min(...window.map(b => b.l))
+      addLine({ value: hi, color: C.high52, title: '52W High' })
+      addLine({ value: lo, color: C.low52,  title: '52W Low' })
+    }
+  }, [ohlcv, indicators, showPivotPoints, showPrevHighLow, showHighLow52])
 
-  const toggleOverlay = (key) => setOverlays(o => ({ ...o, [key]: !o[key] }))
-
-  // Time-scale presets — jump to N recent bars.
+  // ── Zoom presets (kept — they're chart-native, not indicator toggles) ──
   const zoomLast = (barCount) => {
     if (!chartRef.current || !candles.length) return
     const to = candles[candles.length - 1].time
-    const fromIndex = Math.max(0, candles.length - barCount)
-    const from = candles[fromIndex].time
+    const from = candles[Math.max(0, candles.length - barCount)].time
     chartRef.current.timeScale().setVisibleRange({ from, to })
   }
   const fitAll = () => chartRef.current?.timeScale().fitContent()
 
   return (
-    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {/* Overlay + zoom controls */}
-      <div style={{
-        display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
-        padding: '6px 0',
-      }}>
-        <OverlayChip label="SMA20"  color={OVERLAY_COLORS.sma20}  active={overlays.sma20}  onClick={() => toggleOverlay('sma20')} />
-        <OverlayChip label="SMA50"  color={OVERLAY_COLORS.sma50}  active={overlays.sma50}  onClick={() => toggleOverlay('sma50')} />
-        <OverlayChip label="SMA200" color={OVERLAY_COLORS.sma200} active={overlays.sma200} onClick={() => toggleOverlay('sma200')} />
-        <OverlayChip label="EMA50"  color={OVERLAY_COLORS.ema50}  active={overlays.ema50}  onClick={() => toggleOverlay('ema50')} />
-        <OverlayChip label="BB(20)" color={OVERLAY_COLORS.bbMid}  active={overlays.bb}     onClick={() => toggleOverlay('bb')} />
-
-        <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 4 }}>
-          {[
-            { label: '1M', bars: 22 },
-            { label: '3M', bars: 66 },
-            { label: '6M', bars: 130 },
-            { label: '1Y', bars: 252 },
-          ].map(({ label, bars }) => (
-            <button
-              key={label}
-              onClick={() => zoomLast(bars)}
-              style={{
-                padding: '3px 9px', fontSize: 11, fontWeight: 600,
-                background: 'transparent', color: '#94a3b8',
-                border: '1px solid #334155', borderRadius: 6, cursor: 'pointer',
-              }}
-            >{label}</button>
-          ))}
-          <button
-            onClick={fitAll}
-            style={{
-              padding: '3px 9px', fontSize: 11, fontWeight: 600,
-              background: 'transparent', color: '#94a3b8',
-              border: '1px solid #334155', borderRadius: 6, cursor: 'pointer',
-            }}
-          >All</button>
-        </div>
-      </div>
-
-      {/* Floating OHLC readout — appears on crosshair hover */}
+    <div style={{ position: 'relative' }}>
+      {/* Floating OHLC readout on crosshair hover */}
       {hovered && (
         <div style={{
-          position: 'absolute', top: 44, insetInlineStart: 8, zIndex: 5,
+          position: 'absolute', top: 8, insetInlineStart: 8, zIndex: 5,
           background: 'rgba(11,15,25,0.85)', border: '1px solid #1f2937',
-          borderRadius: 6, padding: '6px 10px', fontSize: 11,
-          color: '#e5e7eb', pointerEvents: 'none', fontVariantNumeric: 'tabular-nums',
-          direction: 'ltr',
+          borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#e5e7eb',
+          pointerEvents: 'none', fontVariantNumeric: 'tabular-nums', direction: 'ltr',
         }}>
-          O <b>{hovered.open?.toFixed(2)}</b>{'  '}
-          H <b style={{ color: '#10b981' }}>{hovered.high?.toFixed(2)}</b>{'  '}
-          L <b style={{ color: '#ef4444' }}>{hovered.low?.toFixed(2)}</b>{'  '}
-          C <b>{hovered.close?.toFixed(2)}</b>
+          {hovered.open != null ? (
+            <>
+              O <b>{hovered.open?.toFixed(2)}</b>{'  '}
+              H <b style={{ color: '#10b981' }}>{hovered.high?.toFixed(2)}</b>{'  '}
+              L <b style={{ color: '#ef4444' }}>{hovered.low?.toFixed(2)}</b>{'  '}
+              C <b>{hovered.close?.toFixed(2)}</b>
+            </>
+          ) : (
+            <>C <b>{hovered.close?.toFixed(2)}</b></>
+          )}
         </div>
       )}
+
+      {/* Zoom presets — the header controls handle indicators. */}
+      <div style={{
+        position: 'absolute', top: 8, insetInlineEnd: 8, zIndex: 5,
+        display: 'flex', gap: 4,
+      }}>
+        {[
+          { label: '1M', bars: 22 },
+          { label: '3M', bars: 66 },
+          { label: '6M', bars: 130 },
+          { label: '1Y', bars: 252 },
+        ].map(({ label, bars }) => (
+          <button
+            key={label}
+            onClick={() => zoomLast(bars)}
+            style={{
+              padding: '3px 9px', fontSize: 11, fontWeight: 600,
+              background: 'rgba(11,15,25,0.6)', color: '#94a3b8',
+              border: '1px solid #334155', borderRadius: 6, cursor: 'pointer',
+            }}
+          >{label}</button>
+        ))}
+        <button
+          onClick={fitAll}
+          style={{
+            padding: '3px 9px', fontSize: 11, fontWeight: 600,
+            background: 'rgba(11,15,25,0.6)', color: '#94a3b8',
+            border: '1px solid #334155', borderRadius: 6, cursor: 'pointer',
+          }}
+        >All</button>
+      </div>
 
       <div ref={containerRef} style={{ height, width: '100%' }} />
     </div>

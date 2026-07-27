@@ -1264,13 +1264,26 @@ export default function ChartWorkspace({
           </button>
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
             {useStore.getState().proChart ? (
-              // The lightweight-charts (TradingView) engine — zoom/pan/crosshair
-              // come free, candles render crisper, and it stays fast on long
-              // histories. Toggle off in Header to fall back to the legacy chart.
+              // The lightweight-charts (TradingView) engine. Every indicator
+              // toggle from ChartControls is forwarded — the chart draws only
+              // what the header buttons request.
               <TradingViewChart
                 ohlcv={ohlcv}
                 indicators={indicators}
                 height={resolvedPriceChartHeight}
+                chartType={chartType}
+                showSMA={showSMA}
+                showEMA={showEMA}
+                showWMA={showWMA}
+                showBB={showBB}
+                showVWAP={showVWAP}
+                showSupertrend={showSupertrend}
+                showIchimoku={showIchimoku}
+                showKeltner={showKeltner}
+                showDonchian={showDonchian}
+                showPivotPoints={showPivotPoints}
+                showPrevHighLow={showPrevHighLow}
+                showHighLow52={showHighLow52}
               />
             ) : (
             <PriceChart
