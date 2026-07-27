@@ -8,7 +8,6 @@ import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
 import PriceChart from './PriceChart'
 import TradingViewChart from './TradingViewChart'
-import useStore from '../../store/useStore'
 import RsiChart from './RsiChart'
 import VolumeChart from './VolumeChart'
 
