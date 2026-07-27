@@ -19,3 +19,6 @@ pnpm-debug.log*
 reports/
 __pycache__/
 *.pyc
+.cache/
+stock_analysis_history.jsonl
+paper_trades.jsonl

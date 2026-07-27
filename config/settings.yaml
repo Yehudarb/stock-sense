@@ -1,0 +1,14 @@
+providers:
+  primary: polygon
+  backups:
+    - yahoo
+    - alpha_vantage
+data_quality:
+  max_age_minutes_open: 30
+  max_price_difference_percent: 2.0
+  min_bars: 60
+  min_average_volume: 200000
+risk:
+  min_risk_reward: 2.0
+  max_position_percent: 25
+  leveraged_etf_risk_multiplier: 0.5

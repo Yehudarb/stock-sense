@@ -1,0 +1,26 @@
+trading_styles:
+  day_trade:
+    timeframes: [1d, 1h, 15m, 5m]
+    confirmation_timeframe: 5M
+  swing:
+    timeframes: [1wk, 1d, 4h, 1h]
+    confirmation_timeframe: 1H
+  position_trade:
+    timeframes: [1mo, 1wk, 1d]
+    confirmation_timeframe: Daily
+  long_term:
+    timeframes: [1mo, 1wk, 1d]
+    confirmation_timeframe: Weekly
+setups:
+  - BREAKOUT
+  - BREAKOUT_RETEST
+  - PULLBACK_IN_UPTREND
+  - SUPPORT_BOUNCE
+  - TREND_CONTINUATION
+  - REVERSAL
+  - GAP_FILL
+  - MEAN_REVERSION
+  - EARNINGS_MOMENTUM
+  - FAILED_BREAKOUT
+  - BREAKDOWN
+  - NO_TRADE
