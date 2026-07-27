@@ -8,14 +8,17 @@ import { computeProfessionalFeatures } from '../lib/professionalFeatures'
 import { computeEnsembleConsensus } from '../lib/ensembleConsensus'
 import { analyzeAdvancedTrends } from '../lib/advancedTrends'
 
-export default function useSignal(ohlcv, indicators, language = 'he') {
+export default function useSignal(ohlcv, indicators, language = 'he', multiTimeframe = null) {
   return useMemo(() => {
     if (!ohlcv?.length || !indicators) return null
     const patternResult = detectPatterns(ohlcv)
     // Pass the full result — computeSignal now needs the pattern LIST (not just
     // the aggregate score) to apply setup-override logic that keeps a valid
     // bullish base from being SOLD out of because its handle looks weak.
-    const signal        = computeSignal(ohlcv, indicators, patternResult)
+    // Multi-timeframe context, when available, lets the pipeline enforce
+    // higher-timeframe alignment: don't buy the intraday breakout against a
+    // weekly downtrend, and don't short the daily bounce against a weekly rally.
+    const signal        = computeSignal(ohlcv, indicators, patternResult, multiTimeframe)
     if (!signal) return null
     const analysis = generateAnalysis(ohlcv, indicators, signal, patternResult, language)
     const pro      = computeProfessionalFeatures(ohlcv, indicators, signal)
@@ -28,5 +31,5 @@ export default function useSignal(ohlcv, indicators, language = 'he') {
     const decision = computeAnalystDecision(ohlcv, indicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language)
     const trends   = analyzeAdvancedTrends(ohlcv, indicators)
     return { ...signal, analysis, patterns: patternResult, risk, decision, pro, ensemble, trends }
-  }, [ohlcv, indicators, language])
+  }, [ohlcv, indicators, language, multiTimeframe])
 }

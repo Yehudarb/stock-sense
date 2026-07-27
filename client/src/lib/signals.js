@@ -188,11 +188,33 @@ function findBearishSetup(patterns, price) {
   return withStage[0] || null
 }
 
+// Higher-timeframe gate.
+// A real analyst never trades an intraday signal against the weekly's
+// direction. multiTimeframe gives us weighted-per-timeframe biases; we
+// filter to the LARGER timeframes than the one being viewed (well, we
+// always look at everything and let the strong-alignment case win) and
+// derive a single directional bias.
+function higherTimeframeBias(multiTimeframe) {
+  if (!multiTimeframe?.timeframes?.length) return null
+  const higher = multiTimeframe.timeframes.filter(t =>
+    t.hasData && ['1d', '1mo', '1y', '5y'].includes(t.interval),
+  )
+  if (!higher.length) return null
+  const bull = higher.filter(t => t.bias === 'bullish').length
+  const bear = higher.filter(t => t.bias === 'bearish').length
+  const total = higher.length
+  if (bear >= total - 1 && bear >= 2) return { bias: 'bearish', strong: bear === total, bull, bear, total }
+  if (bull >= total - 1 && bull >= 2) return { bias: 'bullish', strong: bull === total, bull, bear, total }
+  return { bias: 'mixed', strong: false, bull, bear, total }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 // Third arg accepts EITHER the legacy scalar patternScore (for callers we
 // haven't migrated yet) OR the full detectPatterns() result — the object gives
 // us the metadata needed for setup-override reasoning.
-export function computeSignal(ohlcv, indicators, patternInput = 0) {
+// Fourth arg (optional) is the multi-timeframe scoring result from
+// useMultiTimeframe; when present we enforce higher-timeframe alignment.
+export function computeSignal(ohlcv, indicators, patternInput = 0, multiTimeframe = null) {
   if (!ohlcv?.length || !indicators) return null
 
   const patternResult = typeof patternInput === 'number'
@@ -310,6 +332,16 @@ export function computeSignal(ohlcv, indicators, patternInput = 0) {
   if ((action === 'BUY' || action === 'STRONG_BUY') && !allowsBullishEntry(structure)) action = 'HOLD'
   if ((action === 'SELL' || action === 'STRONG_SELL') && !allowsBearishEntry(structure)) action = 'HOLD'
 
+  // Higher-timeframe veto: the analyst rule "don't fight the higher timeframe"
+  // is the single biggest edge in swing trading. When the daily+monthly+yearly
+  // agree on a direction, an opposite intraday call is almost always a mean-
+  // reversion trade masquerading as a swing entry.
+  const htfBias = higherTimeframeBias(multiTimeframe)
+  if (htfBias?.strong) {
+    if (htfBias.bias === 'bearish' && (action === 'BUY' || action === 'STRONG_BUY')) action = 'HOLD'
+    if (htfBias.bias === 'bullish' && (action === 'SELL' || action === 'STRONG_SELL')) action = 'HOLD'
+  }
+
   // ── SETUP OVERRIDE ──────────────────────────────────────────────────
   // Analyst-brain framing: if a strong base/continuation pattern is in play,
   // the "cooling" (bullish setup) or "warming" (bearish setup) inside it is a
@@ -413,6 +445,7 @@ export function computeSignal(ohlcv, indicators, patternInput = 0) {
     factors,
     setup: setupInfo,       // null when no eligible bullish setup is active
     structure: structure,   // pivot-based HH/HL sequence, BOS / CHoCH events
+    htf: higherTimeframeBias(multiTimeframe), // higher-timeframe bias summary
     gates: {
       trend:       { ...trend },
       confluence:  { ...confluence },

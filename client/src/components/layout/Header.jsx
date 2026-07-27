@@ -52,6 +52,8 @@ export default function Header({ isConnected }) {
     simpleMode,
     setSimpleMode,
     setShowScanner,
+    proChart,
+    setProChart,
   } = useStore()
 
   const isHebrew = language === 'he'
@@ -164,6 +166,21 @@ export default function Header({ isConnected }) {
               title={isHebrew ? 'סורק תבניות Cup & Handle' : 'Cup & Handle scanner'}
             >
               {isHebrew ? 'סורק Cup & Handle' : 'C&H Scanner'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setProChart(!proChart)}
+              className={`rounded-full border px-3 py-1 text-xs font-bold transition-colors ${
+                proChart
+                  ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20'
+                  : 'border-white/10 bg-surface-muted/50 text-slate-300 hover:bg-surface-bright'
+              }`}
+              title={isHebrew ? 'החלף בין גרף Pro לגרף קלאסי' : 'Toggle Pro / Classic chart'}
+            >
+              {proChart
+                ? (isHebrew ? 'גרף Pro' : 'Pro chart')
+                : (isHebrew ? 'גרף קלאסי' : 'Classic chart')}
             </button>
 
             <div className="relative" ref={dropdownRef}>

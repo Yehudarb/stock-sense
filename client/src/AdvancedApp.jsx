@@ -108,9 +108,12 @@ export default function AdvancedApp() {
 
   const isHebrew = language === 'he'
   const indicators = useIndicators(ohlcv)
-  const signal = useSignal(ohlcv, indicators, language)
-  const { isConnected } = useSocket()
+  // Multi-timeframe scoring is fetched BEFORE the signal so the signal engine
+  // can factor higher-timeframe bias into its final decision (block bullish
+  // reads against a weekly downtrend, etc).
   const { data: multiTimeframe, isLoading: isMultiTimeframeLoading } = useMultiTimeframe(currentTicker)
+  const signal = useSignal(ohlcv, indicators, language, multiTimeframe)
+  const { isConnected } = useSocket()
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
   const { data: technicalAnalysis, isLoading: isTechnicalAnalysisLoading, error: technicalAnalysisError } = useTechnicalAnalysis(currentTicker)
   const paperTrading = usePaperTrading(`${currentTicker}-${snapshot?.price ?? 'na'}`)

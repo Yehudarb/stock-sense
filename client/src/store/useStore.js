@@ -21,6 +21,9 @@ const useStore = create((set) => ({
   // Cup & Handle scanner modal — open/close state; the scan runs when the
   // modal mounts, so this is the sole trigger for a fresh scan.
   showScanner: false,
+  // Pro chart preference — persists to localStorage so the user's choice
+  // between the TradingView-style engine and the legacy Chart.js one sticks.
+  proChart: localStorage.getItem('proChart') !== 'false', // default ON
 
   setCurrentTicker: (ticker) => {
     localStorage.setItem('lastTicker', ticker)
@@ -39,6 +42,10 @@ const useStore = create((set) => ({
     set({ simpleMode })
   },
   setShowScanner: (showScanner) => set({ showScanner }),
+  setProChart: (proChart) => {
+    localStorage.setItem('proChart', String(proChart))
+    set({ proChart })
+  },
   setLanguage: (language) => {
     localStorage.setItem('dashboardLanguage', language)
     set({ language })

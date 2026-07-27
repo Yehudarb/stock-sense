@@ -7,6 +7,8 @@ import ChartErrorBoundary from './ChartErrorBoundary'
 import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
 import PriceChart from './PriceChart'
+import TradingViewChart from './TradingViewChart'
+import useStore from '../../store/useStore'
 import RsiChart from './RsiChart'
 import VolumeChart from './VolumeChart'
 
@@ -1262,6 +1264,16 @@ export default function ChartWorkspace({
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
+            {useStore.getState().proChart ? (
+              // The lightweight-charts (TradingView) engine — zoom/pan/crosshair
+              // come free, candles render crisper, and it stays fast on long
+              // histories. Toggle off in Header to fall back to the legacy chart.
+              <TradingViewChart
+                ohlcv={ohlcv}
+                indicators={indicators}
+                height={resolvedPriceChartHeight}
+              />
+            ) : (
             <PriceChart
               ohlcv={ohlcv}
               indicators={indicators}
@@ -1302,6 +1314,7 @@ export default function ChartWorkspace({
               onPanBars={panBy}
               onPanPrice={panPrice}
             />
+            )}
           </SafeChart>
         </ChartContainer>
 

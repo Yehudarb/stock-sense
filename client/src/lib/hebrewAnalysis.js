@@ -108,6 +108,20 @@ export function generateAnalysis(ohlcv, indicators, signal, patterns, language =
   const parts = []
   const fmtLevel = (v) => v == null ? '—' : (v >= 100 ? v.toFixed(2) : v.toFixed(3))
 
+  // Higher-timeframe context — described first because it's the strongest
+  // filter an analyst applies. Don't buy into a weekly downtrend, don't short
+  // into a monthly rally.
+  const htf = signal?.htf
+  if (htf) {
+    if (htf.strong && htf.bias === 'bullish') {
+      parts.push(`הטווחים הגבוהים (יום/חודש/שנה) מיושרים בוליש (${htf.bull}/${htf.total}) — הסיכוי בצד קונים גם ברקורדים ממוצעים.`)
+    } else if (htf.strong && htf.bias === 'bearish') {
+      parts.push(`הטווחים הגבוהים (יום/חודש/שנה) מיושרים בריש (${htf.bear}/${htf.total}) — לא הזמן לקנות אינטרה-דיי נגד המגמה הגדולה.`)
+    } else if (htf.bias === 'mixed') {
+      parts.push(`הטווחים הגבוהים מעורבים (${htf.bull} בוליש / ${htf.bear} בריש) — אין אישור מגמה חוצה-טווחים.`)
+    }
+  }
+
   // Market structure — described FIRST, before setups and indicators.
   // Analysts read the chart as a sequence of pivots; whether the last two swings
   // made a HH/HL (bullish continuation) or an LH/LL (bearish continuation) tells
