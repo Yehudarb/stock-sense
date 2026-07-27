@@ -22,6 +22,30 @@ The output includes a short Hebrew decision summary and a full JSON object with:
 - reason codes
 - condition-based alert definitions
 
+## Server Integration
+
+The engine is exposed through an isolated server endpoint:
+
+```http
+POST /api/stock-analysis-pro/analyze
+Content-Type: application/json
+```
+
+Body example:
+
+```json
+{
+  "symbol": "TSLA",
+  "style": "swing",
+  "account_size": 25000,
+  "risk_percent": 1,
+  "target_min": 5,
+  "target_max": 12
+}
+```
+
+The route spawns the Python CLI with sanitized arguments, a timeout, and no shell interpolation. Failures return an API error without affecting existing market, watchlist, paper-trading, or trading-bot routes.
+
 ## Providers
 
 Primary: Polygon/Massive (`POLYGON_API_KEY`).
