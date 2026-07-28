@@ -103,11 +103,15 @@ function confluenceCheck(gradients, minActive = 3) {
 // ── Gate 4: Reversal Confirmation ─────────────────────────────────────────
 function reversalConfirm(ohlcv, volRatio) {
   const last  = ohlcv.length - 1
-  const prev  = ohlcv[last - 1]
-  const bullishtCandle = prev && prev.c > prev.o
-  const highVolume     = volRatio?.[last] != null && volRatio[last] > 1.5
-  if (bullishtCandle && highVolume) return { passed: true, trigger: 'both' }
-  if (bullishtCandle)               return { passed: true, trigger: 'bullish_candle' }
+  // Both halves must describe the same bar. This previously read the candle at
+  // last-1 while reading volume at last, so the confirmation lagged one bar
+  // behind the candle that actually triggers the decision — and every other
+  // gate in this pipeline reads [last].
+  const current       = ohlcv[last]
+  const bullishCandle = current && current.c > current.o
+  const highVolume    = volRatio?.[last] != null && volRatio[last] > 1.5
+  if (bullishCandle && highVolume) return { passed: true, trigger: 'both' }
+  if (bullishCandle)               return { passed: true, trigger: 'bullish_candle' }
   return { passed: false, trigger: null }
 }
 
