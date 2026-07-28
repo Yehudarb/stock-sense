@@ -24,16 +24,30 @@ export const INTERVAL_LOOKBACK_DAYS = {
   '5y':  1825,
 }
 
+// These are FETCH sizes, not display sizes — how much history is loaded so the
+// indicators have a warmup runway. What the user actually sees is the far
+// smaller `visibleBars` of the selected preset in ChartWorkspace.
+//
+// The longest warmup in the set is SMA200 / EMA200 at 200 bars, and the widest
+// window is 180 bars (1H / 4H), so anything below ~380 leaves the 200-period
+// lines with too few points to draw. At the old value of 200 they resolved to
+// exactly ONE valid value on every intraday and daily view — a single point
+// renders as nothing, which is why a 200-line appeared on some periods and
+// vanished on others. 400 is the server's per-request ceiling
+// (parseLimit in server/routes/market.js) and clears every window we offer.
+const WARMUP_BARS = 200
+export const MIN_WARMUP_BARS = WARMUP_BARS
+
 export const INTERVAL_BAR_LIMITS = {
-  '1m': 200,
-  '5m': 200,
-  '15m': 200,
-  '1h': 200,
-  '4h': 200,
-  '1d': 200,
-  '1mo': 180,
-  '1y': 320,
-  '5y': 320,
+  '1m': 400,
+  '5m': 400,
+  '15m': 400,
+  '1h': 400,
+  '4h': 400,
+  '1d': 400,
+  '1mo': 380,
+  '1y': 400,
+  '5y': 400,
 }
 
 export const CACHE_TTL = {

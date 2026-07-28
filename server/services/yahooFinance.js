@@ -21,8 +21,13 @@ const YAHOO_INTERVAL_MAP = {
   // Fetch extra daily history so month view can calculate RSI/MACD/SMA,
   // while the client still displays only the latest month by default.
   '1mo': { interval: '1d',  range: '6mo' },
-  '1y':  { interval: '1d',  range: '1y'  },
-  '5y':  { interval: '1wk', range: '5y'  },
+  // The same reasoning applies to the long views, and it was missing there.
+  // A '1y' range returns ~251 daily bars, so the 252-bar window left SMA200
+  // with ~52 points and no runway at all before them. Widening the range gives
+  // the 200-period indicators real warmup; the client still displays only the
+  // window it asked for.
+  '1y':  { interval: '1d',  range: '2y'  },
+  '5y':  { interval: '1wk', range: '10y' },
 }
 
 const FETCH_TIMEOUT_MS = parseInt(process.env.MARKET_FETCH_TIMEOUT_MS ?? '8000', 10)

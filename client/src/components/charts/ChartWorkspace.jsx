@@ -1298,6 +1298,7 @@ export default function ChartWorkspace({
                 gaps={signal?.pro?.gaps}
                 decision={signal?.decision}
                 technicalAnalysis={technicalAnalysis}
+                visibleBars={activeVisibleBars}
               />
             ) : (
             <PriceChart
