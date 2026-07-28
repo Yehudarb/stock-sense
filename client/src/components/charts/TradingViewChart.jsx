@@ -456,18 +456,28 @@ export default function TradingViewChart({
       // lightweight-charts has no rectangle primitive, so a gap is drawn as its
       // two boundaries spanning the bars the gap is open for. That shows both
       // the price zone and how long it stayed unfilled.
-      ;(gaps?.gaps ?? []).slice(0, 10).forEach(gap => {
+      //
+      // Newest first, then cap — same order PriceChart uses. Slicing the raw
+      // array instead took the ten OLDEST gaps, which sit far to the left of
+      // the visible window: on NVDA none of them were on screen at all, so the
+      // toggle appeared to do nothing.
+      const recentGaps = [...(gaps?.gaps ?? [])].sort((a, b) => b.index - a.index).slice(0, 10)
+      recentGaps.forEach(gap => {
         const from = timeAtIndex(ohlcv, gap.index)
         const to = timeAtIndex(ohlcv, gap.endIndex ?? ohlcv.length - 1)
         if (from == null || to == null || from === to) return
         if (!Number.isFinite(gap.zoneLow) || !Number.isFinite(gap.zoneHigh)) return
-        const color = gap.status === 'closed'
-          ? 'rgba(100, 116, 139, 0.75)'
+        // Most gaps are only 1-4 bars wide, and a 1px dotted hairline over that
+        // span is invisible on a 126-bar view. Weight by status instead: an
+        // unfilled gap is the one that can still be traded, so it gets a solid
+        // 2px boundary, while a closed one stays deliberately faint.
+        const style = gap.status === 'closed'
+          ? { color: 'rgba(100, 116, 139, 0.7)', width: 1, style: LineStyle.Dotted }
           : gap.status === 'partial'
-            ? TRADER_COLORS.warning
-            : TRADER_COLORS.resistance
-        draw(`gap:${gap.id}:hi`, [{ time: from, value: gap.zoneHigh }, { time: to, value: gap.zoneHigh }], color, { width: 1, style: LineStyle.Dotted })
-        draw(`gap:${gap.id}:lo`, [{ time: from, value: gap.zoneLow  }, { time: to, value: gap.zoneLow  }], color, { width: 1, style: LineStyle.Dotted })
+            ? { color: TRADER_COLORS.warning, width: 2, style: LineStyle.Dashed }
+            : { color: TRADER_COLORS.resistance, width: 2, style: LineStyle.Solid }
+        draw(`gap:${gap.id}:hi`, [{ time: from, value: gap.zoneHigh }, { time: to, value: gap.zoneHigh }], style.color, style)
+        draw(`gap:${gap.id}:lo`, [{ time: from, value: gap.zoneLow  }, { time: to, value: gap.zoneLow  }], style.color, style)
       })
     }
 
