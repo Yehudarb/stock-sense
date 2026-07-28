@@ -52,30 +52,6 @@ export const INDICATOR_PARAMS = {
   VOLUME: { avgPeriod: 20 },
 }
 
-export const SIGNAL_WEIGHTS = {
-  RSI_OVERSOLD:       +2,
-  RSI_WEAK:           +1,
-  RSI_OVERBOUGHT:     -2,
-  RSI_HOT:            -1,
-  RSI_NEUTRAL:         0,
-  MACD_CROSS_UP:      +2,
-  MACD_CROSS_DOWN:    -2,
-  MACD_ABOVE_SIGNAL:  +0.5,
-  MACD_BELOW_SIGNAL:  -0.5,
-  BB_BELOW_LOWER:     +2,
-  BB_ABOVE_UPPER:     -2,
-  BB_INSIDE:           0,
-  SMA_EXTENDED_BELOW: +0.5,
-  SMA_EXTENDED_ABOVE: -0.5,
-}
-
-export const SIGNAL_THRESHOLDS = {
-  STRONG_BUY:   3.5,
-  BUY:          1.5,
-  SELL:        -1.5,
-  STRONG_SELL: -3.5,
-}
-
 export const VOLUME_MULTIPLIER_TRIGGER = 1.5
 export const VOLUME_MULTIPLIER = 1.2
 
