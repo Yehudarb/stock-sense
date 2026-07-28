@@ -514,6 +514,10 @@ export default function ChartWorkspace({
   isLoading,
 }) {
   const { setInterval, language } = useStore()
+  // Must be a subscription, not useStore.getState(): a snapshot read during
+  // render does not re-render this component when the header toggles Pro mode,
+  // so the button would flip while the chart below it stayed on the old engine.
+  const proChart = useStore(s => s.proChart)
   const n = ohlcv.length
   const volumeRatio = indicators?.volRatio?.[n - 1]
   const rsiLast = indicators?.rsi14?.[n - 1]
@@ -1263,7 +1267,7 @@ export default function ChartWorkspace({
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
-            {useStore.getState().proChart ? (
+            {proChart ? (
               // The lightweight-charts (TradingView) engine. Every indicator
               // toggle from ChartControls is forwarded — the chart draws only
               // what the header buttons request.
