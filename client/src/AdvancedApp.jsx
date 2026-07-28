@@ -24,6 +24,7 @@ import TradingStopsPanel from './components/analysis/TradingStopsPanel'
 import TradeChecklistPanel from './components/analysis/TradeChecklistPanel'
 import PositionSizeCalculator from './components/analysis/PositionSizeCalculator'
 import PlainVerdictCard from './components/analysis/PlainVerdictCard'
+import StockAnalysisProPanel from './components/analysis/StockAnalysisProPanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -40,6 +41,7 @@ import { buildTradeChecklist } from './lib/tradeChecklist'
 import usePaperTrading from './hooks/usePaperTrading'
 import useTradingBot from './hooks/useTradingBot'
 import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
+import useStockAnalysisPro from './hooks/useStockAnalysisPro'
 import { TRADER_TEXT } from './lib/traderColors'
 
 const FG_COLOR = value => (
@@ -155,6 +157,34 @@ export default function AdvancedApp() {
 
     return () => { cancelled = true }
   }, [currentTicker])
+
+  // An open paper position for this ticker feeds the report's existing-position
+  // section; without one that section is simply omitted.
+  const proPosition = useMemo(() => {
+    const open = paperTrading.account?.openPositions?.find(item => item.ticker === currentTicker)
+    if (!open) return null
+    return {
+      avgPrice: open.entryPrice,
+      quantity: open.quantity,
+      portfolioSize: paperTrading.account?.equity ?? paperTrading.account?.initialBalance ?? null,
+    }
+  }, [currentTicker, paperTrading.account])
+
+  const { report: proReport, isFetchingContext: isProContextLoading } = useStockAnalysisPro({
+    ticker: currentTicker,
+    interval,
+    ohlcv,
+    indicators,
+    signal,
+    snapshot,
+    earnings,
+    marketContext,
+    multiTimeframe,
+    fearGreed,
+    position: proPosition,
+    language,
+    enabled: Boolean(snapshot),
+  })
 
   const forecast = useMemo(() => computeForecastOpinion({
     ohlcv,
@@ -300,6 +330,7 @@ export default function AdvancedApp() {
   }
 
   copy.tabs.paper = isHebrew ? 'דמו' : 'Paper'
+  copy.tabs.pro = isHebrew ? 'מקצועי' : 'Pro'
 
   const loadingSteps = useMemo(() => ([
     {
@@ -477,6 +508,7 @@ export default function AdvancedApp() {
                   {[
                     { id: 'chart', label: copy.tabs.chart },
                     { id: 'intelligence', label: copy.tabs.intelligence },
+                    { id: 'pro', label: copy.tabs.pro },
                     { id: 'extended', label: copy.tabs.extended },
                     { id: 'paper', label: copy.tabs.paper },
                   ].map(tab => (
@@ -564,6 +596,16 @@ export default function AdvancedApp() {
                     </div>
                   )}
 
+                  {activeMainTab === 'pro' && (
+                    <div className="max-w-4xl mx-auto">
+                      <StockAnalysisProPanel
+                        report={proReport}
+                        isLoading={overallLoading || isProContextLoading}
+                        language={language}
+                      />
+                    </div>
+                  )}
+
                   {activeMainTab === 'extended' && (
                     <div className="max-w-4xl mx-auto space-y-4">
                       <div className="rounded-2xl border border-white/6 bg-slate-950/35 px-4 py-3 text-sm text-slate-300">
@@ -630,6 +672,7 @@ export default function AdvancedApp() {
                 {[ 
                   { id: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
                   { id: 'intelligence', label: isHebrew ? 'סיכום' : 'Summary' },
+                  { id: 'pro', label: isHebrew ? 'מקצועי' : 'Pro' },
                   { id: 'extended', label: isHebrew ? 'פירוט' : 'Details' },
                   { id: 'paper', label: isHebrew ? 'דמו' : 'Paper' },
                 ].map(tab => (

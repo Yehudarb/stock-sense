@@ -68,6 +68,42 @@ invoked ad hoc during a Claude Code session — they do not run inside the app i
   with postmortems; needs `pyyaml`/`jsonschema` (present) and optionally an FMP key for MAE/MFE
 - `signal-postmortem`, `backtest-expert` — after-the-fact signal/backtest quality review
 
+Installed separately (prompt-only, no Python — reads this project's own `/api/market/*`,
+`/api/finnhub/*`, `/api/trading/*` endpoints on port 3001 for its data):
+
+- `stock-analysis-pro` — full single-security research report: instrument validation, data-quality
+  gate (VERIFIED/ACCEPTABLE/DEGRADED/UNAVAILABLE), market context, fundamentals or ETF structure,
+  valuation, multi-timeframe technicals, catalysts, risks, bear/base/bull scenarios, and a
+  trade-plan framework. Hands off sizing to `position-sizer`. Requires the dev server running;
+  the Finnhub-backed fundamentals/news sections need `FINNHUB_API_KEY`.
+  **This skill also runs inside the app** — see "Stock Analysis Pro (in-app)" below.
+
+## Stock Analysis Pro (in-app) — the `Pro` tab
+
+The same analysis method, implemented as app code so it runs on every ticker without a Claude
+session:
+
+- `client/src/lib/stockAnalysisPro.js` — pure, dependency-free engine. `buildStockAnalysisPro()`
+  returns the structured report; `toMarkdown()` renders it in the skill's output-template order,
+  so the in-app report and the skill-generated report are interchangeable.
+- `client/src/hooks/useStockAnalysisPro.js` — feeds the engine from the existing hooks and fetches
+  only the Finnhub profile/news (their absence is recorded as a data-quality fact, not an error).
+- `client/src/components/analysis/StockAnalysisProPanel.jsx` — the `Pro` tab in `AdvancedApp.jsx`,
+  with a "copy report" button that yields the Markdown.
+
+Three rules of the method are enforced structurally, not by convention:
+1. **Nothing is invented.** Every number traces to OHLCV/indicators or an API payload; anything
+   missing is emitted as `UNAVAILABLE` with a reason (fundamentals and valuation are permanently
+   unavailable — the project has no financial-statements source).
+2. **A score is not a probability.** `signal.buyProbability` is deliberately not surfaced;
+   confidence is Low/Moderate/High with stated reasons.
+3. **"No valid setup" beats a forced trade.** The trade plan is gated on data quality, R:R
+   (1.5 swing / 2.0 when leverage or event risk is present), structure, volume confirmation, and
+   an earnings blackout of 7 days — and returns `noValidSetup` with reasons when any fails.
+
+Data quality is capped at `ACCEPTABLE` by design: the Yahoo-backed feed is delayed and carries no
+real-time attestation, so `VERIFIED` is never claimed automatically.
+
 Requires `py` (Python 3.11+ launcher) with `requests`, `pyyaml`, `jsonschema` — already
 available in this environment. `exposure-coach` and `trader-memory-core` reference sibling
 skills (`macro-regime-detector`, `ftd-detector`, `theme-detector`, etc.) from the upstream repo
