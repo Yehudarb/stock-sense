@@ -1288,6 +1288,16 @@ export default function ChartWorkspace({
                 showPivotPoints={showPivotPoints}
                 showPrevHighLow={showPrevHighLow}
                 showHighLow52={showHighLow52}
+                showLevels={showLevels}
+                showFibonacci={showFibonacci}
+                showFibExtension={showFibExtension}
+                showPatterns={showPatterns}
+                showTriangles={showTriangles}
+                showGaps={showGaps}
+                patterns={signal?.patterns}
+                gaps={signal?.pro?.gaps}
+                decision={signal?.decision}
+                technicalAnalysis={technicalAnalysis}
               />
             ) : (
             <PriceChart

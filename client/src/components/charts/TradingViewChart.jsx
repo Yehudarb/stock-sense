@@ -4,6 +4,8 @@ import {
   CrosshairMode, LineStyle,
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
+import { computeFibonacci, isTrianglePattern } from './chartHelpers'
+import { TRADER_COLORS } from '../../lib/traderColors'
 
 // TradingView-quality chart (lightweight-charts, MIT). Rendering + navigation
 // (mouse-wheel zoom, click-drag pan, native crosshair, right-side price axis,
@@ -91,6 +93,58 @@ function toClose(ohlcv) {
     .map(b => ({ time: Math.floor(b.t / 1000), value: b.c }))
 }
 
+// Patterns and gaps are expressed in BAR INDEXES; lightweight-charts addresses
+// everything by unix seconds. This is the only bridge between the two worlds —
+// an out-of-range index yields null so the caller can drop that shape rather
+// than draw it at a wrong place on the time axis.
+function timeAtIndex(ohlcv, index) {
+  const bar = ohlcv?.[index]
+  if (!bar) return null
+  const time = Math.floor((bar.t || 0) / 1000)
+  return Number.isFinite(time) && time > 0 ? time : null
+}
+
+// A pattern's `visual` carries either explicit lines (trendlines, necklines,
+// triangle boundaries) or an ordered point list. Both reduce to two-point
+// segments we can hand to a LineSeries.
+function patternSegments(ohlcv, pattern) {
+  const visual = pattern?.visual
+  if (!visual) return []
+  const segments = []
+
+  for (const line of visual.lines ?? []) {
+    const from = timeAtIndex(ohlcv, line?.from?.index)
+    const to = timeAtIndex(ohlcv, line?.to?.index)
+    if (from == null || to == null || from === to) continue
+    if (!Number.isFinite(line.from.price) || !Number.isFinite(line.to.price)) continue
+    segments.push([
+      { time: from, value: line.from.price },
+      { time: to, value: line.to.price },
+    ])
+  }
+
+  // Fall back to connecting the points only when no explicit lines were given,
+  // otherwise a pattern would be drawn twice.
+  if (!segments.length && (visual.points?.length ?? 0) >= 2) {
+    const pts = visual.points
+      .map(p => ({ time: timeAtIndex(ohlcv, p.index), value: p.price }))
+      .filter(p => p.time != null && Number.isFinite(p.value))
+      .sort((a, b) => a.time - b.time)
+    for (let i = 1; i < pts.length; i += 1) {
+      if (pts[i].time !== pts[i - 1].time) segments.push([pts[i - 1], pts[i]])
+    }
+  }
+
+  return segments
+}
+
+function patternColor(pattern) {
+  const dir = pattern?.direction ?? pattern?.bias
+  if (dir === 'bullish') return TRADER_COLORS.bullish
+  if (dir === 'bearish') return TRADER_COLORS.bearish
+  return TRADER_COLORS.neutral
+}
+
 // Supertrend has direction switches; a single line series looks best when we
 // split it into "up" (green) and "down" (red) segments and let the color
 // change tell the story. We build two aligned arrays with gaps at the
@@ -134,6 +188,19 @@ export default function TradingViewChart({
   showPivotPoints = false,
   showPrevHighLow = false,
   showHighLow52 = false,
+  // Analysis overlays. These used to be PriceChart-only: ChartControls exposed
+  // the buttons in Pro mode too, but the props were never forwarded here, so
+  // the toggles lit up and drew nothing.
+  showLevels = false,
+  showFibonacci = false,
+  showFibExtension = false,
+  showPatterns = false,
+  showTriangles = false,
+  showGaps = false,
+  patterns = null,          // signal.patterns  — { patterns: [{ visual, ... }] }
+  gaps = null,              // signal.pro.gaps  — { gaps: [{ zoneLow, zoneHigh, ... }] }
+  decision = null,          // entry / stop / target / support / resistance
+  technicalAnalysis = null, // keyLevels.support | .resistance | .breakoutLevels
   chartType = 'candle', // 'candle' | 'line'
 }) {
   const containerRef  = useRef(null)
@@ -333,6 +400,69 @@ export default function TradingViewChart({
     showSupertrend, showIchimoku, showKeltner, showDonchian,
   ])
 
+  // ── Chart-pattern, triangle and gap geometry ─────────────────────
+  // These are shapes spanning a bar range rather than a value per bar, so each
+  // one gets its own short LineSeries. Keys are regenerated every run and any
+  // series left over from the previous run is removed, which keeps the chart
+  // correct when a pattern disappears after new data arrives.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !ohlcv?.length) return
+
+    const drawn = new Set()
+    const draw = (key, points, color, opts = {}) => {
+      drawn.add(key)
+      if (!seriesRef.current[key]) {
+        seriesRef.current[key] = chart.addSeries(LineSeries, {
+          color,
+          lineWidth: opts.width ?? 2,
+          lineStyle: opts.style ?? LineStyle.Solid,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        })
+      }
+      seriesRef.current[key].setData(points)
+    }
+
+    const wanted = (patterns?.patterns ?? []).filter(pattern => (
+      (showPatterns && !isTrianglePattern(pattern)) || (showTriangles && isTrianglePattern(pattern))
+    ))
+
+    wanted.forEach((pattern, patternIndex) => {
+      const color = patternColor(pattern)
+      patternSegments(ohlcv, pattern).forEach((segment, segmentIndex) => {
+        draw(`pat:${pattern.key ?? patternIndex}:${segmentIndex}`, segment, color, { width: 2 })
+      })
+    })
+
+    if (showGaps) {
+      // lightweight-charts has no rectangle primitive, so a gap is drawn as its
+      // two boundaries spanning the bars the gap is open for. That shows both
+      // the price zone and how long it stayed unfilled.
+      ;(gaps?.gaps ?? []).slice(0, 10).forEach(gap => {
+        const from = timeAtIndex(ohlcv, gap.index)
+        const to = timeAtIndex(ohlcv, gap.endIndex ?? ohlcv.length - 1)
+        if (from == null || to == null || from === to) return
+        if (!Number.isFinite(gap.zoneLow) || !Number.isFinite(gap.zoneHigh)) return
+        const color = gap.status === 'closed'
+          ? 'rgba(100, 116, 139, 0.75)'
+          : gap.status === 'partial'
+            ? TRADER_COLORS.warning
+            : TRADER_COLORS.resistance
+        draw(`gap:${gap.id}:hi`, [{ time: from, value: gap.zoneHigh }, { time: to, value: gap.zoneHigh }], color, { width: 1, style: LineStyle.Dotted })
+        draw(`gap:${gap.id}:lo`, [{ time: from, value: gap.zoneLow  }, { time: to, value: gap.zoneLow  }], color, { width: 1, style: LineStyle.Dotted })
+      })
+    }
+
+    for (const key of Object.keys(seriesRef.current)) {
+      if ((key.startsWith('pat:') || key.startsWith('gap:')) && !drawn.has(key)) {
+        try { chart.removeSeries(seriesRef.current[key]) } catch { /* already gone */ }
+        delete seriesRef.current[key]
+      }
+    }
+  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps])
+
   // ── Horizontal price lines (pivots, prev high/low, 52-week hi/lo) ──
   // These are per-level and don't need per-bar data, so createPriceLine on
   // the primary series is the right tool.
@@ -363,19 +493,53 @@ export default function TradingViewChart({
       addLine({ value: p.s1,    color: C.pivotS1, title: 'S1' })
       addLine({ value: p.s2,    color: C.pivotS1, title: 'S2' })
     }
-    if (showPrevHighLow && ohlcv?.length >= 2) {
-      const prev = ohlcv[ohlcv.length - 2]
-      addLine({ value: prev.h, color: C.prevHigh, title: 'PDH' })
-      addLine({ value: prev.l, color: C.prevLow,  title: 'PDL' })
+    // Prefer indicators.priceLevels — the values PriceChart and the analysis
+    // panels use — so both engines label the same levels. Recomputing them
+    // locally let the two charts disagree by a few cents.
+    const levels = indicators?.priceLevels
+    if (showPrevHighLow) {
+      const prevBar = ohlcv?.length >= 2 ? ohlcv[ohlcv.length - 2] : null
+      addLine({ value: levels?.previousHigh ?? prevBar?.h, color: C.prevHigh, title: 'PDH' })
+      addLine({ value: levels?.previousLow  ?? prevBar?.l, color: C.prevLow,  title: 'PDL' })
     }
     if (showHighLow52 && ohlcv?.length) {
       const window = ohlcv.slice(-252) // ~1 trading year
-      const hi = Math.max(...window.map(b => b.h))
-      const lo = Math.min(...window.map(b => b.l))
-      addLine({ value: hi, color: C.high52, title: '52W High' })
-      addLine({ value: lo, color: C.low52,  title: '52W Low' })
+      addLine({ value: levels?.high52Week ?? Math.max(...window.map(b => b.h)), color: C.high52, title: '52W High' })
+      addLine({ value: levels?.low52Week  ?? Math.min(...window.map(b => b.l)), color: C.low52,  title: '52W Low' })
     }
-  }, [chartEpoch, ohlcv, indicators, showPivotPoints, showPrevHighLow, showHighLow52])
+
+    // ── Trade levels and key structure (the "Levels" / אזור toggle) ──
+    if (showLevels) {
+      addLine({ value: decision?.support,    color: TRADER_COLORS.support,    title: 'S', width: 1.5, style: LineStyle.Solid })
+      addLine({ value: decision?.resistance, color: TRADER_COLORS.resistance, title: 'R', width: 1.5, style: LineStyle.Solid })
+      addLine({ value: decision?.invalidation ?? decision?.stopLoss, color: TRADER_COLORS.stopLoss,   title: 'SL', width: 1.8, style: LineStyle.Dashed })
+      addLine({ value: decision?.takeProfit, color: TRADER_COLORS.takeProfit, title: 'TP', width: 1.8, style: LineStyle.Dashed })
+      ;(technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2)
+        .forEach((value, i) => addLine({ value, color: 'rgba(6, 182, 212, 0.9)', title: `S${i + 2}` }))
+      ;(technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2)
+        .forEach((value, i) => addLine({ value, color: 'rgba(249, 115, 22, 0.9)', title: `R${i + 2}` }))
+      ;(technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1)
+        .forEach(value => addLine({ value, color: 'rgba(56, 189, 248, 0.9)', title: 'BO' }))
+    }
+
+    // ── Fibonacci ──
+    // Anchored on the full series: this chart's zoom is chart-native, so there
+    // is no "visible window" to anchor to the way PriceChart has.
+    if (showFibonacci || showFibExtension) {
+      const fib = computeFibonacci(ohlcv, showFibExtension)
+      fib?.levels?.forEach(level => addLine({
+        value: level.price,
+        color: level.ratio === 0 || level.ratio === 1 ? 'rgba(148, 163, 184, 0.9)' : 'rgba(234, 179, 8, 0.75)',
+        title: `FIB ${level.label}`,
+        style: LineStyle.Dotted,
+      }))
+    }
+  }, [
+    chartEpoch, ohlcv, indicators,
+    showPivotPoints, showPrevHighLow, showHighLow52,
+    showLevels, showFibonacci, showFibExtension,
+    decision, technicalAnalysis,
+  ])
 
   // ── Zoom presets (kept — they're chart-native, not indicator toggles) ──
   const zoomLast = (barCount) => {
