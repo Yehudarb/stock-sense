@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
 import useStore from '../../store/useStore'
-import { createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import { computeFibonacci, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, isTrianglePattern, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 const TV_GREEN = TRADER_COLORS.entry
@@ -21,15 +21,6 @@ const GAP_COLORS = {
   closed: { stroke: '#64748b', fill: 'rgba(100, 116, 139, 0.08)' },
 }
 
-const FIB_LEVELS = [
-  { ratio: 0, label: '0%' },
-  { ratio: 0.236, label: '23.6%' },
-  { ratio: 0.382, label: '38.2%' },
-  { ratio: 0.5, label: '50%' },
-  { ratio: 0.618, label: '61.8%' },
-  { ratio: 0.786, label: '78.6%' },
-  { ratio: 1, label: '100%' },
-]
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -220,9 +211,6 @@ function normalizePatternsForView(patternResult, viewStart, viewEnd) {
   }
 }
 
-function isTrianglePattern(pattern) {
-  return pattern?.key?.includes('TRIANGLE') || pattern?.meta?.type
-}
 
 function normalizeGapsForView(gapResult, viewStart, viewEnd) {
   return (gapResult?.gaps ?? [])
@@ -240,44 +228,6 @@ function normalizeGapsForView(gapResult, viewStart, viewEnd) {
     .slice(0, 10)
 }
 
-function computeFibonacci(ohlcv, includeExtensions = false) {
-  if (!ohlcv?.length || ohlcv.length < 5) return null
-
-  const highPoint = ohlcv.reduce((best, bar, index) => (
-    bar.h > best.price ? { index, price: bar.h } : best
-  ), { index: 0, price: ohlcv[0].h })
-  const lowPoint = ohlcv.reduce((best, bar, index) => (
-    bar.l < best.price ? { index, price: bar.l } : best
-  ), { index: 0, price: ohlcv[0].l })
-  const range = highPoint.price - lowPoint.price
-
-  if (!Number.isFinite(range) || range <= 0) return null
-
-  const trend = lowPoint.index < highPoint.index ? 'up' : 'down'
-  const extensionLevels = includeExtensions
-    ? [
-        { ratio: 1.272, label: '127.2%' },
-        { ratio: 1.618, label: '161.8%' },
-      ]
-    : []
-  const levels = [...FIB_LEVELS, ...extensionLevels].map(level => {
-    const price = trend === 'up'
-      ? highPoint.price - range * level.ratio
-      : lowPoint.price + range * level.ratio
-
-    return {
-      ...level,
-      price,
-    }
-  })
-
-  return {
-    trend,
-    anchorA: trend === 'up' ? lowPoint : highPoint,
-    anchorB: trend === 'up' ? highPoint : lowPoint,
-    levels,
-  }
-}
 
 function tradingViewXAxis(theme, maxTicksLimit = 10, isMobileViewport = false) {
   const palette = getChartPalette(theme)
