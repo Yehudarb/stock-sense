@@ -4,7 +4,7 @@ import {
   CrosshairMode, LineStyle,
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
-import { computeFibonacci, isTrianglePattern } from './chartHelpers'
+import { computeFibonacci, isTrendlinePattern } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 // TradingView-quality chart (lightweight-charts, MIT). Rendering + navigation
@@ -442,7 +442,7 @@ export default function TradingViewChart({
     }
 
     const wanted = (patterns?.patterns ?? []).filter(pattern => (
-      (showPatterns && !isTrianglePattern(pattern)) || (showTriangles && isTrianglePattern(pattern))
+      (showPatterns && !isTrendlinePattern(pattern)) || (showTriangles && isTrendlinePattern(pattern))
     ))
 
     wanted.forEach((pattern, patternIndex) => {

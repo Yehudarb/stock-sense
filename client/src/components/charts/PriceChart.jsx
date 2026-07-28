@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
 import useStore from '../../store/useStore'
-import { computeFibonacci, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, isTrianglePattern, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import { computeFibonacci, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, isTrendlinePattern, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 const TV_GREEN = TRADER_COLORS.entry
@@ -892,7 +892,7 @@ export default function PriceChart({
     const visibleOhlcv = ohlcv.slice(viewStart, viewSliceEnd)
     const visibleIndicators = sliceIndicatorTree(indicators, viewStart, viewSliceEnd)
     const patternSource = patterns?.patterns?.filter(pattern => (
-      (showPatterns && !isTrianglePattern(pattern)) || (showTriangles && isTrianglePattern(pattern))
+      (showPatterns && !isTrendlinePattern(pattern)) || (showTriangles && isTrendlinePattern(pattern))
     )) ?? []
     const filteredPatternResult = { ...patterns, patterns: patternSource }
     const visiblePatterns = patternSource.length ? normalizePatternsForView(filteredPatternResult, viewStart, viewEnd) : { patterns: [], score: 0, best: null }

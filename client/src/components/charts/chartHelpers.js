@@ -58,8 +58,21 @@ export const FIB_LEVELS = [
   { ratio: 1, label: '100%' },
 ]
 
-export function isTrianglePattern(pattern) {
-  return pattern?.key?.includes('TRIANGLE') || pattern?.meta?.type
+// Splits detected patterns between the two toggles that render them:
+// "קו מגמה" (trendline) gets everything drawn as sloping or converging lines,
+// and "סימוני תבניות" gets the named formations and candlestick signals.
+//
+// This used to test only for TRIANGLE, which is why the trendline toggle looked
+// dead: across TSLA, NVDA, SPY and AAPL the detector produced CHANNEL_*,
+// *_WEDGE and TRENDLINE_BREAK_* but no TRIANGLE key at all, so every pattern
+// fell through to the other toggle and the trendline button matched nothing.
+const TRENDLINE_KEY_PARTS = ['TRENDLINE', 'TRIANGLE', 'CHANNEL', 'WEDGE']
+
+export function isTrendlinePattern(pattern) {
+  const key = pattern?.key
+  if (typeof key === 'string' && TRENDLINE_KEY_PARTS.some(part => key.includes(part))) return true
+  // detectPivotTriangles tags its output with meta.type instead of a key.
+  return Boolean(pattern?.meta?.type)
 }
 
 // Anchors the retracement on the extreme high/low of the supplied bars. Which
