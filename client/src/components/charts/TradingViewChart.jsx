@@ -201,6 +201,9 @@ export default function TradingViewChart({
   gaps = null,              // signal.pro.gaps  — { gaps: [{ zoneLow, zoneHigh, ... }] }
   decision = null,          // entry / stop / target / support / resistance
   technicalAnalysis = null, // keyLevels.support | .resistance | .breakoutLevels
+  // How many of the loaded bars to show. The rest is warmup history that
+  // feeds the indicators without being displayed.
+  visibleBars = null,
   chartType = 'candle', // 'candle' | 'line'
 }) {
   const containerRef  = useRef(null)
@@ -302,16 +305,29 @@ export default function TradingViewChart({
     price.setData(chartType === 'line' ? lineData : candles)
     if (vol) vol.setData(volume)
     if (candles.length && !chartRef.current._fittedOnce) {
-      chartRef.current.timeScale().fitContent()
+      // The series now carries warmup history the user did not ask to see, so
+      // fitContent() would zoom out past the selected period. Show the last
+      // `visibleBars` instead — the warmup stays loaded and feeds the
+      // indicators, it just sits off-screen to the left.
+      const ts = chartRef.current.timeScale()
+      if (visibleBars && candles.length > visibleBars) {
+        ts.setVisibleRange({
+          from: candles[candles.length - visibleBars].time,
+          to: candles[candles.length - 1].time,
+        })
+      } else {
+        ts.fitContent()
+      }
       chartRef.current._fittedOnce = true
     }
   // chartEpoch: a theme switch rebuilds the chart without changing chartType,
   // so without it the freshly created price/volume series never get their data.
-  }, [chartEpoch, candles, volume, lineData, chartType])
+  }, [chartEpoch, candles, volume, lineData, chartType, visibleBars])
 
+  // A new ticker or a new period must re-frame the view.
   useEffect(() => {
     if (chartRef.current) chartRef.current._fittedOnce = false
-  }, [currentTicker])
+  }, [currentTicker, visibleBars])
 
   // ── Overlay wiring ───────────────────────────────────────────────
   // Each overlay is created lazily and torn down when its toggle turns off so
