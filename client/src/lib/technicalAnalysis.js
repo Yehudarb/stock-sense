@@ -749,13 +749,6 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     30,
     95,
   ))
-  const riskRewardScore = Math.round(clamp(
-    risk?.rrRatio != null
-      ? 45 + risk.rrRatio * 18 - (dailyLevels.resistance[0] && dailyBars.at(-1)?.c > dailyLevels.resistance[0] * 0.985 ? 6 : 0)
-      : 55,
-    25,
-    92,
-  ))
   const atrPct = lastDailyPrice ? (latest(dailyIndicators.atr14, primaryIndex) / lastDailyPrice) * 100 : null
   const bbWidth = latest(dailyIndicators.bb20.width, primaryIndex)
   const volatilityScore = Math.round(clamp(
@@ -806,6 +799,17 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     patternInvalidation: patterns[0]?.invalidationLevel ?? patterns[0]?.invalidatedBelow ?? patterns[0]?.invalidatedAbove ?? null,
     vwap: latest(dailyIndicators.vwap, primaryIndex),
   })
+
+  // Must stay below `risk` — reading it earlier hits the const's temporal dead zone
+  // and throws ReferenceError for the whole analysis. `technicalScore` does not
+  // depend on this value, so computing it here changes no output.
+  const riskRewardScore = Math.round(clamp(
+    risk?.rrRatio != null
+      ? 45 + risk.rrRatio * 18 - (dailyLevels.resistance[0] && dailyBars.at(-1)?.c > dailyLevels.resistance[0] * 0.985 ? 6 : 0)
+      : 55,
+    25,
+    92,
+  ))
 
   const riskLevel = technicalScore >= 75 && riskRewardScore >= 70 ? 'Low' : technicalScore >= 55 ? 'Medium' : 'High'
   const mainRisk = nearestResistance && dailyBars.at(-1)?.c >= nearestResistance * 0.985
