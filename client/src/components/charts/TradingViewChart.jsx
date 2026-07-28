@@ -96,19 +96,22 @@ function toClose(ohlcv) {
 // change tell the story. We build two aligned arrays with gaps at the
 // direction changes so each series only draws its half of the signal.
 function toSupertrendSeries(ohlcv, supertrend) {
-  if (!Array.isArray(supertrend?.value)) return { up: [], down: [] }
+  // computeAll() emits { upper, lower, line, direction, flipped } — the plotted
+  // series is `line`, and `direction` holds the strings 'bullish' / 'bearish'.
+  // PriceChart reads supertrend.line; this chart read a `value` key that has
+  // never existed, so the series was always empty.
+  if (!Array.isArray(supertrend?.line)) return { up: [], down: [] }
   const up = []
   const down = []
-  const n = Math.min(ohlcv.length, supertrend.value.length)
+  const n = Math.min(ohlcv.length, supertrend.line.length)
   for (let i = 0; i < n; i += 1) {
-    const v = supertrend.value[i]
+    const v = supertrend.line[i]
     if (v == null || !Number.isFinite(v)) continue
     const time = Math.floor((ohlcv[i].t || 0) / 1000)
     if (!Number.isFinite(time) || time <= 0) continue
-    // supertrend.direction[i] > 0 means uptrend (line under price, green)
     const dir = supertrend.direction?.[i]
-    if (dir === 1)      up.push({ time, value: v })
-    else if (dir === -1) down.push({ time, value: v })
+    if (dir === 'bullish')      up.push({ time, value: v })
+    else if (dir === 'bearish') down.push({ time, value: v })
   }
   return { up, down }
 }
@@ -140,6 +143,10 @@ export default function TradingViewChart({
   const theme         = useStore(s => s.theme) || 'dark'
   const currentTicker = useStore(s => s.currentTicker)
   const [hovered, setHovered] = useState(null)
+  // Bumped every time the chart instance is rebuilt (theme / chart-type change).
+  // The overlay effects below depend on it, otherwise they keep their old deps,
+  // never re-run, and every indicator silently disappears with the old chart.
+  const [chartEpoch, setChartEpoch] = useState(0)
 
   const palette = useMemo(() => (theme === 'light' ? {
     bg: '#ffffff', text: '#111827', grid: '#e5e7eb', axis: '#94a3b8',
@@ -214,6 +221,9 @@ export default function TradingViewChart({
         : { close: bar.value })
     })
 
+    // Tell the overlay effects the series registry is empty and must be refilled.
+    setChartEpoch(epoch => epoch + 1)
+
     return () => { chart.remove(); chartRef.current = null; seriesRef.current = {}; priceLinesRef.current = [] }
   // Rebuild when the palette (theme) or the chart type changes.
   }, [palette.bg, palette.up, palette.down, chartType])
@@ -228,7 +238,9 @@ export default function TradingViewChart({
       chartRef.current.timeScale().fitContent()
       chartRef.current._fittedOnce = true
     }
-  }, [candles, volume, lineData, chartType])
+  // chartEpoch: a theme switch rebuilds the chart without changing chartType,
+  // so without it the freshly created price/volume series never get their data.
+  }, [chartEpoch, candles, volume, lineData, chartType])
 
   useEffect(() => {
     if (chartRef.current) chartRef.current._fittedOnce = false
@@ -315,6 +327,7 @@ export default function TradingViewChart({
       ensureLine('donchLower', indicators.donchian.lower, C.donchLower, { width: 1, style: LineStyle.Dashed })
     } else { remove('donchUpper'); remove('donchLower') }
   }, [
+    chartEpoch,
     ohlcv, indicators,
     showSMA, showEMA, showWMA, showBB, showVWAP,
     showSupertrend, showIchimoku, showKeltner, showDonchian,
@@ -340,12 +353,15 @@ export default function TradingViewChart({
     }
 
     if (showPivotPoints && indicators?.pivotPoints) {
+      // Keys are lowercase { pivot, r1, s1, r2, s2, r3, s3 } — reading P/R1/S1
+      // yielded undefined, so addLine bailed on every level and no pivot line
+      // was ever drawn.
       const p = indicators.pivotPoints
-      addLine({ value: p.P,  color: C.pivotP,  title: 'P',  width: 1 })
-      addLine({ value: p.R1, color: C.pivotR1, title: 'R1' })
-      addLine({ value: p.R2, color: C.pivotR1, title: 'R2' })
-      addLine({ value: p.S1, color: C.pivotS1, title: 'S1' })
-      addLine({ value: p.S2, color: C.pivotS1, title: 'S2' })
+      addLine({ value: p.pivot, color: C.pivotP,  title: 'P',  width: 1 })
+      addLine({ value: p.r1,    color: C.pivotR1, title: 'R1' })
+      addLine({ value: p.r2,    color: C.pivotR1, title: 'R2' })
+      addLine({ value: p.s1,    color: C.pivotS1, title: 'S1' })
+      addLine({ value: p.s2,    color: C.pivotS1, title: 'S2' })
     }
     if (showPrevHighLow && ohlcv?.length >= 2) {
       const prev = ohlcv[ohlcv.length - 2]
@@ -359,7 +375,7 @@ export default function TradingViewChart({
       addLine({ value: hi, color: C.high52, title: '52W High' })
       addLine({ value: lo, color: C.low52,  title: '52W Low' })
     }
-  }, [ohlcv, indicators, showPivotPoints, showPrevHighLow, showHighLow52])
+  }, [chartEpoch, ohlcv, indicators, showPivotPoints, showPrevHighLow, showHighLow52])
 
   // ── Zoom presets (kept — they're chart-native, not indicator toggles) ──
   const zoomLast = (barCount) => {
