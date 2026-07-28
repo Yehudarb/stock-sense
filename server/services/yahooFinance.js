@@ -134,8 +134,14 @@ export async function getBars(ticker, interval, limit = 200) {
 export async function getSnapshot(ticker) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
   const data = await yfFetch(url)
-  const meta = data?.chart?.result?.[0]?.meta
+  const result = data?.chart?.result?.[0]
+  const meta = result?.meta
   if (!meta) throw new Error(`No snapshot for ${ticker}`)
+
+  // Yahoo's chart `meta` has no regularMarketOpen field at all — only the day's
+  // high/low/volume/previousClose. The session open lives in the quote arrays,
+  // so read it there; `?? 0` on meta silently reported every open as 0.
+  const openFromQuote = result?.indicators?.quote?.[0]?.open?.find(v => v != null)
 
   return {
     ticker,
@@ -147,7 +153,7 @@ export async function getSnapshot(ticker) {
     volume:    meta.regularMarketVolume     ?? 0,
     high:      meta.regularMarketDayHigh    ?? 0,
     low:       meta.regularMarketDayLow     ?? 0,
-    open:      meta.regularMarketOpen       ?? 0,
+    open:      openFromQuote               ?? 0,
     prevClose: meta.chartPreviousClose      ?? 0,
     name:      meta.longName ?? meta.shortName ?? ticker,
     timestamp: Date.now(),
