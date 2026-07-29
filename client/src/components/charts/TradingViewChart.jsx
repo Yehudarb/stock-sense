@@ -13,6 +13,10 @@ import { TRADER_COLORS } from '../../lib/traderColors'
 // every indicator toggle the app's ChartControls exposes to the right kind of
 // series, so the button in the header actually changes what's drawn.
 
+// Axis label size. The library's own default is 11px, small enough that the
+// price column on the right was hard to read at a glance.
+const AXIS_FONT_SIZE = 13
+
 // Distinct colors per overlay so a busy chart is still readable.
 const C = {
   sma20:   '#f59e0b',
@@ -145,6 +149,55 @@ function patternColor(pattern) {
   return TRADER_COLORS.neutral
 }
 
+// Projects a pattern line forward to the last bar at its own slope.
+//
+// A trendline that stops at its final pivot is a historical artifact: it says
+// where the line WAS. Traders read a trendline as a level that is still in
+// force, so it has to reach the current bar to be worth anything — that is the
+// difference between a drawn segment and a usable level.
+//
+// Slope is per BAR, not per second: bars are not evenly spaced in wall-clock
+// time (weekends, holidays, session gaps), so extrapolating on timestamps would
+// bend the line. Indexes are then mapped back to times for the chart.
+// A line may be extended by at most its own span, and never more than this.
+// Extrapolation amplifies slope error with distance: measured on real bars, an
+// MSFT line fitted over ~20 bars and dragged 161 bars forward landed 42% away
+// from spot. Anchoring the reach to the line's own length keeps a long, well
+// established trendline useful while stopping a short one from inventing a
+// level, and a line too stale to reach the current bar simply stops early —
+// which is the honest reading: it is no longer in force.
+const MAX_PROJECTION_BARS = 60
+
+function projectLineToLastBar(ohlcv, line) {
+  const lastIndex = ohlcv.length - 1
+  const fromIndex = line?.from?.index
+  const toIndex = line?.to?.index
+  if (!Number.isFinite(fromIndex) || !Number.isFinite(toIndex)) return null
+  if (toIndex >= lastIndex || toIndex === fromIndex) return null
+
+  const fromPrice = line.from.price
+  const toPrice = line.to.price
+  if (!Number.isFinite(fromPrice) || !Number.isFinite(toPrice)) return null
+
+  const span = Math.abs(toIndex - fromIndex)
+  const reach = Math.min(span, MAX_PROJECTION_BARS, lastIndex - toIndex)
+  if (reach < 1) return null
+
+  const endIndex = toIndex + reach
+  const slopePerBar = (toPrice - fromPrice) / (toIndex - fromIndex)
+  const projectedPrice = toPrice + slopePerBar * reach
+  if (!Number.isFinite(projectedPrice) || projectedPrice <= 0) return null
+
+  const startTime = timeAtIndex(ohlcv, toIndex)
+  const endTime = timeAtIndex(ohlcv, endIndex)
+  if (startTime == null || endTime == null || startTime === endTime) return null
+
+  return [
+    { time: startTime, value: toPrice },
+    { time: endTime, value: projectedPrice },
+  ]
+}
+
 // Supertrend has direction switches; a single line series looks best when we
 // split it into "up" (green) and "down" (red) segments and let the color
 // change tell the story. We build two aligned arrays with gaps at the
@@ -197,6 +250,9 @@ export default function TradingViewChart({
   showPatterns = false,
   showTriangles = false,
   showGaps = false,
+  // Projects each trendline forward at its own slope to the current bar, so
+  // it reads as a live level instead of a historical segment.
+  extendTrendlines = true,
   patterns = null,          // signal.patterns  — { patterns: [{ visual, ... }] }
   gaps = null,              // signal.pro.gaps  — { gaps: [{ zoneLow, zoneHigh, ... }] }
   decision = null,          // entry / stop / target / support / resistance
@@ -238,12 +294,21 @@ export default function TradingViewChart({
         background: { color: palette.bg },
         textColor: palette.text,
         fontFamily: 'inherit',
+        // lightweight-charts defaults to 11px, which is what made the price
+        // and time labels hard to read on a dense chart.
+        fontSize: AXIS_FONT_SIZE,
       },
       grid: {
         vertLines: { color: palette.grid, style: LineStyle.Dotted },
         horzLines: { color: palette.grid, style: LineStyle.Dotted },
       },
-      rightPriceScale: { borderColor: palette.axis, scaleMargins: { top: 0.08, bottom: 0.25 } },
+      rightPriceScale: {
+        borderColor: palette.axis,
+        scaleMargins: { top: 0.08, bottom: 0.25 },
+        // Reserve room so the larger labels are not clipped or crowded.
+        minimumWidth: 78,
+        entireTextOnly: true,
+      },
       timeScale: { borderColor: palette.axis, timeVisible: true, secondsVisible: false, rightOffset: 8 },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -434,8 +499,12 @@ export default function TradingViewChart({
           lineWidth: opts.width ?? 2,
           lineStyle: opts.style ?? LineStyle.Solid,
           priceLineVisible: false,
-          lastValueVisible: false,
+          // A projected trendline is a level you trade against, so its current
+          // value belongs on the price axis. Everything else stays unlabelled
+          // or the axis turns into noise.
+          lastValueVisible: opts.showLastValue ?? false,
           crosshairMarkerVisible: false,
+          ...(opts.title ? { title: opts.title } : {}),
         })
       }
       seriesRef.current[key].setData(points)
@@ -447,9 +516,27 @@ export default function TradingViewChart({
 
     wanted.forEach((pattern, patternIndex) => {
       const color = patternColor(pattern)
+      const id = pattern.key ?? patternIndex
+      const isTrendline = isTrendlinePattern(pattern)
+
       patternSegments(ohlcv, pattern).forEach((segment, segmentIndex) => {
-        draw(`pat:${pattern.key ?? patternIndex}:${segmentIndex}`, segment, color, { width: 2 })
+        draw(`pat:${id}:${segmentIndex}`, segment, color, { width: 2 })
       })
+
+      // Confirmed segment above, projection below: solid through the pivots
+      // that define the line, dashed from the last pivot to the current bar so
+      // it is obvious which part is observed and which is extrapolated.
+      if (isTrendline && extendTrendlines) {
+        ;(pattern.visual?.lines ?? []).forEach((line, lineIndex) => {
+          const projection = projectLineToLastBar(ohlcv, line)
+          if (!projection) return
+          draw(`pat:${id}:proj:${lineIndex}`, projection, color, {
+            width: 2,
+            style: LineStyle.Dashed,
+            showLastValue: true,
+          })
+        })
+      }
     })
 
     if (showGaps) {
@@ -487,7 +574,7 @@ export default function TradingViewChart({
         delete seriesRef.current[key]
       }
     }
-  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps])
+  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps, extendTrendlines])
 
   // ── Horizontal price lines (pivots, prev high/low, 52-week hi/lo) ──
   // These are per-level and don't need per-bar data, so createPriceLine on

@@ -208,6 +208,8 @@ function ChartControls({
   chartCopy,
   showTriangles,
   setShowTriangles,
+  extendTrendlines,
+  setExtendTrendlines,
   showLevels,
   setShowLevels,
   showFibonacci,
@@ -270,6 +272,7 @@ function ChartControls({
 
       <Group label={chartCopy.analysisTools}>
         <PanelToggle label={<LabelWithIcon icon="📏" label={chartCopy.trendline} />} value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="➡️" label={chartCopy.extendTrendlines} />} value={extendTrendlines} onToggle={() => setExtendTrendlines(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="📍" label={chartCopy.horizontalLine} />} value={showLevels} onToggle={() => setShowLevels(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="🌀" label={chartCopy.fibonacci} />} value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="🧭" label={chartCopy.fibExtension} />} value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
@@ -556,6 +559,9 @@ export default function ChartWorkspace({
   const [showMACD, setShowMACD] = useState(false)
   const [showPatterns, setShowPatterns] = useState(false)
   const [showTriangles, setShowTriangles] = useState(false)
+  // Projection is what makes a trendline tradable rather than decorative, so
+  // it is on by default; the toggle is for when the chart gets busy.
+  const [extendTrendlines, setExtendTrendlines] = useState(true)
   const [showFibonacci, setShowFibonacci] = useState(false)
   const [showFibExtension, setShowFibExtension] = useState(false)
   const [showGaps, setShowGaps] = useState(false)
@@ -1075,6 +1081,7 @@ export default function ChartWorkspace({
         analysisTools: 'כלי ניתוח',
         view: 'תצוגה',
         trendline: 'קווי מגמה',
+        extendTrendlines: 'הארכת קווי מגמה',
         horizontalLine: 'תמיכות והתנגדויות',
         fibonacci: 'פיבונאצ׳י',
         fibExtension: 'הרחבת פיבו',
@@ -1128,6 +1135,7 @@ export default function ChartWorkspace({
         analysisTools: 'Analysis tools',
         view: 'View',
         trendline: 'Trendlines',
+        extendTrendlines: 'Extend trendlines',
         horizontalLine: 'Support & resistance',
         fibonacci: 'Fibonacci',
         fibExtension: 'Fib extension',
@@ -1182,6 +1190,8 @@ export default function ChartWorkspace({
               chartCopy={chartCopy}
               showTriangles={showTriangles}
               setShowTriangles={setShowTriangles}
+              extendTrendlines={extendTrendlines}
+              setExtendTrendlines={setExtendTrendlines}
               showLevels={showLevels}
               setShowLevels={setShowLevels}
               showFibonacci={showFibonacci}
@@ -1298,6 +1308,7 @@ export default function ChartWorkspace({
                 gaps={signal?.pro?.gaps}
                 decision={signal?.decision}
                 technicalAnalysis={technicalAnalysis}
+                extendTrendlines={extendTrendlines}
                 visibleBars={activeVisibleBars}
               />
             ) : (
@@ -1361,6 +1372,8 @@ export default function ChartWorkspace({
             chartCopy={chartCopy}
             showTriangles={showTriangles}
             setShowTriangles={setShowTriangles}
+            extendTrendlines={extendTrendlines}
+            setExtendTrendlines={setExtendTrendlines}
             showLevels={showLevels}
             setShowLevels={setShowLevels}
             showFibonacci={showFibonacci}
