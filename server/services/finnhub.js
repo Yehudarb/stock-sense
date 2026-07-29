@@ -3,8 +3,40 @@ import axios from 'axios'
 const FINNHUB_API = 'https://finnhub.io/api/v1'
 const API_KEY = process.env.FINNHUB_API_KEY
 
+export function isConfigured() {
+  return Boolean(API_KEY)
+}
+
 if (!API_KEY) {
-  console.warn('[Finnhub] FINNHUB_API_KEY is not set — Finnhub endpoints will fail')
+  console.warn('[Finnhub] FINNHUB_API_KEY is not set — news, profile and quote will report as unavailable')
+}
+
+// A missing or rejected key is one configuration fact, not one event per
+// request. Without this the production log filled with an identical 401 for
+// every ticker on every page load, which buries anything that actually needs
+// attention.
+const warnedOnce = new Set()
+function warnOnce(key, message) {
+  if (warnedOnce.has(key)) return
+  warnedOnce.add(key)
+  console.warn(message)
+}
+
+// 401/403 means the key is absent or wrong — retrying cannot fix it, and it
+// says nothing about the ticker being asked for. Anything else is a genuine
+// per-request failure worth seeing each time.
+function reportFailure(operation, ticker, error) {
+  const status = error?.response?.status
+  if (status === 401 || status === 403) {
+    warnOnce(
+      `auth:${status}`,
+      `[Finnhub] HTTP ${status} — FINNHUB_API_KEY is missing or invalid. ` +
+      'News, profile and quote will be reported as unavailable until it is set. ' +
+      'This is logged once, not per request.',
+    )
+    return
+  }
+  console.warn(`[Finnhub] Error fetching ${operation} for ${ticker}:`, error.message)
 }
 
 /**
@@ -18,6 +50,11 @@ if (!API_KEY) {
  * from/to are required by the API (yyyy-MM-dd); defaults to the last 7 days
  */
 export async function fetchCompanyNews(ticker, limit = 10) {
+  // No key means the request cannot succeed. Returning the same empty shape a
+  // failure would produce keeps callers unchanged — the analysis engine already
+  // records absent news as a data-quality fact rather than an error — while
+  // skipping a guaranteed-401 round trip per ticker.
+  if (!API_KEY) return []
   try {
     const toDate = new Date()
     const fromDate = new Date(toDate.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -46,7 +83,7 @@ export async function fetchCompanyNews(ticker, limit = 10) {
       sentiment: item.sentiment || 'neutral',
     }))
   } catch (error) {
-    console.warn(`[Finnhub] Error fetching news for ${ticker}:`, error.message)
+    reportFailure('news', ticker, error)
     return []
   }
 }
@@ -55,6 +92,7 @@ export async function fetchCompanyNews(ticker, limit = 10) {
  * Fetch Company Profile from Finnhub
  */
 export async function fetchCompanyProfile(ticker) {
+  if (!API_KEY) return null
   try {
     const response = await axios.get(`${FINNHUB_API}/stock/profile2`, {
       params: {
@@ -75,7 +113,7 @@ export async function fetchCompanyProfile(ticker) {
       industry: response.data.finnhubIndustry,
     }
   } catch (error) {
-    console.warn(`[Finnhub] Error fetching profile for ${ticker}:`, error.message)
+    reportFailure('profile', ticker, error)
     return null
   }
 }
@@ -84,6 +122,7 @@ export async function fetchCompanyProfile(ticker) {
  * Fetch Quote (real-time price data)
  */
 export async function fetchQuote(ticker) {
+  if (!API_KEY) return null
   try {
     const response = await axios.get(`${FINNHUB_API}/quote`, {
       params: {
@@ -105,7 +144,7 @@ export async function fetchQuote(ticker) {
       timestamp: response.data.t * 1000,
     }
   } catch (error) {
-    console.warn(`[Finnhub] Error fetching quote for ${ticker}:`, error.message)
+    reportFailure('quote', ticker, error)
     return null
   }
 }
