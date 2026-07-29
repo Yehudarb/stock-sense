@@ -124,6 +124,16 @@ test('edge and significance are measured against the baseline, not zero', () => 
   }
 })
 
+// Regression: the split used to require warmup*2 + horizon*2 = 460 bars, so at
+// the app's own fetch size of 400 it silently returned null and the panel's
+// split section could never appear. Both halves in fact run fine on 400.
+test('split sample works at the bar count the app actually loads', () => {
+  const split = runSplitSample(makeBars(400), { computeAction: alternating, warmup: 220, horizon: 10 })
+  assert.ok(split, 'expected a split result for 400 bars')
+  assert.ok(split.early.baseline.n > 0)
+  assert.ok(split.late.baseline.n > 0)
+})
+
 test('split sample evaluates the halves independently', () => {
   const split = runSplitSample(makeBars(700), { computeAction: alternating, warmup: 220, horizon: 10 })
   assert.ok(split)

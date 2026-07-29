@@ -25,6 +25,7 @@ import TradeChecklistPanel from './components/analysis/TradeChecklistPanel'
 import PositionSizeCalculator from './components/analysis/PositionSizeCalculator'
 import PlainVerdictCard from './components/analysis/PlainVerdictCard'
 import StockAnalysisProPanel from './components/analysis/StockAnalysisProPanel'
+import ValidationPanel from './components/analysis/ValidationPanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -331,6 +332,7 @@ export default function AdvancedApp() {
 
   copy.tabs.paper = isHebrew ? 'דמו' : 'Paper'
   copy.tabs.pro = isHebrew ? 'מקצועי' : 'Pro'
+  copy.tabs.validation = isHebrew ? 'ולידציה' : 'Validation'
 
   const loadingSteps = useMemo(() => ([
     {
@@ -509,6 +511,7 @@ export default function AdvancedApp() {
                     { id: 'chart', label: copy.tabs.chart },
                     { id: 'intelligence', label: copy.tabs.intelligence },
                     { id: 'pro', label: copy.tabs.pro },
+                    { id: 'validation', label: copy.tabs.validation },
                     { id: 'extended', label: copy.tabs.extended },
                     { id: 'paper', label: copy.tabs.paper },
                   ].map(tab => (
@@ -601,6 +604,16 @@ export default function AdvancedApp() {
                       <StockAnalysisProPanel
                         report={proReport}
                         isLoading={overallLoading || isProContextLoading}
+                        language={language}
+                      />
+                    </div>
+                  )}
+
+                  {activeMainTab === 'validation' && (
+                    <div className="max-w-4xl mx-auto">
+                      <ValidationPanel
+                        ohlcv={ohlcv}
+                        ticker={currentTicker}
                         language={language}
                       />
                     </div>

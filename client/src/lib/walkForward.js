@@ -128,11 +128,18 @@ export function runWalkForward(ohlcv, options = {}) {
  */
 export function runSplitSample(ohlcv, options = {}) {
   const { warmup = DEFAULT_WARMUP, horizon = DEFAULT_HORIZON } = options
-  if (!Array.isArray(ohlcv) || ohlcv.length < warmup * 2 + horizon * 2) return null
+  if (!Array.isArray(ohlcv)) return null
 
   const midpoint = Math.floor((warmup + ohlcv.length) / 2)
   // The late half still replays from bar 0 so its indicators get the same
   // warmup the live app gives them; only the evaluation range moves.
+  //
+  // No length precondition beyond this: each half is a runWalkForward call and
+  // that function already returns null when its own range is too short, so the
+  // real requirement is expressed once instead of being restated here. An
+  // earlier guard of warmup*2 + horizon*2 was a guess, and a wrong one — it
+  // demanded 460 bars where both halves in fact run comfortably on 400, so the
+  // split never appeared at the app's own fetch size.
   const early = runWalkForward(ohlcv.slice(0, midpoint + horizon), options)
   const late = runWalkForward(ohlcv, { ...options, warmup: midpoint })
 
