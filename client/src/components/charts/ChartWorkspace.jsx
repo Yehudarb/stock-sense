@@ -1359,6 +1359,7 @@ export default function ChartWorkspace({
                 technicalAnalysis={technicalAnalysis}
                 extendTrendlines={extendTrendlines}
                 visibleBars={activeVisibleBars}
+                interval={interval}
               />
             ) : (
             <PriceChart

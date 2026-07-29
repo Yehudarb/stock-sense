@@ -260,6 +260,10 @@ export default function TradingViewChart({
   // How many of the loaded bars to show. The rest is warmup history that
   // feeds the indicators without being displayed.
   visibleBars = null,
+  // Needed for framing: several presets share a visibleBars value (1H and 4H
+  // are both 180, as are 1m/5m/15m at 160), so visibleBars alone cannot tell
+  // that the timeframe changed underneath the chart.
+  interval = null,
   chartType = 'candle', // 'candle' | 'line'
 }) {
   const containerRef  = useRef(null)
@@ -392,7 +396,7 @@ export default function TradingViewChart({
   // A new ticker or a new period must re-frame the view.
   useEffect(() => {
     if (chartRef.current) chartRef.current._fittedOnce = false
-  }, [currentTicker, visibleBars])
+  }, [currentTicker, visibleBars, interval])
 
   // ── Overlay wiring ───────────────────────────────────────────────
   // Each overlay is created lazily and torn down when its toggle turns off so
@@ -544,11 +548,22 @@ export default function TradingViewChart({
       // two boundaries spanning the bars the gap is open for. That shows both
       // the price zone and how long it stayed unfilled.
       //
-      // Newest first, then cap — same order PriceChart uses. Slicing the raw
-      // array instead took the ten OLDEST gaps, which sit far to the left of
-      // the visible window: on NVDA none of them were on screen at all, so the
-      // toggle appeared to do nothing.
-      const recentGaps = [...(gaps?.gaps ?? [])].sort((a, b) => b.index - a.index).slice(0, 10)
+      // Keep only gaps that actually overlap what is on screen, then take the
+      // newest ten of those.
+      //
+      // Sorting newest-first and capping globally was still wrong once the
+      // window narrowed: the visible slice differs sharply by timeframe (78
+      // bars on 1D, 180 on 1H, 126 on 6M), so on the shorter windows several of
+      // the ten newest gaps sat off-screen and the toggle looked half-broken. A
+      // gap counts as visible if any part of its span is — an old gap still
+      // unfilled reaches into view even though its index is low, and that is
+      // exactly the one worth seeing.
+      const lastIndex = ohlcv.length - 1
+      const windowStart = visibleBars ? Math.max(0, lastIndex - visibleBars) : 0
+      const recentGaps = (gaps?.gaps ?? [])
+        .filter(gap => (gap.endIndex ?? lastIndex) >= windowStart && gap.index <= lastIndex)
+        .sort((a, b) => b.index - a.index)
+        .slice(0, 10)
       recentGaps.forEach(gap => {
         const from = timeAtIndex(ohlcv, gap.index)
         const to = timeAtIndex(ohlcv, gap.endIndex ?? ohlcv.length - 1)
@@ -574,7 +589,7 @@ export default function TradingViewChart({
         delete seriesRef.current[key]
       }
     }
-  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps, extendTrendlines])
+  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps, extendTrendlines, visibleBars])
 
   // ── Horizontal price lines (pivots, prev high/low, 52-week hi/lo) ──
   // These are per-level and don't need per-bar data, so createPriceLine on
