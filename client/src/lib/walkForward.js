@@ -21,7 +21,7 @@
 export const DEFAULT_HORIZON = 10
 export const DEFAULT_WARMUP = 220
 
-function summarize(returns) {
+function summarize(returns, { keepSamples = false } = {}) {
   const n = returns.length
   if (!n) return null
   const mean = returns.reduce((sum, v) => sum + v, 0) / n
@@ -38,6 +38,11 @@ function summarize(returns) {
     median: [...returns].sort((a, b) => a - b)[Math.floor(n / 2)],
     best: Math.max(...returns),
     worst: Math.min(...returns),
+    // Raw observations, kept only when a caller intends to pool several runs.
+    // Aggregating across symbols cannot be done from summaries: averaging
+    // means would weight a 9-sample symbol the same as a 90-sample one, and a
+    // pooled standard error cannot be recovered from per-run ones at all.
+    ...(keepSamples ? { samples: returns } : {}),
   }
 }
 
@@ -62,6 +67,7 @@ export function runWalkForward(ohlcv, options = {}) {
     horizon = DEFAULT_HORIZON,
     warmup = DEFAULT_WARMUP,
     overlapping = false,
+    keepSamples = false,
   } = options
 
   if (typeof computeAction !== 'function') {
@@ -95,10 +101,10 @@ export function runWalkForward(ohlcv, options = {}) {
 
   if (!all.length) return null
 
-  const baseline = summarize(all)
+  const baseline = summarize(all, { keepSamples })
   const actions = {}
   for (const [action, returns] of Object.entries(byAction)) {
-    const stats = summarize(returns)
+    const stats = summarize(returns, { keepSamples })
     // Edge is measured against holding through every evaluated bar, never
     // against zero — beating zero in a rising market means nothing.
     const edge = stats.mean - baseline.mean
@@ -145,6 +151,85 @@ export function runSplitSample(ohlcv, options = {}) {
 
   if (!early || !late) return null
   return { early, late, midpointIndex: midpoint }
+}
+
+/**
+ * Pools several runs into one result.
+ *
+ * A single symbol yields far too few non-overlapping samples to conclude
+ * anything — 400 bars at horizon 10 gives about 17. Pooling across symbols is
+ * the cheapest way to a sample worth reading.
+ *
+ * Pooling is done on the raw observations, never on the summaries. Averaging
+ * per-run means would give a symbol with 9 samples the same weight as one with
+ * 90, and a pooled standard error cannot be reconstructed from per-run ones at
+ * all. Runs must therefore have been produced with `keepSamples: true`.
+ *
+ * The pooled t-statistic is still optimistic: symbols are correlated, and on a
+ * shared down week every large cap contributes a loss to the same bucket. Treat
+ * it as a sanity floor, not a p-value.
+ *
+ * @param {Array} runs entries of { label, result } — a null result is skipped
+ */
+export function aggregateWalkForward(runs) {
+  const usable = (runs ?? []).filter(entry => entry?.result?.baseline?.samples)
+  if (!usable.length) return null
+
+  const allReturns = []
+  const byActionReturns = {}
+  const perSymbol = []
+
+  for (const { label, result } of usable) {
+    allReturns.push(...result.baseline.samples)
+    for (const [action, bucket] of Object.entries(result.byAction)) {
+      if (!bucket.samples) continue
+      ;(byActionReturns[action] ??= []).push(...bucket.samples)
+    }
+    perSymbol.push({
+      label,
+      n: result.baseline.n,
+      mean: result.baseline.mean,
+      winRate: result.baseline.winRate,
+    })
+  }
+
+  if (!allReturns.length) return null
+
+  const baseline = summarize(allReturns)
+  const actions = {}
+  for (const [action, returns] of Object.entries(byActionReturns)) {
+    const stats = summarize(returns)
+    const edge = stats.mean - baseline.mean
+    const tStat = stats.stdError ? edge / stats.stdError : 0
+    // How many of the pooled symbols produced this action at all. An action
+    // carried by one symbol is that symbol's quirk, however large its n.
+    const symbolsWithAction = usable.filter(e => e.result.byAction[action]).length
+    actions[action] = {
+      ...stats,
+      share: (stats.n / baseline.n) * 100,
+      edge,
+      tStat,
+      significant: Math.abs(tStat) >= 2,
+      symbols: symbolsWithAction,
+    }
+  }
+
+  const first = usable[0].result.meta
+  return {
+    baseline,
+    byAction: actions,
+    perSymbol,
+    meta: {
+      horizon: first.horizon,
+      warmup: first.warmup,
+      overlapping: first.overlapping,
+      step: first.step,
+      evaluated: baseline.n,
+      errors: usable.reduce((sum, e) => sum + (e.result.meta.errors ?? 0), 0),
+      symbols: usable.length,
+      pooled: true,
+    },
+  }
 }
 
 /**

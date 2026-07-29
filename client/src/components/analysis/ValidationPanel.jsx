@@ -1,9 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import useWalkForward from '../../hooks/useWalkForward'
 import { DEFAULT_HORIZON, DEFAULT_WARMUP } from '../../lib/walkForward'
+import { SCANNER_UNIVERSE } from '../../lib/scannerUniverse'
+import useStore from '../../store/useStore'
 
 const HORIZONS = [5, 10, 20]
+
+// A single symbol yields roughly 17 non-overlapping samples at horizon 10 —
+// nowhere near enough to conclude anything. Pooling is the point of the wider
+// scopes. The universe is capped rather than run whole: each symbol costs a
+// full indicator and pattern pass per sample, so 85 of them would tie up the
+// tab for minutes without telling you much more than 25 does.
+const BROAD_SAMPLE_SIZE = 25
 
 function pct(value, digits = 2) {
   if (value == null || !Number.isFinite(value)) return '—'
@@ -20,7 +29,7 @@ function Stat({ label, value, tone = 'default' }) {
   )
 }
 
-function ResultTable({ result, isHebrew }) {
+function ResultTable({ result, isHebrew, pooled = false }) {
   const rows = Object.entries(result.byAction).sort((a, b) => b[1].n - a[1].n)
   return (
     <div className="overflow-x-auto">
@@ -33,6 +42,7 @@ function ResultTable({ result, isHebrew }) {
             <th className="px-2 py-2 text-end">{isHebrew ? 'הצלחה' : 'Win'}</th>
             <th className="px-2 py-2 text-end">{isHebrew ? 'יתרון' : 'Edge'}</th>
             <th className="px-2 py-2 text-end">t</th>
+            {pooled && <th className="px-2 py-2 text-end">{isHebrew ? 'מניות' : 'Symbols'}</th>}
           </tr>
         </thead>
         <tbody className="tabular-nums">
@@ -56,6 +66,7 @@ function ResultTable({ result, isHebrew }) {
                 {pct(s.edge)}
               </td>
               <td className="px-2 py-2 text-end text-slate-400">{s.tStat.toFixed(2)}</td>
+              {pooled && <td className="px-2 py-2 text-end text-slate-400">{s.symbols ?? '—'}</td>}
             </tr>
           ))}
         </tbody>
@@ -66,13 +77,41 @@ function ResultTable({ result, isHebrew }) {
 
 export default function ValidationPanel({ ohlcv, ticker, language = 'he' }) {
   const isHebrew = language === 'he'
-  const { result, split, isRunning, error, run } = useWalkForward()
+  const { result, split, isRunning, error, progress, run, runMany } = useWalkForward()
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON)
   const [overlapping, setOverlapping] = useState(false)
+  const [scope, setScope] = useState('current')
+  const watchlist = useStore(s => s.watchlist)
 
   const bars = ohlcv?.length ?? 0
   const minBars = DEFAULT_WARMUP + horizon + 1
-  const canRun = bars >= minBars
+
+  const watchlistTickers = useMemo(
+    () => (watchlist ?? []).map(w => w.ticker).filter(Boolean),
+    [watchlist],
+  )
+  const broadTickers = useMemo(() => {
+    // Watchlist first so the names you actually follow are always included,
+    // then fill from the curated universe without duplicating them.
+    const seen = new Set(watchlistTickers)
+    const filler = SCANNER_UNIVERSE.filter(t => !seen.has(t))
+    return [...watchlistTickers, ...filler].slice(0, BROAD_SAMPLE_SIZE)
+  }, [watchlistTickers])
+
+  const SCOPES = [
+    { id: 'current', label: isHebrew ? 'המניה הנוכחית' : 'Current', count: 1 },
+    { id: 'watchlist', label: isHebrew ? 'רשימת מעקב' : 'Watchlist', count: watchlistTickers.length },
+    { id: 'broad', label: isHebrew ? 'מדגם רחב' : 'Broad sample', count: broadTickers.length },
+  ]
+  const activeScope = SCOPES.find(s => s.id === scope) ?? SCOPES[0]
+
+  const canRun = scope === 'current' ? bars >= minBars : activeScope.count > 0
+
+  const start = () => {
+    if (scope === 'current') return run(ohlcv, { horizon, overlapping })
+    const tickers = scope === 'watchlist' ? watchlistTickers : broadTickers
+    return runMany(tickers, { horizon, overlapping })
+  }
 
   return (
     <div className="space-y-4">
@@ -87,6 +126,28 @@ export default function ValidationPanel({ ohlcv, ticker, language = 'he' }) {
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500">{isHebrew ? 'היקף:' : 'Scope:'}</span>
+          {SCOPES.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              disabled={s.count === 0}
+              onClick={() => setScope(s.id)}
+              className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-700 ${
+                scope === s.id
+                  ? 'border-cyan-400 bg-cyan-500/80 text-white'
+                  : 'border-slate-700 text-slate-400 hover:border-cyan-400/70 hover:text-white'
+              }`}
+            >
+              {s.label}
+              {s.id !== 'current' && s.count > 0 && (
+                <span className="ms-1 text-[10px] opacity-70">({s.count})</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="text-xs text-slate-500">{isHebrew ? 'אופק:' : 'Horizon:'}</span>
           {HORIZONS.map(h => (
             <button
@@ -121,7 +182,7 @@ export default function ValidationPanel({ ohlcv, ticker, language = 'he' }) {
           <button
             type="button"
             disabled={!canRun || isRunning}
-            onClick={() => run(ohlcv, { horizon, overlapping })}
+            onClick={start}
             className="ms-auto rounded-md border border-emerald-400 bg-emerald-500/90 px-4 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-transparent disabled:text-slate-600"
           >
             {isRunning
@@ -129,6 +190,29 @@ export default function ValidationPanel({ ohlcv, ticker, language = 'he' }) {
               : (isHebrew ? 'הרץ ולידציה' : 'Run validation')}
           </button>
         </div>
+
+        {progress && (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span>{isHebrew ? 'מריץ' : 'Running'} {progress.current ?? ''}</span>
+              <span className="tabular-nums">{progress.done} / {progress.total}</span>
+            </div>
+            <div className="mt-1 h-1 overflow-hidden rounded bg-slate-800">
+              <div
+                className="h-full bg-emerald-400 transition-[width] duration-200"
+                style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {scope !== 'current' && !isRunning && (
+          <div className="mt-3 rounded-lg border border-white/8 bg-slate-950/40 px-3 py-2 text-[11px] leading-relaxed text-slate-400">
+            {isHebrew
+              ? `יריץ על ${activeScope.count} מניות ויאחד את התצפיות. האיחוד הוא על התשואות הגולמיות ולא ממוצע של ממוצעים, אחרת מניה עם 9 דגימות הייתה שוקלת כמו אחת עם 90. זה לוקח זמן — כל מניה דורשת מעבר מלא של אינדיקטורים ותבניות לכל דגימה.`
+              : `Runs ${activeScope.count} symbols and pools the observations. Pooling is on the raw returns, not an average of averages — otherwise a symbol with 9 samples would weigh the same as one with 90. It takes a while: every symbol costs a full indicator and pattern pass per sample.`}
+          </div>
+        )}
 
         {!canRun && (
           <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-xs text-amber-200/90">
@@ -154,12 +238,20 @@ export default function ValidationPanel({ ohlcv, ticker, language = 'he' }) {
           <div className="rounded-2xl border border-white/8 bg-slate-950/60 p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div className="text-sm font-semibold text-slate-200">
-                {ticker} · {isHebrew ? 'תוצאות' : 'Results'}
+                {result.meta.pooled
+                  ? (isHebrew ? 'מאוחד' : 'Pooled')
+                  : ticker} · {isHebrew ? 'תוצאות' : 'Results'}
               </div>
               <div className="text-[11px] text-slate-500">
                 {isHebrew
                   ? `${result.meta.evaluated} דגימות · אופק ${result.meta.horizon} · צעד ${result.meta.step}`
                   : `${result.meta.evaluated} samples · horizon ${result.meta.horizon} · step ${result.meta.step}`}
+                {result.meta.pooled && (isHebrew
+                  ? ` · ${result.meta.symbols} מניות`
+                  : ` · ${result.meta.symbols} symbols`)}
+                {result.skipped?.length > 0 && (isHebrew
+                  ? ` · ${result.skipped.length} דולגו`
+                  : ` · ${result.skipped.length} skipped`)}
               </div>
             </div>
 
@@ -180,7 +272,7 @@ export default function ValidationPanel({ ohlcv, ticker, language = 'he' }) {
             </p>
 
             <div className="mt-3">
-              <ResultTable result={result} isHebrew={isHebrew} />
+              <ResultTable result={result} isHebrew={isHebrew} pooled={Boolean(result.meta.pooled)} />
             </div>
           </div>
 
@@ -231,6 +323,13 @@ export default function ValidationPanel({ ohlcv, ticker, language = 'he' }) {
                   ? '|t| ≥ 2 אומר שהפער כנראה אינו רעש במדגם הזה. הוא אינו אומר שהוא יחזור.'
                   : '|t| ≥ 2 means the difference is probably not noise in this sample. It does not mean it will repeat.'}
               </li>
+              {result.meta.pooled && (
+                <li className="font-semibold">
+                  {isHebrew
+                    ? `${result.meta.symbols} מניות אינן ${result.meta.symbols} ניסויים בלתי תלויים — הן נעות יחד. בשבוע ירידות משותף כולן תורמות הפסד לאותה שורה, ולכן ה-t כאן אופטימי גם בלי חלונות חופפים.`
+                    : `${result.meta.symbols} symbols are not ${result.meta.symbols} independent trials — they move together. On a shared down week they all contribute a loss to the same row, so t here is optimistic even without overlapping windows.`}
+                </li>
+              )}
               {result.meta.overlapping && (
                 <li className="font-semibold">
                   {isHebrew

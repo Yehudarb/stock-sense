@@ -147,3 +147,64 @@ test('actionFromSignal unwraps a signal object and tolerates a null signal', () 
   assert.equal(actionFromSignal(() => null)([]), null)
   assert.equal(actionFromSignal(() => ({}))([]), null)
 })
+
+// ── aggregation across symbols ───────────────────────────────────────────
+import { aggregateWalkForward } from '../../client/src/lib/walkForward.js'
+
+const runFor = (bars, action) => runWalkForward(bars, {
+  computeAction: () => action, warmup: 220, horizon: 10, keepSamples: true,
+})
+
+test('samples are only carried when the caller asks for them', () => {
+  const without = runWalkForward(makeBars(400), { computeAction: alternating, warmup: 220, horizon: 10 })
+  const withSamples = runWalkForward(makeBars(400), { computeAction: alternating, warmup: 220, horizon: 10, keepSamples: true })
+  assert.equal(without.baseline.samples, undefined)
+  assert.ok(Array.isArray(withSamples.baseline.samples))
+  assert.equal(withSamples.baseline.samples.length, withSamples.baseline.n)
+})
+
+test('aggregation returns null without usable runs', () => {
+  assert.equal(aggregateWalkForward([]), null)
+  assert.equal(aggregateWalkForward(null), null)
+  // A run made without keepSamples cannot be pooled and must be refused, not
+  // silently treated as empty.
+  const noSamples = runWalkForward(makeBars(400), { computeAction: alternating, warmup: 220, horizon: 10 })
+  assert.equal(aggregateWalkForward([{ label: 'X', result: noSamples }]), null)
+})
+
+// The property that makes pooling correct rather than merely plausible.
+test('pools raw observations, not per-run means', () => {
+  // Two series with very different sample counts and very different returns.
+  const small = makeBars(400, { drift: 0.4 })   // fewer samples is not the point;
+  const large = makeBars(900, { drift: -0.4 })  // the point is unequal n
+  const runs = [
+    { label: 'SMALL', result: runFor(small, 'BUY') },
+    { label: 'LARGE', result: runFor(large, 'BUY') },
+  ]
+  const pooled = aggregateWalkForward(runs)
+
+  const everyReturn = [
+    ...runs[0].result.baseline.samples,
+    ...runs[1].result.baseline.samples,
+  ]
+  const trueMean = everyReturn.reduce((a, b) => a + b, 0) / everyReturn.length
+  const meanOfMeans = (runs[0].result.baseline.mean + runs[1].result.baseline.mean) / 2
+
+  assert.equal(pooled.baseline.n, everyReturn.length)
+  assert.ok(Math.abs(pooled.baseline.mean - trueMean) < 1e-9, 'pooled mean must equal the mean of all observations')
+  // With unequal sample counts the naive average differs — which is exactly the
+  // mistake this guards against.
+  assert.ok(Math.abs(trueMean - meanOfMeans) > 1e-6, 'test setup should produce unequal weighting')
+})
+
+test('reports how many symbols produced each action', () => {
+  const pooled = aggregateWalkForward([
+    { label: 'A', result: runFor(makeBars(400), 'BUY') },
+    { label: 'B', result: runFor(makeBars(500), 'BUY') },
+    { label: 'C', result: runFor(makeBars(450), 'SELL') },
+  ])
+  assert.equal(pooled.byAction.BUY.symbols, 2)
+  assert.equal(pooled.byAction.SELL.symbols, 1)
+  assert.equal(pooled.meta.symbols, 3)
+  assert.equal(pooled.perSymbol.length, 3)
+})
