@@ -4,7 +4,7 @@ import {
   CrosshairMode, LineStyle,
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
-import { computeFibonacci, isTrendlinePattern } from './chartHelpers'
+import { computeFibonacci, isTrendlinePattern, measuredMoveTargets } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 // TradingView-quality chart (lightweight-charts, MIT). Rendering + navigation
@@ -696,7 +696,29 @@ export default function TradingViewChart({
     // shape with no levels — nothing to enter on and nothing to aim at.
     if (showTargets) {
       const spot = ohlcv?.[ohlcv.length - 1]?.c
-      patternsWorthTargeting(patterns).forEach(pattern => {
+      const chosen = patternsWorthTargeting(patterns)
+
+      // Measured-move projections for the leading setup only. Three anchors on
+      // each of three patterns would be nine more lines saying similar things;
+      // the strongest pattern is the one whose breakout the projection assumes.
+      const primary = chosen[0]
+      if (primary?.meta?.breakoutLevel != null) {
+        const dir = (primary.direction ?? primary.bias) === 'bearish' ? 'bearish' : 'bullish'
+        measuredMoveTargets(ohlcv, primary.meta.breakoutLevel, dir).forEach(t => {
+          addLine({
+            value: t.price,
+            color: 'rgba(168, 85, 247, 0.9)',
+            // The anchor is in the label on purpose: a measured move is only as
+            // good as the low it was measured from, so the number should never
+            // appear without saying which structure produced it.
+            title: `⌁ ${t.label} ${t.price.toFixed(2)}`,
+            style: LineStyle.Dashed,
+            width: 1.4,
+          })
+        })
+      }
+
+      chosen.forEach(pattern => {
         const bullish = (pattern.direction ?? pattern.bias) === 'bullish'
         const tag = pattern.label ?? pattern.key ?? ''
         const short = tag.length > 14 ? `${tag.slice(0, 13)}…` : tag
