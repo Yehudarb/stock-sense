@@ -151,6 +151,39 @@ function quietControlClass(active) {
   }`
 }
 
+// Compact variant of quietControlClass for the strip attached to the chart.
+// Same colour language as the big panel so an active chip reads identically,
+// just small enough that ten of them fit above the candles.
+function chipClass(active) {
+  return `rounded-md border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors duration-150 ${
+    active
+      ? 'border-emerald-400 bg-emerald-500/90 text-white'
+      : 'border-slate-700 bg-transparent text-slate-400 hover:border-emerald-400/70 hover:text-white'
+  }`
+}
+
+// The overlays worth reaching without scrolling. The full panel above still
+// carries everything; this is the subset you flip while watching the chart.
+function ChartQuickTools({ items }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {items.map(item => (
+        <button
+          key={item.key}
+          type="button"
+          onClick={item.onToggle}
+          aria-pressed={item.value}
+          title={item.label}
+          className={chipClass(item.value)}
+        >
+          <span aria-hidden="true" className="me-1">{item.icon}</span>
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function Group({ label, children }) {
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-slate-950/85 p-4 shadow-[0_16px_40px_rgba(2,6,23,0.35)]">
@@ -1238,6 +1271,22 @@ export default function ChartWorkspace({
           bodyClassName="relative"
           bodyStyle={{ height: `${resolvedPriceChartHeight}px` }}
           onWheel={handlePriceChartWheel}
+          toolbar={(
+            <ChartQuickTools
+              items={[
+                { key: 'sma', icon: '📊', label: 'SMA', value: showSMA, onToggle: () => setShowSMA(v => !v) },
+                { key: 'ema', icon: '📈', label: 'EMA', value: showEMA, onToggle: () => setShowEMA(v => !v) },
+                { key: 'bb', icon: '🫧', label: chartCopy.bands ?? 'Bands', value: showBB, onToggle: () => setShowBB(v => !v) },
+                { key: 'vwap', icon: '🎯', label: 'VWAP', value: showVWAP, onToggle: () => setShowVWAP(v => !v) },
+                { key: 'trend', icon: '📏', label: chartCopy.trendline, value: showTriangles, onToggle: () => setShowTriangles(v => !v) },
+                { key: 'extend', icon: '➡️', label: chartCopy.extendTrendlines, value: extendTrendlines, onToggle: () => setExtendTrendlines(v => !v) },
+                { key: 'levels', icon: '📍', label: chartCopy.horizontalLine, value: showLevels, onToggle: () => setShowLevels(v => !v) },
+                { key: 'gaps', icon: '🧱', label: chartCopy.zone, value: showGaps, onToggle: () => setShowGaps(v => !v) },
+                { key: 'fib', icon: '🌀', label: chartCopy.fibonacci, value: showFibonacci, onToggle: () => setShowFibonacci(v => !v) },
+                { key: 'patterns', icon: '🏷️', label: chartCopy.patternMarkers, value: showPatterns, onToggle: () => setShowPatterns(v => !v) },
+              ]}
+            />
+          )}
           headerRight={(
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
               <span>{snapshot?.price != null ? fmtPrice(snapshot.price) : '--'}</span>

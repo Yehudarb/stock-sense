@@ -4,6 +4,10 @@ export default function ChartContainer({
   title,
   subtitle,
   headerRight,
+  // Full-width row between the header and the canvas. Kept as its own slot
+  // rather than folded into headerRight so it can wrap across lines without
+  // fighting the title for space.
+  toolbar,
   children,
   height = 'h-48',
   className = '',
@@ -40,6 +44,9 @@ export default function ChartContainer({
           {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
         </div>
       )}
+      {toolbar ? (
+        <div className="border-b border-white/6 px-3 py-2 sm:px-4">{toolbar}</div>
+      ) : null}
       <div ref={bodyRef} className={`${height} overscroll-contain px-2 py-2 sm:px-3 sm:py-3 ${bodyClassName}`} style={bodyStyle}>{children}</div>
     </section>
   )
