@@ -595,6 +595,9 @@ export default function ChartWorkspace({
   // Projection is what makes a trendline tradable rather than decorative, so
   // it is on by default; the toggle is for when the chart gets busy.
   const [extendTrendlines, setExtendTrendlines] = useState(true)
+  // Entry / target / stop for actionable patterns. On by default: a detected
+  // setup without its levels is a shape you cannot trade.
+  const [showTargets, setShowTargets] = useState(true)
   const [showFibonacci, setShowFibonacci] = useState(false)
   const [showFibExtension, setShowFibExtension] = useState(false)
   const [showGaps, setShowGaps] = useState(false)
@@ -1115,6 +1118,7 @@ export default function ChartWorkspace({
         view: 'תצוגה',
         trendline: 'קווי מגמה',
         extendTrendlines: 'הארכת קווי מגמה',
+        priceTargets: 'יעדי מחיר',
         horizontalLine: 'תמיכות והתנגדויות',
         fibonacci: 'פיבונאצ׳י',
         fibExtension: 'הרחבת פיבו',
@@ -1169,6 +1173,7 @@ export default function ChartWorkspace({
         view: 'View',
         trendline: 'Trendlines',
         extendTrendlines: 'Extend trendlines',
+        priceTargets: 'Price targets',
         horizontalLine: 'Support & resistance',
         fibonacci: 'Fibonacci',
         fibExtension: 'Fib extension',
@@ -1283,6 +1288,7 @@ export default function ChartWorkspace({
                 { key: 'levels', icon: '📍', label: chartCopy.horizontalLine, value: showLevels, onToggle: () => setShowLevels(v => !v) },
                 { key: 'gaps', icon: '🧱', label: chartCopy.zone, value: showGaps, onToggle: () => setShowGaps(v => !v) },
                 { key: 'fib', icon: '🌀', label: chartCopy.fibonacci, value: showFibonacci, onToggle: () => setShowFibonacci(v => !v) },
+                { key: 'targets', icon: '🎯', label: chartCopy.priceTargets, value: showTargets, onToggle: () => setShowTargets(v => !v) },
                 { key: 'patterns', icon: '🏷️', label: chartCopy.patternMarkers, value: showPatterns, onToggle: () => setShowPatterns(v => !v) },
               ]}
             />
@@ -1358,6 +1364,7 @@ export default function ChartWorkspace({
                 decision={signal?.decision}
                 technicalAnalysis={technicalAnalysis}
                 extendTrendlines={extendTrendlines}
+                showTargets={showTargets}
                 visibleBars={activeVisibleBars}
                 interval={interval}
               />

@@ -142,6 +142,44 @@ function patternSegments(ohlcv, pattern) {
   return segments
 }
 
+// Which patterns get their entry/target/stop drawn.
+//
+// A ticker routinely carries five or six detected patterns pointing in opposite
+// directions — SPY currently has six — and three price lines each would bury
+// the chart in eighteen labels that contradict one another. Two kinds earn the
+// space: the strongest pattern by |weight| (the one the engine itself treats as
+// the read), and any pattern actually at its trigger, since that is the only
+// one you can act on right now.
+const ACTIONABLE_STAGES = new Set(['near_breakout', 'broken_out'])
+const MAX_TARGET_PATTERNS = 3
+
+function patternsWorthTargeting(patterns) {
+  const list = patterns?.patterns ?? []
+  if (!list.length) return []
+
+  const best = patterns?.best?.key
+  const picked = list.filter(p =>
+    p.key === best || ACTIONABLE_STAGES.has(p.meta?.stage),
+  )
+  // Strongest first so the cap keeps the most significant ones.
+  return picked
+    .sort((a, b) => Math.abs(b.weight ?? 0) - Math.abs(a.weight ?? 0))
+    .slice(0, MAX_TARGET_PATTERNS)
+}
+
+// A bullish target below spot, or a bearish one above it, is a measurement that
+// price has already overtaken. Drawing it would label a level "target" while
+// pointing the wrong way. Rare — one pattern in twenty-nine across six tickers —
+// but wrong in exactly the way a trader would act on.
+function targetIsCoherent(pattern, spot) {
+  const target = pattern?.targetPrice
+  if (!Number.isFinite(target) || !Number.isFinite(spot)) return false
+  const dir = pattern?.direction ?? pattern?.bias
+  if (dir === 'bullish') return target > spot
+  if (dir === 'bearish') return target < spot
+  return true
+}
+
 function patternColor(pattern) {
   const dir = pattern?.direction ?? pattern?.bias
   if (dir === 'bullish') return TRADER_COLORS.bullish
@@ -250,6 +288,8 @@ export default function TradingViewChart({
   showPatterns = false,
   showTriangles = false,
   showGaps = false,
+  // Entry / target / stop for the patterns the engine considers actionable.
+  showTargets = true,
   // Projects each trendline forward at its own slope to the current bar, so
   // it reads as a live level instead of a historical segment.
   extendTrendlines = true,
@@ -650,6 +690,43 @@ export default function TradingViewChart({
         .forEach(value => addLine({ value, color: 'rgba(56, 189, 248, 0.9)', title: 'BO' }))
     }
 
+    // ── Pattern entry / target / stop ──
+    // The detector already computes all three; they were simply never drawn, so
+    // a setup like a cup-and-handle sitting right under its pivot showed as a
+    // shape with no levels — nothing to enter on and nothing to aim at.
+    if (showTargets) {
+      const spot = ohlcv?.[ohlcv.length - 1]?.c
+      patternsWorthTargeting(patterns).forEach(pattern => {
+        const bullish = (pattern.direction ?? pattern.bias) === 'bullish'
+        const tag = pattern.label ?? pattern.key ?? ''
+        const short = tag.length > 14 ? `${tag.slice(0, 13)}…` : tag
+
+        addLine({
+          value: pattern.meta?.breakoutLevel,
+          color: 'rgba(56, 189, 248, 0.95)',
+          title: `▲ ${short}`,
+          style: LineStyle.Solid,
+          width: 1.6,
+        })
+        if (targetIsCoherent(pattern, spot)) {
+          addLine({
+            value: pattern.targetPrice,
+            color: bullish ? TRADER_COLORS.takeProfit : TRADER_COLORS.bearish,
+            title: `🎯 ${pattern.targetPrice.toFixed(2)}`,
+            style: LineStyle.Dashed,
+            width: 1.8,
+          })
+        }
+        addLine({
+          value: pattern.meta?.invalidationLevel,
+          color: TRADER_COLORS.stopLoss,
+          title: '✕ SL',
+          style: LineStyle.Dotted,
+          width: 1.4,
+        })
+      })
+    }
+
     // ── Fibonacci ──
     // Anchored on the full series: this chart's zoom is chart-native, so there
     // is no "visible window" to anchor to the way PriceChart has.
@@ -665,8 +742,8 @@ export default function TradingViewChart({
   }, [
     chartEpoch, ohlcv, indicators,
     showPivotPoints, showPrevHighLow, showHighLow52,
-    showLevels, showFibonacci, showFibExtension,
-    decision, technicalAnalysis,
+    showLevels, showFibonacci, showFibExtension, showTargets,
+    decision, technicalAnalysis, patterns,
   ])
 
   // ── Zoom presets (kept — they're chart-native, not indicator toggles) ──
