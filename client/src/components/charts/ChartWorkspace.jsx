@@ -1174,11 +1174,6 @@ export default function ChartWorkspace({
     <section className="space-y-4">
 
       <div className="grid gap-4">
-        {false && measureMode && (
-          <div className="rounded-2xl border border-cyan-400/18 bg-cyan-400/10 px-4 py-3 text-xs font-medium text-cyan-100">
-            Drag on the price panel to measure percentage move and distance in bars.
-          </div>
-        )}
 
         <div className="hidden lg:block">
           <div className="grid gap-4">

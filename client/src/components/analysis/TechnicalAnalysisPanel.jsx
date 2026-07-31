@@ -128,6 +128,13 @@ function ContextCard({ title, tone = 'balanced', value, subtitle, rows = [] }) {
 }
 
 export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
+  // Must run before any early return. It used to sit below the loading, error
+  // and no-analysis exits, so the component rendered with zero hooks while the
+  // analysis was being fetched and one hook once it arrived — and React throws
+  // "Rendered more hooks than during the previous render" on exactly that
+  // transition, which is the normal path every time this panel loads.
+  const [activeTab, setActiveTab] = useState('summary')
+
   if (isLoading && !analysis) {
     return (
       <LoadingState
@@ -153,8 +160,6 @@ export default function TechnicalAnalysisPanel({ analysis, isLoading, error }) {
   }
 
   if (!analysis) return null
-
-  const [activeTab, setActiveTab] = useState('summary')
 
   const tabs = [
     { id: 'summary', label: 'Summary' },
