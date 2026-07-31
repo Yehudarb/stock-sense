@@ -154,6 +154,9 @@ export function computeAll(ohlcv) {
   const sma20Raw  = SMA.calculate({ values: closes, period: 20 })
   const sma50Raw  = SMA.calculate({ values: closes, period: 50 })
   const sma100Raw = SMA.calculate({ values: closes, period: 100 })
+  // 150 is the trend filter this workflow actually uses (price above the 150
+  // MA as a participation gate); it sits between the 100 and 200 already here.
+  const sma150Raw = SMA.calculate({ values: closes, period: 150 })
   const sma200Raw = SMA.calculate({ values: closes, period: 200 })
   const ema20Raw  = EMA.calculate({ values: closes, period: 20 })
   const ema50Raw  = EMA.calculate({ values: closes, period: 50 })
@@ -212,6 +215,7 @@ export function computeAll(ohlcv) {
     sma20:   pad(sma20Raw, n),
     sma50:   pad(sma50Raw, n),
     sma100:  pad(sma100Raw, n),
+    sma150:  pad(sma150Raw, n),
     sma200:  pad(sma200Raw, n),
     ema20:   pad(ema20Raw, n),
     ema50:   pad(ema50Raw, n),

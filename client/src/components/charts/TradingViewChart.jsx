@@ -22,9 +22,11 @@ const C = {
   sma20:   '#f59e0b',
   sma50:   '#3b82f6',
   sma100:  '#a855f7',
+  sma150:  '#14b8a6',
   sma200:  '#ec4899',
   ema20:   '#10b981',
   ema50:   '#ef4444',
+  ema200:  '#7c3aed',
   wma20:   '#facc15',
   wma50:   '#8b5cf6',
   bbUpper: '#94a3b8',
@@ -468,11 +470,20 @@ export default function TradingViewChart({
     // Moving averages — when the SMA/EMA/WMA family toggle is on we show the
     // classic pair (20 + 50) because that's what most analysts want to see;
     // SMA200 gets its own toggle via the chip UI in a later pass.
-    if (showSMA) { ensureLine('sma20', indicators.sma20, C.sma20); ensureLine('sma50', indicators.sma50, C.sma50); ensureLine('sma200', indicators.sma200, C.sma200) }
-    else         { remove('sma20'); remove('sma50'); remove('sma200') }
+    // 100/150 were computed on every load and never drawn. 150 in particular is
+    // the trend gate this workflow reads ("above the 150 MA"), so it was being
+    // paid for and thrown away.
+    if (showSMA) {
+      ensureLine('sma20', indicators.sma20, C.sma20)
+      ensureLine('sma50', indicators.sma50, C.sma50)
+      ensureLine('sma100', indicators.sma100, C.sma100, { width: 1 })
+      ensureLine('sma150', indicators.sma150, C.sma150, { width: 2 })
+      ensureLine('sma200', indicators.sma200, C.sma200)
+    }
+    else { remove('sma20'); remove('sma50'); remove('sma100'); remove('sma150'); remove('sma200') }
 
-    if (showEMA) { ensureLine('ema20', indicators.ema20, C.ema20); ensureLine('ema50', indicators.ema50, C.ema50) }
-    else         { remove('ema20'); remove('ema50') }
+    if (showEMA) { ensureLine('ema20', indicators.ema20, C.ema20); ensureLine('ema50', indicators.ema50, C.ema50); ensureLine('ema200', indicators.ema200, C.ema200, { width: 1 }) }
+    else { remove('ema20'); remove('ema50'); remove('ema200') }
 
     if (showWMA) { ensureLine('wma20', indicators.wma20, C.wma20); ensureLine('wma50', indicators.wma50, C.wma50) }
     else         { remove('wma20'); remove('wma50') }
