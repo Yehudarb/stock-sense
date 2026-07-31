@@ -63,6 +63,11 @@ const useStore = create((set) => ({
     intervalRefreshing: true,
   })),
   setOhlcv: (ohlcv) => set({ ohlcv, intervalRefreshing: false }),
+  // A live tick replaces the last bar in place. It must NOT clear
+  // intervalRefreshing: that flag belongs to a timeframe switch in flight, and
+  // a tick arriving mid-switch would clear the spinner while the new bars were
+  // still loading.
+  applyLiveBars: (ohlcv) => set({ ohlcv }),
   setSnapshot: (snapshotOrUpdater) =>
     set(state => {
       const nextSnapshot = typeof snapshotOrUpdater === 'function'
