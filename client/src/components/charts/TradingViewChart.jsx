@@ -4,7 +4,7 @@ import {
   CrosshairMode, LineStyle,
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
-import { computeFibonacci, isTrendlinePattern, measuredMoveTargets, OVERLAY_COLORS } from './chartHelpers'
+import { computeFibonacci, isTrendlinePattern, measuredMoveTargets, patternBreakoutLevel, OVERLAY_COLORS } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 // TradingView-quality chart (lightweight-charts, MIT). Rendering + navigation
@@ -687,9 +687,10 @@ export default function TradingViewChart({
       // each of three patterns would be nine more lines saying similar things;
       // the strongest pattern is the one whose breakout the projection assumes.
       const primary = chosen[0]
-      if (primary?.meta?.breakoutLevel != null) {
+      const primaryTrigger = patternBreakoutLevel(primary, spot)
+      if (primaryTrigger != null) {
         const dir = (primary.direction ?? primary.bias) === 'bearish' ? 'bearish' : 'bullish'
-        measuredMoveTargets(ohlcv, primary.meta.breakoutLevel, dir).forEach(t => {
+        measuredMoveTargets(ohlcv, primaryTrigger, dir).forEach(t => {
           addLine({
             value: t.price,
             color: 'rgba(168, 85, 247, 0.9)',
@@ -709,7 +710,7 @@ export default function TradingViewChart({
         const short = tag.length > 14 ? `${tag.slice(0, 13)}…` : tag
 
         addLine({
-          value: pattern.meta?.breakoutLevel,
+          value: patternBreakoutLevel(pattern, spot),
           color: 'rgba(56, 189, 248, 0.95)',
           title: `▲ ${short}`,
           style: LineStyle.Solid,

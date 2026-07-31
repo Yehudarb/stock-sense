@@ -176,6 +176,36 @@ export const OVERLAY_COLORS = {
   macdSignal: '#fb923c',
 }
 
+// The level a pattern has to clear before its target means anything.
+//
+// The detector sets meta.breakoutLevel for only some patterns — cup-and-handle
+// and the trendline breaks. Across the 85-symbol universe, 34 leading patterns
+// were bullish structures with a target and no trigger: TRIPLE_BOTTOM,
+// CHANNEL_UP, FALLING_WEDGE and others. Their geometry already contains the
+// level, so it is derived rather than left blank, and the entry/target/stop set
+// goes from a third of the universe to most of it.
+//
+// Two conditions, and both matter. The pattern must have at least two distinct
+// prices in its geometry — a single-candle signal like a doji or a morning star
+// carries one point, the current bar itself, which is not a structure and not a
+// trigger. And the level must sit ABOVE spot: a high price already exceeded is
+// history, not something to break.
+export function patternBreakoutLevel(pattern, spot) {
+  const explicit = pattern?.meta?.breakoutLevel
+  if (Number.isFinite(explicit)) return explicit
+  if (!Number.isFinite(spot)) return null
+
+  const visual = pattern?.visual
+  const prices = [
+    ...(visual?.points ?? []).map(p => p.price),
+    ...(visual?.lines ?? []).flatMap(l => [l?.from?.price, l?.to?.price]),
+  ].filter(Number.isFinite)
+
+  if (new Set(prices).size < 2) return null
+  const high = Math.max(...prices)
+  return high > spot ? high : null
+}
+
 // ── Measured-move targets ────────────────────────────────────────────────
 //
 // Classic measured move: take the height of the structure price is breaking

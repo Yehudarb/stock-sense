@@ -69,3 +69,44 @@ test('never emits a non-positive price', () => {
     assert.ok(t.price > 0)
   }
 })
+
+// ── breakout level derivation ────────────────────────────────────────────
+import { patternBreakoutLevel } from '../../client/src/components/charts/chartHelpers.js'
+
+test('an explicit breakout level is used as given', () => {
+  const p = { meta: { breakoutLevel: 103.97 }, visual: { points: [{ price: 200 }, { price: 300 }] } }
+  assert.equal(patternBreakoutLevel(p, 100), 103.97)
+})
+
+// 34 leading patterns across the universe were bullish structures with a target
+// and no trigger — triple bottoms, channels, wedges. Their geometry holds the
+// level, so it is derived instead of leaving the setup unmarked.
+test('derives the level from pattern geometry when the detector gives none', () => {
+  const fromLines = { visual: { lines: [{ from: { price: 81.71 }, to: { price: 88.64 } }] } }
+  assert.equal(patternBreakoutLevel(fromLines, 88.49), 88.64)
+
+  const fromPoints = { visual: { points: [{ price: 90 }, { price: 110 }, { price: 105 }] } }
+  assert.equal(patternBreakoutLevel(fromPoints, 100), 110)
+})
+
+// A doji or a morning star carries one point — the current bar. That is not a
+// structure and cannot be a trigger, so nothing is invented for it.
+test('a single-candle pattern yields no trigger', () => {
+  assert.equal(patternBreakoutLevel({ visual: { points: [{ price: 333.43 }] } }, 333.43), null)
+  assert.equal(patternBreakoutLevel({ visual: { points: [] } }, 100), null)
+  assert.equal(patternBreakoutLevel({}, 100), null)
+  assert.equal(patternBreakoutLevel(null, 100), null)
+  // Two points at the same price are one level, not a structure.
+  assert.equal(patternBreakoutLevel({ visual: { points: [{ price: 50 }, { price: 50 }] } }, 40), null)
+})
+
+test('a level price has already passed is not a trigger', () => {
+  const p = { visual: { points: [{ price: 80 }, { price: 95 }] } }
+  assert.equal(patternBreakoutLevel(p, 100), null, '95 is behind a spot of 100')
+  assert.equal(patternBreakoutLevel(p, 90), 95, 'ahead of a spot of 90 it is usable')
+})
+
+test('needs a spot price to judge the derived level', () => {
+  const p = { visual: { points: [{ price: 80 }, { price: 95 }] } }
+  assert.equal(patternBreakoutLevel(p, NaN), null)
+})
