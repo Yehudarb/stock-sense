@@ -3,9 +3,27 @@ import {
   fetchCompanyNews,
   fetchCompanyProfile,
   fetchQuote,
+  isConfigured,
 } from '../services/finnhub.js'
 
 const router = Router()
+
+// Without an API key every fetcher returns its empty shape, and the handlers
+// below turned that into 404 "Profile not found" — which says the TICKER has no
+// profile when the truth is that this deployment has no Finnhub key. A caller
+// cannot tell a bad symbol from an unconfigured service, and neither can anyone
+// reading the logs. 503 with the reason is the honest answer: the request was
+// fine, the dependency is missing.
+export function requireFinnhub(_req, res, next) {
+  if (isConfigured()) return next()
+  res.status(503).json({
+    error: 'Finnhub is not configured',
+    detail: 'FINNHUB_API_KEY is not set on this deployment, so news, profile and quote are unavailable.',
+    configured: false,
+  })
+}
+
+router.use(requireFinnhub)
 
 /**
  * GET /api/finnhub/quote/:ticker
