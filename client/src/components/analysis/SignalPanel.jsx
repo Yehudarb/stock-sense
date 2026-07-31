@@ -309,12 +309,12 @@ function DetailTab({ signal, gates, patterns, risk, copy, isEnglish, language })
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-lg bg-green-950 p-2 text-center">
-            <div className="mb-0.5 text-xs text-green-400">{copy.buyProbability}</div>
-            <div className="text-lg font-bold text-green-300">{signal.buyProbability}%</div>
+            <div className="mb-0.5 text-xs text-green-400">{copy.buyScore}</div>
+            <div className="text-lg font-bold text-green-300">{signal.buyScore}</div>
           </div>
           <div className="rounded-lg bg-red-950 p-2 text-center">
-            <div className="mb-0.5 text-xs text-red-400">{copy.sellProbability}</div>
-            <div className="text-lg font-bold text-red-300">{signal.sellProbability}%</div>
+            <div className="mb-0.5 text-xs text-red-400">{copy.sellScore}</div>
+            <div className="text-lg font-bold text-red-300">{signal.sellScore}</div>
           </div>
         </div>
       </div>
@@ -394,8 +394,8 @@ export default function SignalPanel({ signal, language = 'he' }) {
     loading: isEnglish ? 'Loading analysis...' : 'טוען ניתוח...',
     signalTitle: isEnglish ? 'Trading signal' : 'אות מסחר',
     confidence: isEnglish ? 'Confidence' : 'ביטחון',
-    buyProbability: isEnglish ? 'Buy probability' : 'הסתברות קנייה',
-    sellProbability: isEnglish ? 'Sell probability' : 'הסתברות מכירה',
+    buyScore: isEnglish ? 'Buy score' : 'ציון קנייה',
+    sellScore: isEnglish ? 'Sell score' : 'ציון מכירה',
     pipeline: isEnglish ? 'Pipeline gates' : 'שערי Pipeline',
     marketTrend: isEnglish ? 'Market trend' : 'מגמת שוק',
     trendGate: isEnglish ? 'Trend gate' : 'שער מגמה',

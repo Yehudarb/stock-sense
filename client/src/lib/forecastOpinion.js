@@ -124,14 +124,14 @@ function scoreSignalLayer(signal, drivers, risks) {
   if (signal.action === 'SELL') bearish += 1.8
   if (signal.action === 'STRONG_SELL') bearish += 2.5
 
-  if (signal.buyProbability != null && signal.sellProbability != null) {
-    const diff = signal.buyProbability - signal.sellProbability
-    if (diff > 10) {
-      bullish += clamp(diff / 25, 0.4, 1.4)
-      addDriver(drivers, `מודל האות מעדיף קנייה (${signal.buyProbability}% מול ${signal.sellProbability}%).`)
-    } else if (diff < -10) {
-      bearish += clamp(Math.abs(diff) / 25, 0.4, 1.4)
-      addRisk(risks, `מודל האות מעדיף מכירה (${signal.sellProbability}% מול ${signal.buyProbability}%).`)
+  if (signal.buyScore != null && signal.sellScore != null) {
+    const diff = signal.buyScore - signal.sellScore
+    if (diff > 40) {
+      bullish += clamp(diff / 100, 0.4, 1.4)
+      addDriver(drivers, `ציון הקנייה גבוה מציון המכירה (${signal.buyScore} מול ${signal.sellScore}).`)
+    } else if (diff < -40) {
+      bearish += clamp(Math.abs(diff) / 100, 0.4, 1.4)
+      addRisk(risks, `ציון המכירה גבוה מציון הקנייה (${signal.sellScore} מול ${signal.buyScore}).`)
     }
   }
 
@@ -480,10 +480,10 @@ function englishForecastText({ bias, interval, targetPrice, signal, ohlcv, indic
     BULL: 'bullish',
   }[marketContext?.condition] ?? marketContext?.label
 
-  if (signal.buyProbability > signal.sellProbability + 10) {
-    drivers.push(`The signal model favors buying (${signal.buyProbability}% vs ${signal.sellProbability}%).`)
-  } else if (signal.sellProbability > signal.buyProbability + 10) {
-    risks.push(`The signal model favors selling (${signal.sellProbability}% vs ${signal.buyProbability}%).`)
+  if (signal.buyScore > signal.sellScore + 40) {
+    drivers.push(`The signal model has a stronger buy score (${signal.buyScore} vs ${signal.sellScore}).`)
+  } else if (signal.sellScore > signal.buyScore + 40) {
+    risks.push(`The signal model has a stronger sell score (${signal.sellScore} vs ${signal.buyScore}).`)
   }
 
   if (sma50 != null && sma200 != null) {

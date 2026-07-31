@@ -126,6 +126,20 @@ function pivotPoints(ohlcv) {
   }
 }
 
+function latestCross(shortValues, longValues, direction = 'above') {
+  const index = shortValues.length - 1
+  if (index < 1) return false
+  const previousShort = shortValues[index - 1]
+  const previousLong = longValues[index - 1]
+  const currentShort = shortValues[index]
+  const currentLong = longValues[index]
+  if ([previousShort, previousLong, currentShort, currentLong].some(value => value == null)) return false
+
+  return direction === 'above'
+    ? previousShort <= previousLong && currentShort > currentLong
+    : previousShort >= previousLong && currentShort < currentLong
+}
+
 function priceLevels(ohlcv) {
   const recent = ohlcv.slice(-60)
   const lookback52 = ohlcv.slice(-252)
@@ -154,7 +168,10 @@ export function computeAll(ohlcv) {
   const sma20Raw  = SMA.calculate({ values: closes, period: 20 })
   const sma50Raw  = SMA.calculate({ values: closes, period: 50 })
   const sma100Raw = SMA.calculate({ values: closes, period: 100 })
+  const sma150Raw = SMA.calculate({ values: closes, period: 150 })
   const sma200Raw = SMA.calculate({ values: closes, period: 200 })
+  const ema9Raw   = EMA.calculate({ values: closes, period: 9 })
+  const ema10Raw  = EMA.calculate({ values: closes, period: 10 })
   const ema20Raw  = EMA.calculate({ values: closes, period: 20 })
   const ema50Raw  = EMA.calculate({ values: closes, period: 50 })
   const ema200Raw = EMA.calculate({ values: closes, period: 200 })
@@ -212,7 +229,10 @@ export function computeAll(ohlcv) {
     sma20:   pad(sma20Raw, n),
     sma50:   pad(sma50Raw, n),
     sma100:  pad(sma100Raw, n),
+    sma150:  pad(sma150Raw, n),
     sma200:  pad(sma200Raw, n),
+    ema9:    pad(ema9Raw, n),
+    ema10:   pad(ema10Raw, n),
     ema20:   pad(ema20Raw, n),
     ema50:   pad(ema50Raw, n),
     ema200:  pad(ema200Raw, n),
@@ -274,5 +294,11 @@ export function computeAll(ohlcv) {
     volumeMA: avgVol,
     volRatio,
     averageBody,
+    movingAverageCrosses: {
+      goldenCross: latestCross(pad(sma50Raw, n), pad(sma200Raw, n), 'above'),
+      deathCross: latestCross(pad(sma50Raw, n), pad(sma200Raw, n), 'below'),
+      priceAboveSma200: latestCross(closes, pad(sma200Raw, n), 'above'),
+      priceBelowSma200: latestCross(closes, pad(sma200Raw, n), 'below'),
+    },
   }
 }

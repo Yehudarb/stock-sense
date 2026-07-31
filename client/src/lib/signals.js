@@ -5,11 +5,6 @@ import { analyzeMarketStructure, allowsBullishEntry, allowsBearishEntry } from '
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
-function logisticProbability(score, scale = 65) {
-  if (!Number.isFinite(score)) return 50
-  return Math.round((1 / (1 + Math.exp(-score / scale))) * 100)
-}
-
 // Linear gradient: 1.0 at oversold, 0.0 at overbought (for buy side)
 function buyGradient(value, oversold, overbought) {
   if (value == null) return null
@@ -397,8 +392,6 @@ export function computeSignal(ohlcv, indicators, patternInput = 0, multiTimefram
     }
   }
 
-  const buyProbability  = logisticProbability(netScore)
-  const sellProbability = 100 - buyProbability
   const confidence      = Math.min(100, Math.round((Math.abs(netScore) / (MAX_BUY_SCORE * 1.5)) * 100))
 
   // ── Factor list for UI ────────────────────────────────────────────────
@@ -439,8 +432,6 @@ export function computeSignal(ohlcv, indicators, patternInput = 0, multiTimefram
     score:           parseFloat(netScore.toFixed(1)),
     buyScore,
     sellScore,
-    buyProbability,
-    sellProbability,
     confidence,
     factors,
     setup: setupInfo,       // null when no eligible bullish setup is active

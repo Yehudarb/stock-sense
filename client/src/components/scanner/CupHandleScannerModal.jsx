@@ -72,7 +72,6 @@ export default function CupHandleScannerModal() {
         setStatus('error')
       })
     return () => { cancelledRef.current = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showScanner])
 
   if (!showScanner) return null

@@ -31,11 +31,11 @@ export default function PositionSizeCalculator({ currentPrice, suggestedStop, la
   // the user already typed.
   useEffect(() => {
     if (!entryPrice && currentPrice != null) setEntryPrice(currentPrice.toFixed(2))
-  }, [currentPrice]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentPrice])
 
   useEffect(() => {
     if (!stopPrice && suggestedStop != null) setStopPrice(suggestedStop.toFixed(2))
-  }, [suggestedStop]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [suggestedStop])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
