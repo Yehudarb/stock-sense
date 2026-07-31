@@ -3,6 +3,7 @@ import useStore from '../../store/useStore'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
 import ChartContainer from './ChartContainer'
+import { OVERLAY_COLORS } from './chartHelpers'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
@@ -70,45 +71,6 @@ const INTERVAL_LABELS = {
   },
 }
 
-const OVERLAY_COLORS = {
-  candles: '#10b981',
-  line: '#38bdf8',
-  area: '#60a5fa',
-  sma20: '#EF9F27',
-  sma50: 'rgba(234, 179, 8, 0.95)',
-  sma200: 'rgba(99, 102, 241, 0.92)',
-  ema20: 'rgba(56, 189, 248, 0.92)',
-  ema50: '#8b5cf6',
-  ema200: 'rgba(167, 139, 250, 0.92)',
-  wma20: 'rgba(251, 191, 36, 0.86)',
-  wma50: 'rgba(245, 158, 11, 0.9)',
-  bbUpper: 'rgba(132, 204, 22, 0.95)',
-  bbMiddle: 'rgba(163, 230, 53, 0.8)',
-  bbLower: 'rgba(190, 242, 100, 0.95)',
-  vwap: '#2dd4bf',
-  supertrend: '#34d399',
-  ichimokuTenkan: '#60a5fa',
-  ichimokuKijun: '#f59e0b',
-  ichimokuSpanA: 'rgba(16, 185, 129, 0.85)',
-  ichimokuSpanB: 'rgba(239, 68, 68, 0.85)',
-  keltnerUpper: '#fb7185',
-  keltnerMiddle: '#fda4af',
-  keltnerLower: '#fecdd3',
-  donchianUpper: '#22d3ee',
-  donchianMiddle: '#67e8f9',
-  donchianLower: '#a5f3fc',
-  pivot: '#facc15',
-  previousHigh: '#fb923c',
-  previousLow: '#fdba74',
-  high52: '#f472b6',
-  low52: '#f9a8d4',
-  levels: '#f43f5e',
-  volume: '#38bdf8',
-  volumeMA: '#60a5fa',
-  rsi: '#378add',
-  macd: '#378add',
-  macdSignal: '#E24B4A',
-}
 
 function getBaseChartHeight(expanded) {
   if (typeof window === 'undefined') return expanded ? 720 : 600

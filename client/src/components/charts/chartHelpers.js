@@ -113,6 +113,69 @@ export function computeFibonacci(ohlcv, includeExtensions = false) {
   }
 }
 
+// ── Overlay palette ──────────────────────────────────────────────────────
+//
+// One palette, used by whatever draws the line AND by the legend that names it.
+// They were separate before, and every shared key disagreed: the legend showed
+// SMA50 in yellow while the Pro chart drew it in blue, SMA200 in indigo against
+// pink, and so on for all seven overlapping entries. A legend that names the
+// wrong colour is worse than no legend, because it is read as fact.
+//
+// Colours are also distinct ACROSS families, which they were not. SMA20 and the
+// Ichimoku conversion line were the same amber, SMA50 and the Ichimoku base the
+// same blue, and EMA20, Supertrend-up and pivot R1 were all the same green — so
+// turning on two families produced lines that could not be told apart.
+// Band pairs (Bollinger, Keltner, Donchian) deliberately share a hue: they are
+// one instrument with two edges.
+export const OVERLAY_COLORS = {
+  candles: '#10b981',
+  line: '#38bdf8',
+  area: '#818cf8',
+
+  // Moving averages — one hue family, stepping darker with period.
+  sma20:  '#fbbf24',
+  sma50:  '#f97316',
+  sma100: '#e11d48',
+  sma150: '#14b8a6',
+  sma200: '#ec4899',
+  ema20:  '#4ade80',
+  ema50:  '#16a34a',
+  ema200: '#7c3aed',
+  wma20:  '#facc15',
+  wma50:  '#a16207',
+
+  // Bands.
+  bbUpper: '#94a3b8', bbMiddle: '#64748b', bbLower: '#94a3b8',
+  keltnerUpper: '#0ea5e9', keltnerMiddle: '#7dd3fc', keltnerLower: '#0ea5e9',
+  donchianUpper: '#f472b6', donchianMiddle: '#f9a8d4', donchianLower: '#f472b6',
+
+  // Standalone studies.
+  vwap: '#22d3ee',
+  supertrendUp: '#22c55e',
+  supertrendDown: '#dc2626',
+  ichimokuTenkan: '#c084fc',
+  ichimokuKijun: '#2563eb',
+  ichimokuSpanA: 'rgba(16, 185, 129, 0.5)',
+  ichimokuSpanB: 'rgba(239, 68, 68, 0.5)',
+
+  // Levels.
+  pivot: '#cbd5e1', pivotR1: '#84cc16', pivotS1: '#fb7185',
+  prevHigh: '#67e8f9', prevLow: '#fdba74',
+  high52: '#a3e635', low52: '#f43f5e',
+
+  // Legend-only entries: the classic chart and the sub-panels name these, and a
+  // missing key renders a swatch with no colour at all.
+  supertrend: '#22c55e',
+  levels: '#5eead4',
+  previousHigh: '#67e8f9',
+  previousLow: '#fdba74',
+  volume: '#8b98a9',
+  volumeMA: '#e879f9',
+  rsi: '#d8b4fe',
+  macd: '#60a5fa',
+  macdSignal: '#fb923c',
+}
+
 // ── Measured-move targets ────────────────────────────────────────────────
 //
 // Classic measured move: take the height of the structure price is breaking

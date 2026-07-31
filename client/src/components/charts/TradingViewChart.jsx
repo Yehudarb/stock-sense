@@ -4,7 +4,7 @@ import {
   CrosshairMode, LineStyle,
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
-import { computeFibonacci, isTrendlinePattern, measuredMoveTargets } from './chartHelpers'
+import { computeFibonacci, isTrendlinePattern, measuredMoveTargets, OVERLAY_COLORS } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 // TradingView-quality chart (lightweight-charts, MIT). Rendering + navigation
@@ -18,39 +18,9 @@ import { TRADER_COLORS } from '../../lib/traderColors'
 const AXIS_FONT_SIZE = 13
 
 // Distinct colors per overlay so a busy chart is still readable.
-const C = {
-  sma20:   '#f59e0b',
-  sma50:   '#3b82f6',
-  sma100:  '#a855f7',
-  sma150:  '#14b8a6',
-  sma200:  '#ec4899',
-  ema20:   '#10b981',
-  ema50:   '#ef4444',
-  ema200:  '#7c3aed',
-  wma20:   '#facc15',
-  wma50:   '#8b5cf6',
-  bbUpper: '#94a3b8',
-  bbLower: '#94a3b8',
-  bbMid:   '#64748b',
-  vwap:    '#22d3ee',
-  supertrendUp:   '#10b981',
-  supertrendDown: '#ef4444',
-  ichConv: '#f59e0b',
-  ichBase: '#3b82f6',
-  ichSpanA: 'rgba(16, 185, 129, 0.5)',
-  ichSpanB: 'rgba(239, 68, 68, 0.5)',
-  keltUpper: '#0ea5e9',
-  keltLower: '#0ea5e9',
-  donchUpper: '#f97316',
-  donchLower: '#f97316',
-  pivotP:  '#94a3b8',
-  pivotR1: '#10b981',
-  pivotS1: '#ef4444',
-  prevHigh: '#22d3ee',
-  prevLow:  '#f97316',
-  high52: '#84cc16',
-  low52:  '#f43f5e',
-}
+// Palette lives in chartHelpers so the legend that names these lines and the
+// code that draws them can never disagree again.
+const C = OVERLAY_COLORS
 
 // ── Data adapters ────────────────────────────────────────────────────────
 // Convert our {t,o,h,l,c,v} bars to the shapes lightweight-charts expects.
@@ -491,7 +461,7 @@ export default function TradingViewChart({
     if (showBB && indicators.bb20) {
       ensureLine('bbUpper', indicators.bb20.upper, C.bbUpper, { width: 1, style: LineStyle.Dashed })
       ensureLine('bbLower', indicators.bb20.lower, C.bbLower, { width: 1, style: LineStyle.Dashed })
-      ensureLine('bbMid',   indicators.bb20.middle, C.bbMid,  { width: 1 })
+      ensureLine('bbMid',   indicators.bb20.middle, C.bbMiddle,  { width: 1 })
     } else { remove('bbUpper'); remove('bbLower'); remove('bbMid') }
 
     if (showVWAP) ensureLine('vwap', indicators.vwap, C.vwap, { width: 2 })
@@ -514,20 +484,20 @@ export default function TradingViewChart({
     } else { remove('supertrendUp'); remove('supertrendDown') }
 
     if (showIchimoku && indicators.ichimoku) {
-      ensureLine('ichConv', indicators.ichimoku.conversion, C.ichConv, { width: 1 })
-      ensureLine('ichBase', indicators.ichimoku.base,       C.ichBase, { width: 1 })
-      ensureLine('ichSpanA', indicators.ichimoku.spanA,     C.ichSpanA, { width: 1 })
-      ensureLine('ichSpanB', indicators.ichimoku.spanB,     C.ichSpanB, { width: 1 })
+      ensureLine('ichConv', indicators.ichimoku.conversion, C.ichimokuTenkan, { width: 1 })
+      ensureLine('ichBase', indicators.ichimoku.base,       C.ichimokuKijun, { width: 1 })
+      ensureLine('ichSpanA', indicators.ichimoku.spanA,     C.ichimokuSpanA, { width: 1 })
+      ensureLine('ichSpanB', indicators.ichimoku.spanB,     C.ichimokuSpanB, { width: 1 })
     } else { remove('ichConv'); remove('ichBase'); remove('ichSpanA'); remove('ichSpanB') }
 
     if (showKeltner && indicators.keltner) {
-      ensureLine('keltUpper', indicators.keltner.upper, C.keltUpper, { width: 1, style: LineStyle.Dashed })
-      ensureLine('keltLower', indicators.keltner.lower, C.keltLower, { width: 1, style: LineStyle.Dashed })
+      ensureLine('keltUpper', indicators.keltner.upper, C.keltnerUpper, { width: 1, style: LineStyle.Dashed })
+      ensureLine('keltLower', indicators.keltner.lower, C.keltnerLower, { width: 1, style: LineStyle.Dashed })
     } else { remove('keltUpper'); remove('keltLower') }
 
     if (showDonchian && indicators.donchian) {
-      ensureLine('donchUpper', indicators.donchian.upper, C.donchUpper, { width: 1, style: LineStyle.Dashed })
-      ensureLine('donchLower', indicators.donchian.lower, C.donchLower, { width: 1, style: LineStyle.Dashed })
+      ensureLine('donchUpper', indicators.donchian.upper, C.donchianUpper, { width: 1, style: LineStyle.Dashed })
+      ensureLine('donchLower', indicators.donchian.lower, C.donchianLower, { width: 1, style: LineStyle.Dashed })
     } else { remove('donchUpper'); remove('donchLower') }
   }, [
     chartEpoch,
@@ -655,9 +625,13 @@ export default function TradingViewChart({
     }
     priceLinesRef.current = []
 
-    const addLine = ({ value, color, title, style = LineStyle.Dotted, width = 1 }) => {
+    // Every price line puts a label on the right axis, and with Fibonacci and
+    // the pivot set on at once that axis reached 32 stacked labels — unreadable
+    // regardless of font size. Structural levels keep their label; the dense
+    // grids draw the line and stay off the axis.
+    const addLine = ({ value, color, title, style = LineStyle.Dotted, width = 1, axisLabel = true }) => {
       if (value == null || !Number.isFinite(value)) return
-      const line = price.createPriceLine({ price: value, color, lineWidth: width, lineStyle: style, axisLabelVisible: true, title })
+      const line = price.createPriceLine({ price: value, color, lineWidth: width, lineStyle: style, axisLabelVisible: axisLabel, title })
       priceLinesRef.current.push(line)
     }
 
@@ -666,11 +640,11 @@ export default function TradingViewChart({
       // yielded undefined, so addLine bailed on every level and no pivot line
       // was ever drawn.
       const p = indicators.pivotPoints
-      addLine({ value: p.pivot, color: C.pivotP,  title: 'P',  width: 1 })
+      addLine({ value: p.pivot, color: C.pivot,  title: 'P',  width: 1 })
       addLine({ value: p.r1,    color: C.pivotR1, title: 'R1' })
-      addLine({ value: p.r2,    color: C.pivotR1, title: 'R2' })
+      addLine({ value: p.r2,    color: C.pivotR1, title: 'R2', axisLabel: false })
       addLine({ value: p.s1,    color: C.pivotS1, title: 'S1' })
-      addLine({ value: p.s2,    color: C.pivotS1, title: 'S2' })
+      addLine({ value: p.s2,    color: C.pivotS1, title: 'S2', axisLabel: false })
     }
     // Prefer indicators.priceLevels — the values PriceChart and the analysis
     // panels use — so both engines label the same levels. Recomputing them
@@ -694,9 +668,9 @@ export default function TradingViewChart({
       addLine({ value: decision?.invalidation ?? decision?.stopLoss, color: TRADER_COLORS.stopLoss,   title: 'SL', width: 1.8, style: LineStyle.Dashed })
       addLine({ value: decision?.takeProfit, color: TRADER_COLORS.takeProfit, title: 'TP', width: 1.8, style: LineStyle.Dashed })
       ;(technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2)
-        .forEach((value, i) => addLine({ value, color: 'rgba(6, 182, 212, 0.9)', title: `S${i + 2}` }))
+        .forEach((value, i) => addLine({ value, color: 'rgba(6, 182, 212, 0.9)', title: `S${i + 2}`, axisLabel: false }))
       ;(technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2)
-        .forEach((value, i) => addLine({ value, color: 'rgba(249, 115, 22, 0.9)', title: `R${i + 2}` }))
+        .forEach((value, i) => addLine({ value, color: 'rgba(249, 115, 22, 0.9)', title: `R${i + 2}`, axisLabel: false }))
       ;(technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1)
         .forEach(value => addLine({ value, color: 'rgba(56, 189, 248, 0.9)', title: 'BO' }))
     }
@@ -770,6 +744,7 @@ export default function TradingViewChart({
         color: level.ratio === 0 || level.ratio === 1 ? 'rgba(148, 163, 184, 0.9)' : 'rgba(234, 179, 8, 0.75)',
         title: `FIB ${level.label}`,
         style: LineStyle.Dotted,
+        axisLabel: false,
       }))
     }
   }, [
