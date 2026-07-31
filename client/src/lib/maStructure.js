@@ -34,10 +34,67 @@ function slopePct(series, lookback = SLOPE_LOOKBACK) {
   return ((now - then) / then) * 100
 }
 
+// The full ladder, fastest to slowest.
+//
+// This exists because the five-condition template compares 50 against 150 and
+// 200 only, and so cannot see the case that prompted it: on TSLA the SMA100 sat
+// BELOW the SMA50 while every template condition failed identically.
+//
+// It was added on the expectation that a monotonic ladder would be a stronger
+// read than the template. Measured on 25 symbols over 425 non-overlapping
+// samples, it is NOT: a bullish ladder returned 0.20 percentage points LESS
+// than a bearish one over the following 10 bars, Welch t = -0.11. The template
+// at least ordered correctly (+2.02 pp, t = 1.52, also not significant).
+//
+// So this is descriptive only. It names where the ladder breaks, which is
+// genuinely useful for reading a chart, and it must not be presented as a
+// signal or as evidence of anything. The expectation was wrong and the number
+// stays next to it.
+const LADDER = ['sma20', 'sma50', 'sma100', 'sma150', 'sma200']
+
+export function maStackOrder(indicators) {
+  const values = LADDER.map(key => ({ key, value: latest(indicators?.[key]) }))
+  const known = values.filter(v => v.value != null)
+  if (known.length < 3) return null
+
+  const breaks = []
+  let ascending = true   // 20 > 50 > 100 > 150 > 200 — an uptrend ladder
+  let descending = true  // the mirror image
+  for (let i = 1; i < known.length; i += 1) {
+    const prev = known[i - 1]
+    const cur = known[i]
+    if (prev.value <= cur.value) ascending = false
+    if (prev.value >= cur.value) descending = false
+  }
+  // Record every adjacent pair that contradicts the dominant direction, so the
+  // panel can name where the ladder breaks rather than only that it does.
+  const dominant = ascending ? 'bullish' : descending ? 'bearish' : 'mixed'
+  if (dominant === 'mixed') {
+    for (let i = 1; i < known.length; i += 1) {
+      const prev = known[i - 1]
+      const cur = known[i]
+      breaks.push({ faster: prev.key, slower: cur.key, fasterAbove: prev.value > cur.value })
+    }
+  }
+
+  return {
+    order: dominant,
+    monotonic: dominant !== 'mixed',
+    values: Object.fromEntries(known.map(v => [v.key, v.value])),
+    // Only the pairs that disagree with the majority are worth surfacing.
+    breaks: dominant === 'mixed'
+      ? breaks.filter((b, _, all) => {
+          const majority = all.filter(x => x.fasterAbove).length >= all.length / 2
+          return b.fasterAbove !== majority
+        })
+      : [],
+  }
+}
+
 /**
  * @param {Object} indicators computeAll() output
  * @param {number} price      current price
- * @returns {Object|null} { checks, passed, total, state, aligned, slope200Pct, distances }
+ * @returns {Object|null} { checks, passed, total, state, aligned, slope200Pct, distances, stack }
  */
 export function maTrendStructure(indicators, price) {
   if (!indicators || !Number.isFinite(price)) return null
@@ -91,6 +148,7 @@ export function maTrendStructure(indicators, price) {
     aligned,
     state,
     slope200Pct,
+    stack: maStackOrder(indicators),
     values: { sma50, sma150, sma200 },
     distances: {
       to150Pct: ((price - sma150) / sma150) * 100,

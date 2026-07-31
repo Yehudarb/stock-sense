@@ -79,3 +79,45 @@ test('the reading names the state and never implies an entry', () => {
   assert.match(text, /not an entry/)
   assert.match(structureReading(null, 'en'), /Not enough history/)
 })
+
+// ── ladder order ─────────────────────────────────────────────────────────
+import { maStackOrder } from '../../client/src/lib/maStructure.js'
+
+const ladder = (o) => ({
+  sma20: Array(60).fill(o[0]), sma50: Array(60).fill(o[1]), sma100: Array(60).fill(o[2]),
+  sma150: Array(60).fill(o[3]), sma200: Array(60).fill(o[4]),
+})
+
+test('a fully descending ladder reads bullish', () => {
+  const s = maStackOrder(ladder([120, 110, 100, 90, 80]))
+  assert.equal(s.order, 'bullish')
+  assert.equal(s.monotonic, true)
+  assert.deepEqual(s.breaks, [], 'a monotonic ladder has nothing to report')
+})
+
+test('a fully ascending ladder reads bearish', () => {
+  const s = maStackOrder(ladder([80, 90, 100, 110, 120]))
+  assert.equal(s.order, 'bearish')
+  assert.equal(s.monotonic, true)
+})
+
+// The case that prompted the ladder: TSLA had sma100 below sma50 while every
+// template condition failed identically, so the template could not see it.
+test('names the pair where the ladder breaks', () => {
+  const s = maStackOrder(ladder([368, 393, 390, 403, 412]))
+  assert.equal(s.order, 'mixed')
+  assert.equal(s.monotonic, false)
+  assert.ok(s.breaks.length > 0)
+  assert.ok(s.breaks.some(b => b.faster === 'sma50' && b.slower === 'sma100'))
+})
+
+test('needs at least three known averages to say anything', () => {
+  assert.equal(maStackOrder({ sma20: [10], sma50: [9] }), null)
+  assert.equal(maStackOrder(null), null)
+  assert.equal(maStackOrder({}), null)
+})
+
+test('an equal pair is not monotonic in either direction', () => {
+  const s = maStackOrder(ladder([100, 100, 90, 80, 70]))
+  assert.equal(s.order, 'mixed', 'a tie breaks a strict ordering')
+})

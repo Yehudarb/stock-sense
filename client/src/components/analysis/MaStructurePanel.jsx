@@ -63,6 +63,39 @@ export default function MaStructurePanel({ indicators, price, language = 'he' })
         ))}
       </ul>
 
+      {structure.stack && (
+        <div className="mt-3 rounded-xl border border-white/8 bg-slate-950/40 px-3 py-2">
+          <div className="flex flex-wrap items-baseline gap-2 text-xs">
+            <span className="text-slate-500">{he ? 'סולם ממוצעים' : 'MA ladder'}</span>
+            <span className="tabular-nums text-slate-300">
+              {['sma20', 'sma50', 'sma100', 'sma150', 'sma200']
+                .filter(k => structure.stack.values[k] != null)
+                .map(k => fmt(structure.stack.values[k], 0))
+                .join(' › ')}
+            </span>
+            <span className="text-slate-500">
+              {structure.stack.order === 'bullish' ? (he ? 'יורד מונוטונית' : 'monotonic down')
+                : structure.stack.order === 'bearish' ? (he ? 'עולה מונוטונית' : 'monotonic up')
+                : (he ? 'לא מונוטוני' : 'not monotonic')}
+            </span>
+          </div>
+          {structure.stack.breaks.length > 0 && (
+            <div className="mt-1 text-[11px] text-amber-300/80">
+              {he ? 'שבירה ב־' : 'break at '}
+              {structure.stack.breaks.map(b => `${b.faster.replace('sma', '')}/${b.slower.replace('sma', '')}`).join(', ')}
+            </div>
+          )}
+          {/* Stated because the ladder looks more authoritative than it is. It
+              was added expecting to beat the five conditions and measurement
+              said otherwise; presenting it without that would be misleading. */}
+          <div className="mt-1 text-[11px] leading-relaxed text-slate-600">
+            {he
+              ? 'תיאורי בלבד. נמדד על 25 מניות: סולם בולישי הניב 0.20 נקודות אחוז פחות מדובי (t=-0.11) — אין לו ערך מנבא במדגם הזה.'
+              : 'Descriptive only. Measured over 25 symbols, a bullish ladder returned 0.20 points less than a bearish one (t=-0.11) — no predictive value in this sample.'}
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
         <div><span className="text-slate-500">SMA150 </span><span className="tabular-nums text-slate-300">{fmt(structure.values.sma150)}</span></div>
         <div><span className="text-slate-500">SMA200 </span><span className="tabular-nums text-slate-300">{fmt(structure.values.sma200)}</span></div>
