@@ -1012,10 +1012,18 @@ export default function PriceChart({
             ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(249, 115, 22, 0.9)' }))),
             ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
           ] : []),
+          // Matches the Pro chart's ladder. This drew only P/R1/S1 while the Pro
+          // chart drew P/R1/R2/S1/S2 from the same pivotPoints object, so the
+          // same toggle on the same data gave two different level sets
+          // depending on which engine was active. R3/S3 exist in computeAll but
+          // neither chart shows them; adding them here would recreate the
+          // mismatch in the other direction.
           ...(showPivotPoints && indicators?.pivotPoints ? [
             { price: indicators.pivotPoints.pivot, color: 'rgba(250, 204, 21, 0.9)' },
             { price: indicators.pivotPoints.r1, color: 'rgba(249, 115, 22, 0.82)' },
+            { price: indicators.pivotPoints.r2, color: 'rgba(249, 115, 22, 0.62)' },
             { price: indicators.pivotPoints.s1, color: 'rgba(6, 182, 212, 0.82)' },
+            { price: indicators.pivotPoints.s2, color: 'rgba(6, 182, 212, 0.62)' },
           ] : []),
           ...(showPrevHighLow && indicators?.priceLevels ? [
             { price: indicators.priceLevels.previousHigh, color: 'rgba(249, 115, 22, 0.82)' },
