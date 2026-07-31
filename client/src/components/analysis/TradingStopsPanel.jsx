@@ -4,7 +4,7 @@ import { TRADER_TEXT } from '../../lib/traderColors'
 import { ChevronDown, ChevronUp, AlertCircle, TrendingUp } from 'lucide-react'
 
 export default function TradingStopsPanel({
-  ticker,
+  _ticker,
   currentPrice,
   atr,
   supportPrice = null,

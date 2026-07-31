@@ -25,7 +25,7 @@ const RECOMMENDATION_COPY = {
   },
 }
 
-function ChecklistRow({ item, isHebrew }) {
+function ChecklistRow({ item, _isHebrew }) {
   return (
     <div className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
       item.pass ? 'border-green-500/20 bg-green-950/10' : 'border-slate-800/60 bg-slate-950/40'

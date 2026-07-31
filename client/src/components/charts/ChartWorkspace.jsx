@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useStore from '../../store/useStore'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
@@ -516,14 +516,9 @@ export default function ChartWorkspace({
   // render does not re-render this component when the header toggles Pro mode,
   // so the button would flip while the chart below it stayed on the old engine.
   const proChart = useStore(s => s.proChart)
-  const n = ohlcv.length
-  const volumeRatio = indicators?.volRatio?.[n - 1]
-  const rsiLast = indicators?.rsi14?.[n - 1]
+  const n = ohlcv.length  const rsiLast = indicators?.rsi14?.[n - 1]
   const macdLine = indicators?.macd?.line?.[n - 1]
-  const macdSignal = indicators?.macd?.signal?.[n - 1]
-  const activeTrend = technicalAnalysis?.overallTechnicalBias ?? 'Neutral'
-  const riskLevel = technicalAnalysis?.riskAssessment?.riskLevel ?? 'Medium'
-
+  const macdSignal = indicators?.macd?.signal?.[n - 1]
   const [selectedPresetId, setSelectedPresetId] = useState('1D')
   const [chartType, setChartType] = useState('candlestick')
   const [showSMA, setShowSMA] = useState(false)
@@ -773,6 +768,10 @@ export default function ChartWorkspace({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+  // panBy and zoomVisibleBars are re-created every render, so listing them
+  // would re-subscribe the keydown handler continuously. Every piece of
+  // state they read is already a dependency, so the closure cannot go stale.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPan, canZoom, maxOffset, n, activeVisibleBars, visibleBars, viewOffset])
 
   function handleResetChart() {

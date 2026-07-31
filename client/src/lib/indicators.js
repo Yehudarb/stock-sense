@@ -23,7 +23,7 @@ function pad(arr, totalLen) {
   return [...Array(Math.max(0, fill)).fill(null), ...arr]
 }
 
-function donchian(highs, lows, period, totalLen) {
+function donchian(highs, lows, period, _totalLen) {
   const upper = [], lower = [], middle = []
   for (let i = 0; i < highs.length; i++) {
     if (i < period - 1) { upper.push(null); lower.push(null); middle.push(null); continue }

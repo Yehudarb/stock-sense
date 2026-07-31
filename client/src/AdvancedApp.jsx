@@ -276,6 +276,12 @@ export default function AdvancedApp() {
       cancelled = true
       window.clearInterval(timer)
     }
+  // Field-level dependencies on purpose. This effect starts a 30-second
+  // auto-execute cycle that places paper trades; depending on the whole
+  // snapshot / signal / tradingBot objects would restart it on every render
+  // and could fire repeated trade cycles. The specific values it reacts to
+  // are all listed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentTicker,
     language,

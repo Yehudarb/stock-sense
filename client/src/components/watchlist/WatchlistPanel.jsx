@@ -9,7 +9,7 @@ export default function WatchlistPanel() {
 
   useEffect(() => {
     axios.get('/api/watchlist').then(r => setWatchlist(r.data)).catch(() => {})
-  }, [])
+  }, [setWatchlist])
 
   const removeTicker = async ticker => {
     await axios.delete(`/api/watchlist/${ticker}`)

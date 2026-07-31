@@ -15,9 +15,7 @@ const CONFIDENCE_LABEL = {
   en: { Strong: 'Strong confidence', Medium: 'Medium confidence', Weak: 'Weak confidence' },
 }
 
-export default function SignalBadge({ action, confidence, language = 'he' }) {
-  const isHebrew = language === 'he'
-  const style = SIGNAL_STYLE[action] ?? SIGNAL_STYLE.WAIT
+export default function SignalBadge({ action, confidence, language = 'he' }) {  const style = SIGNAL_STYLE[action] ?? SIGNAL_STYLE.WAIT
   const label = LABEL[language]?.[action] ?? action
   const confidenceLabel = CONFIDENCE_LABEL[language]?.[confidence] ?? confidence
 

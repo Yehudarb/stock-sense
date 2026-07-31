@@ -377,7 +377,11 @@ export default function TradingViewChart({
 
     return () => { chart.remove(); chartRef.current = null; seriesRef.current = {}; priceLinesRef.current = [] }
   // Rebuild when the palette (theme) or the chart type changes.
-  }, [palette.bg, palette.up, palette.down, chartType])
+  // `palette` itself, not three of its eight fields. It is a useMemo on
+  // [theme], so every field changes together and depending on the object is
+  // both correct and complete — listing a subset only worked because bg
+  // happened to change alongside axis, grid, text and the wick colours.
+  }, [palette, chartType])
 
   // ── Primary data ─────────────────────────────────────────────────
   useEffect(() => {

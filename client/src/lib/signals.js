@@ -19,12 +19,6 @@ function buyGradient(value, oversold, overbought) {
 }
 
 // Linear gradient: 1.0 at overbought, 0.0 at oversold (for sell side)
-function sellGradient(value, oversold, overbought) {
-  if (value == null) return null
-  if (value >= overbought) return 1.0
-  if (value <= oversold)   return 0.0
-  return (value - oversold) / (overbought - oversold)
-}
 
 // Sigmoid calibration → probability 0-100
 
@@ -238,9 +232,7 @@ export function computeSignal(ohlcv, indicators, patternInput = 0, multiTimefram
   const stochK   = indicators.stoch.k[last]
   const willR    = indicators.willR[last]
   const bbUpper  = indicators.bb20.upper[last]
-  const bbLower  = indicators.bb20.lower[last]
-  const bbMid    = indicators.bb20.middle[last]
-  const dcUpper  = indicators.donchian.upper[last]
+  const bbLower  = indicators.bb20.lower[last]  const dcUpper  = indicators.donchian.upper[last]
   const dcLower  = indicators.donchian.lower[last]
   const macdLine = indicators.macd.line[last]
   const macdSig  = indicators.macd.signal[last]

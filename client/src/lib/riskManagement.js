@@ -7,9 +7,6 @@ function roundPrice(value) {
   return parseFloat(value.toFixed(2))
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value))
-}
 
 function latestValue(values, index) {
   return values?.[index] ?? null

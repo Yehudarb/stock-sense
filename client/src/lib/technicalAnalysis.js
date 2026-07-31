@@ -81,28 +81,6 @@ function uniqueRounded(values) {
   return [...new Set(values.filter(value => value != null).map(value => normalizePrice(value)))]
 }
 
-function aggregateBarsByMonth(bars) {
-  if (!bars?.length) return []
-  const grouped = new Map()
-
-  bars.forEach(bar => {
-    const date = new Date(bar.t)
-    const key = `${date.getUTCFullYear()}-${date.getUTCMonth()}`
-    const existing = grouped.get(key)
-    if (!existing) {
-      grouped.set(key, { ...bar })
-      return
-    }
-
-    existing.h = Math.max(existing.h, bar.h)
-    existing.l = Math.min(existing.l, bar.l)
-    existing.c = bar.c
-    existing.v = (existing.v ?? 0) + (bar.v ?? 0)
-    existing.t = bar.t
-  })
-
-  return [...grouped.values()]
-}
 
 function trendLabel(score) {
   if (score >= 65) return 'Bullish'
