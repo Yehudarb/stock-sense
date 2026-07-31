@@ -26,6 +26,7 @@ import PositionSizeCalculator from './components/analysis/PositionSizeCalculator
 import PlainVerdictCard from './components/analysis/PlainVerdictCard'
 import StockAnalysisProPanel from './components/analysis/StockAnalysisProPanel'
 import ValidationPanel from './components/analysis/ValidationPanel'
+import MaStructurePanel from './components/analysis/MaStructurePanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
@@ -551,6 +552,12 @@ export default function AdvancedApp() {
                   {activeMainTab === 'intelligence' && (
                     <div className="space-y-6">
                       <PlainVerdictCard decision={signal?.decision} checklist={checklist} language={language} />
+
+                      <MaStructurePanel
+                        indicators={indicators}
+                        price={ohlcv?.[ohlcv.length - 1]?.c}
+                        language={language}
+                      />
 
                       {analysisResult && (
                         <AnalysisResultCard
