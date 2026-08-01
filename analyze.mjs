@@ -23,9 +23,13 @@ import { computeEnsembleConsensus } from './client/src/lib/ensembleConsensus.js'
 import { computeAnalystDecision } from './client/src/lib/analystDecision.js'
 import { computeTechnicalAnalysis } from './client/src/lib/technicalAnalysis.js'
 import { maTrendStructure } from './client/src/lib/maStructure.js'
+import { relativeStrength, rangePosition } from './client/src/lib/relativeStrength.js'
 import { measuredMoveTargets, patternBreakoutLevel, isTrendlinePattern } from './client/src/components/charts/chartHelpers.js'
 
 const API = process.env.STOCKSENSE_API ?? 'https://stock-sense-demo.onrender.com'
+// A stock that falls less than the market is behaving differently from one
+// that merely falls, and price alone cannot show it. SPY unless overridden.
+const BENCHMARK = process.env.STOCKSENSE_BENCHMARK ?? 'SPY'
 const ticker = (process.argv[2] ?? '').toUpperCase()
 const interval = process.argv[3] ?? '1d'
 if (!ticker) {
@@ -53,6 +57,12 @@ try {
   // than failing it.
   const weekly = await get(`/api/market/bars/${ticker}?interval=5y&limit=400`).then(r => r.bars).catch(() => null)
   const monthly = await get(`/api/market/bars/${ticker}?interval=1mo&limit=200`).then(r => r.bars).catch(() => null)
+  // Comparing a symbol to itself is meaningless, so the benchmark is skipped
+  // when they match. A failed benchmark fetch degrades the report by one field
+  // rather than failing it.
+  const benchmarkBars = ticker === BENCHMARK
+    ? null
+    : await get(`/api/market/bars/${BENCHMARK}?interval=${interval}&limit=400`).then(r => r.bars).catch(() => null)
 
   const spot = bars.at(-1).c
   const ind = computeAll(bars)
@@ -136,6 +146,14 @@ try {
     measuredMoveTargets: trigger != null
       ? measuredMoveTargets(bars, trigger, dir).map(t => ({ anchor: t.label, price: round(t.price), basis: t.basis }))
       : [],
+    relativeStrength: benchmarkBars ? (() => {
+      const rs = relativeStrength(bars, benchmarkBars)
+      return rs && { benchmark: BENCHMARK, changePct: round(rs.changePct), stockPct: round(rs.stockPct), benchmarkPct: round(rs.benchmarkPct), outperforming: rs.outperforming, lookbackBars: rs.lookback }
+    })() : null,
+    rangePosition: (() => {
+      const rp = rangePosition(bars)
+      return rp && { pct: round(rp.position * 100, 1), fromHighPct: round(rp.fromHighPct, 1), fromLowPct: round(rp.fromLowPct, 1) }
+    })(),
     gaps: {
       total: pro?.gaps?.gaps?.length ?? 0,
       open: pro?.gaps?.openCount ?? 0,
