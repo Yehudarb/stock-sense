@@ -20,7 +20,7 @@ export default function Layout({ children, isConnected }) {
     <div className="flex min-h-screen flex-col bg-surface md:h-screen" dir={isHebrew ? 'rtl' : 'ltr'} data-theme={theme}>
       <Header isConnected={isConnected} />
       <div className="flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
-        <Sidebar />
+        <Sidebar isConnected={isConnected} />
         <main className="flex-1 overflow-y-auto p-4 md:min-h-0 md:p-6 lg:p-8">
           <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6">
             {children}
