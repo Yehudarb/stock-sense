@@ -1,10 +1,40 @@
 import { useState } from 'react'
 import useStore from '../../store/useStore'
 
+const STORAGE_KEY = 'stocksense.disclaimerDismissed'
+
+// localStorage throws rather than returning null in private mode and in some
+// embedded webviews, so both sides are guarded. Failing to remember is fine --
+// the banner simply shows again -- but throwing would take the page down.
+function readDismissed() {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function persistDismissed() {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, '1')
+  } catch {
+    /* not remembering the dismissal is the acceptable failure here */
+  }
+}
+
 export default function DisclaimerBanner() {
-  const [dismissed, setDismissed] = useState(false)
+  // Dismissal used to reset on every reload, so the button did nothing that
+  // outlasted the session and the banner re-took the top of the page each
+  // visit. The disclosure itself is unaffected: LegalFooter carries the same
+  // notice on every page and cannot be dismissed.
+  const [dismissed, setDismissed] = useState(readDismissed)
   const { language } = useStore()
   const isHebrew = language === 'he'
+
+  function handleDismiss() {
+    setDismissed(true)
+    persistDismissed()
+  }
 
   if (dismissed) return null
 
@@ -19,7 +49,7 @@ export default function DisclaimerBanner() {
         </div>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
           className="shrink-0 text-amber-400 transition-colors hover:text-amber-200"
           aria-label={isHebrew ? 'סגירה' : 'Dismiss'}
         >

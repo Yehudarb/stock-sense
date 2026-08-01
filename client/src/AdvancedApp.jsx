@@ -532,6 +532,12 @@ export default function AdvancedApp() {
                   ].map(tab => (
                     <button
                       key={tab.id}
+                      type="button"
+                      // Selection was communicated by background colour alone,
+                      // which a screen reader cannot see. aria-pressed is the
+                      // complete pattern for a button group; role="tab" would
+                      // need aria-controls that these detached panels lack.
+                      aria-pressed={activeMainTab === tab.id}
                       onClick={() => setActiveMainTab(tab.id)}
                       className={`px-8 py-2.5 text-xs font-bold rounded-xl transition-all ${
                         activeMainTab === tab.id
@@ -711,6 +717,8 @@ export default function AdvancedApp() {
                 ].map(tab => (
                   <button
                     key={tab.id}
+                    type="button"
+                    aria-pressed={activeMainTab === tab.id}
                     onClick={() => setActiveMainTab(tab.id)}
                     className={`flex-1 rounded-full py-2 text-xs font-bold transition-all ${
                       activeMainTab === tab.id ? 'bg-primary text-slate-950' : 'text-slate-400'
