@@ -343,7 +343,6 @@ export default function AdvancedApp() {
     tabs: {
       chart: isHebrew ? 'גרף' : 'Chart',
       intelligence: isHebrew ? 'סיכום' : 'Summary',
-      extended: isHebrew ? 'פירוט' : 'Details',
     }
   }
 
@@ -529,7 +528,6 @@ export default function AdvancedApp() {
                     { id: 'intelligence', label: copy.tabs.intelligence },
                     { id: 'pro', label: copy.tabs.pro },
                     { id: 'validation', label: copy.tabs.validation },
-                    { id: 'extended', label: copy.tabs.extended },
                     { id: 'paper', label: copy.tabs.paper },
                   ].map(tab => (
                     <button
@@ -619,6 +617,22 @@ export default function AdvancedApp() {
                         isLoading={isTechnicalAnalysisLoading}
                         error={technicalAnalysisError}
                       />
+
+                      {/* Moved here from the old "details" tab: the same
+                          question, read the analysis, was split across two
+                          tabs with no rule for which held what. */}
+                      <FinnhubPanel ticker={currentTicker} language={language} />
+                      <AnalysisSidebar 
+                        forecast={forecast}
+                        marketContext={marketContext}
+                        earnings={earnings}
+                        trends={signal?.trends}
+                        signal={signal}
+                        isLoadingForecast={isMultiTimeframeLoading}
+                        isLoadingMarket={isMarketContextLoading}
+                        isLoadingEarnings={isEarningsLoading}
+                        language={language}
+                      />
                     </div>
                   )}
 
@@ -644,28 +658,6 @@ export default function AdvancedApp() {
                         />
                       </div>
                     </Suspense>
-                  )}
-
-                  {activeMainTab === 'extended' && (
-                    <div className="max-w-4xl mx-auto space-y-4">
-                      <div className="rounded-2xl border border-white/6 bg-slate-950/35 px-4 py-3 text-sm text-slate-300">
-                        {isHebrew
-                          ? 'רק המידע המשלים שנחוץ כדי להבין את התמונה: סיגנל, הקשר שוק, ואירועים קרובים.'
-                          : 'Only the supporting context that helps explain the setup: signal, market context, and upcoming events.'}
-                      </div>
-                      <FinnhubPanel ticker={currentTicker} language={language} />
-                      <AnalysisSidebar 
-                        forecast={forecast}
-                        marketContext={marketContext}
-                        earnings={earnings}
-                        trends={signal?.trends}
-                        signal={signal}
-                        isLoadingForecast={isMultiTimeframeLoading}
-                        isLoadingMarket={isMarketContextLoading}
-                        isLoadingEarnings={isEarningsLoading}
-                        language={language}
-                      />
-                    </div>
                   )}
 
                   {activeMainTab === 'paper' && (
@@ -715,7 +707,6 @@ export default function AdvancedApp() {
                   { id: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
                   { id: 'intelligence', label: isHebrew ? 'סיכום' : 'Summary' },
                   { id: 'pro', label: isHebrew ? 'מקצועי' : 'Pro' },
-                  { id: 'extended', label: isHebrew ? 'פירוט' : 'Details' },
                   { id: 'paper', label: isHebrew ? 'דמו' : 'Paper' },
                 ].map(tab => (
                   <button

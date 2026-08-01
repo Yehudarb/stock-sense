@@ -117,6 +117,17 @@ function SafeChart({ isLoading, resetKey, children }) {
   )
 }
 
+// Denser than the panel buttons: this row sits directly above the chart and
+// its height is the thing being reclaimed. Disabled state matters here —
+// the navigate buttons switch off at the edges of the data.
+function compactPresetClass(active) {
+  return `rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-700 ${
+    active
+      ? 'border-emerald-400 bg-emerald-500/90 text-white'
+      : 'border-slate-700 text-slate-300 hover:border-emerald-400/70 hover:text-white'
+  }`
+}
+
 function controlClass(active) {
   return `rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
     active
@@ -361,35 +372,34 @@ function PresetControls({
         </div>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[1fr_auto_auto]">
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{presetCopy.range}</div>
-          <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
-            {PRIMARY_PRESETS.map(preset => (
-              <button key={preset.id} type="button" title={`${presetCopy.range}: ${preset.label}`} className={controlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
-                {preset.label}
-              </button>
-            ))}
-          </div>
+      {/* One card instead of three. Range, candle size and navigation each
+          had its own border, padding and uppercase heading, which together
+          took more vertical space than the fourteen buttons inside them.
+          Every option is still here and still grouped; the headings are now
+          inline labels. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="me-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{presetCopy.range}</span>
+          {PRIMARY_PRESETS.map(preset => (
+            <button key={preset.id} type="button" title={`${presetCopy.range}: ${preset.label}`} className={compactPresetClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
+              {preset.label}
+            </button>
+          ))}
         </div>
 
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{presetCopy.candleSize}</div>
-          <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
-            {INTRADAY_PRESETS.map(preset => (
-              <button key={preset.id} type="button" title={`${presetCopy.candleSize}: ${preset.label}`} className={quietControlClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
-                {preset.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="me-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{presetCopy.candleSize}</span>
+          {INTRADAY_PRESETS.map(preset => (
+            <button key={preset.id} type="button" title={`${presetCopy.candleSize}: ${preset.label}`} className={compactPresetClass(selectedPresetId === preset.id)} onClick={() => handleSelectPreset(preset)}>
+              {preset.label}
+            </button>
+          ))}
         </div>
 
-        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{presetCopy.navigate}</div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={quietControlClass(false)} onClick={() => panBy(20)} disabled={!canPan}>{chartCopy.older}</button>
-            <button type="button" className={quietControlClass(false)} onClick={() => panBy(-20)} disabled={viewOffset === 0}>{chartCopy.newer}</button>
-          </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="me-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{presetCopy.navigate}</span>
+          <button type="button" className={compactPresetClass(false)} onClick={() => panBy(20)} disabled={!canPan}>{chartCopy.older}</button>
+          <button type="button" className={compactPresetClass(false)} onClick={() => panBy(-20)} disabled={viewOffset === 0}>{chartCopy.newer}</button>
         </div>
       </div>
 
