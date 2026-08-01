@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import useStore from '../../store/useStore'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
@@ -7,8 +7,11 @@ import { OVERLAY_COLORS } from './chartHelpers'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
-import PriceChart from './PriceChart'
-import TradingViewChart from './TradingViewChart'
+// Only one engine renders at a time, but both were bundled for every visit:
+// chart.js behind PriceChart and lightweight-charts behind TradingViewChart.
+// Splitting them means a visitor downloads the one they actually see.
+const PriceChart = lazy(() => import('./PriceChart'))
+const TradingViewChart = lazy(() => import('./TradingViewChart'))
 import RsiChart from './RsiChart'
 import VolumeChart from './VolumeChart'
 
@@ -94,7 +97,24 @@ function SafeChart({ isLoading, resetKey, children }) {
     )
   }
 
-  return <ChartErrorBoundary resetKey={resetKey}>{children}</ChartErrorBoundary>
+  // The chart engines are lazy, so a Suspense boundary is required here or the
+  // first render throws. Reusing the same placeholder the loading branch shows
+  // keeps the swap invisible — a chunk fetch and a data fetch look the same to
+  // the person waiting. The error boundary stays outermost so a failed chunk
+  // load is caught rather than blanking the page.
+  return (
+    <ChartErrorBoundary resetKey={resetKey}>
+      <Suspense
+        fallback={(
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            Loading chart...
+          </div>
+        )}
+      >
+        {children}
+      </Suspense>
+    </ChartErrorBoundary>
+  )
 }
 
 function controlClass(active) {

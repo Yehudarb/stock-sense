@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import useStore from './store/useStore'
 import useTicker from './hooks/useTicker'
@@ -16,7 +16,7 @@ import MarketTradeAlert from './components/analysis/MarketTradeAlert'
 import SignalPanel from './components/analysis/SignalPanel'
 import AdvancedTrendsPanel from './components/analysis/AdvancedTrendsPanel'
 import AnalysisResultCard from './components/analysis/AnalysisResultCard'
-import PaperTradingPanel from './components/analysis/PaperTradingPanel'
+const PaperTradingPanel = lazy(() => import('./components/analysis/PaperTradingPanel'))
 import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
 import AnalysisSidebar from './components/analysis/AnalysisSidebar'
 import FinnhubPanel from './components/analysis/FinnhubPanel'
@@ -24,8 +24,10 @@ import TradingStopsPanel from './components/analysis/TradingStopsPanel'
 import TradeChecklistPanel from './components/analysis/TradeChecklistPanel'
 import PositionSizeCalculator from './components/analysis/PositionSizeCalculator'
 import PlainVerdictCard from './components/analysis/PlainVerdictCard'
-import StockAnalysisProPanel from './components/analysis/StockAnalysisProPanel'
-import ValidationPanel from './components/analysis/ValidationPanel'
+// These render only inside their own tab, so their cost belongs to the click
+// that opens it rather than to every first paint.
+const StockAnalysisProPanel = lazy(() => import('./components/analysis/StockAnalysisProPanel'))
+const ValidationPanel = lazy(() => import('./components/analysis/ValidationPanel'))
 import MaStructurePanel from './components/analysis/MaStructurePanel'
 import HeroSection from './components/marketing/HeroSection'
 import TrustSection from './components/marketing/TrustSection'
@@ -92,6 +94,14 @@ function ExampleSection({ onAnalyzeTicker }) {
         ))}
       </div>
     </section>
+  )
+}
+
+function PanelFallback() {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-slate-950/40 px-4 py-10 text-center text-sm text-slate-400">
+      טוען…
+    </div>
   )
 }
 
@@ -613,23 +623,27 @@ export default function AdvancedApp() {
                   )}
 
                   {activeMainTab === 'pro' && (
-                    <div className="max-w-4xl mx-auto">
-                      <StockAnalysisProPanel
-                        report={proReport}
-                        isLoading={overallLoading || isProContextLoading}
-                        language={language}
-                      />
-                    </div>
+                    <Suspense fallback={<PanelFallback />}>
+                      <div className="max-w-4xl mx-auto">
+                        <StockAnalysisProPanel
+                          report={proReport}
+                          isLoading={overallLoading || isProContextLoading}
+                          language={language}
+                        />
+                      </div>
+                    </Suspense>
                   )}
 
                   {activeMainTab === 'validation' && (
-                    <div className="max-w-4xl mx-auto">
-                      <ValidationPanel
-                        ohlcv={ohlcv}
-                        ticker={currentTicker}
-                        language={language}
-                      />
-                    </div>
+                    <Suspense fallback={<PanelFallback />}>
+                      <div className="max-w-4xl mx-auto">
+                        <ValidationPanel
+                          ohlcv={ohlcv}
+                          ticker={currentTicker}
+                          language={language}
+                        />
+                      </div>
+                    </Suspense>
                   )}
 
                   {activeMainTab === 'extended' && (
@@ -655,29 +669,31 @@ export default function AdvancedApp() {
                   )}
 
                   {activeMainTab === 'paper' && (
-                    <div className="space-y-6">
-                      <PaperTradingPanel
-                        currentTicker={currentTicker}
-                        snapshot={snapshot}
-                        decision={signal?.decision}
-                        language={language}
-                        account={paperTrading.account}
-                        isLoading={paperTrading.isLoading}
-                        isSaving={paperTrading.isSaving}
-                        error={paperTrading.error}
-                        tradingBot={tradingBot.bot}
-                        tradingBotLoading={tradingBot.isLoading}
-                        tradingBotSaving={tradingBot.isSaving}
-                        tradingBotError={tradingBot.error}
-                        onCreateOrder={paperTrading.createOrder}
-                        onCancelOrder={paperTrading.cancelOrder}
-                        onClosePosition={paperTrading.closePosition}
-                        onResetAccount={paperTrading.resetAccount}
-                        onUpdateSettings={paperTrading.updateSettings}
-                        onUpdateBotSettings={tradingBot.updateSettings}
-                        onRecordBotEvent={tradingBot.recordEvent}
-                      />
-                    </div>
+                    <Suspense fallback={<PanelFallback />}>
+                      <div className="space-y-6">
+                        <PaperTradingPanel
+                          currentTicker={currentTicker}
+                          snapshot={snapshot}
+                          decision={signal?.decision}
+                          language={language}
+                          account={paperTrading.account}
+                          isLoading={paperTrading.isLoading}
+                          isSaving={paperTrading.isSaving}
+                          error={paperTrading.error}
+                          tradingBot={tradingBot.bot}
+                          tradingBotLoading={tradingBot.isLoading}
+                          tradingBotSaving={tradingBot.isSaving}
+                          tradingBotError={tradingBot.error}
+                          onCreateOrder={paperTrading.createOrder}
+                          onCancelOrder={paperTrading.cancelOrder}
+                          onClosePosition={paperTrading.closePosition}
+                          onResetAccount={paperTrading.resetAccount}
+                          onUpdateSettings={paperTrading.updateSettings}
+                          onUpdateBotSettings={tradingBot.updateSettings}
+                          onRecordBotEvent={tradingBot.recordEvent}
+                        />
+                      </div>
+                    </Suspense>
                   )}
                 </div>
               </div>
