@@ -518,7 +518,7 @@ export default function ChartWorkspace({
   const proChart = useStore(s => s.proChart)
   const n = ohlcv.length  const rsiLast = indicators?.rsi14?.[n - 1]
   const macdLine = indicators?.macd?.line?.[n - 1]
-  const macdSignal = indicators?.macd?.signal?.[n - 1]
+  const macdSignal = indicators?.macd?.signal?.[n - 1]
   const [selectedPresetId, setSelectedPresetId] = useState('1D')
   const [chartType, setChartType] = useState('candlestick')
   const [showSMA, setShowSMA] = useState(false)
@@ -555,6 +555,9 @@ export default function ChartWorkspace({
   // Entry / target / stop for actionable patterns. On by default: a detected
   // setup without its levels is a shape you cannot trade.
   const [showTargets, setShowTargets] = useState(true)
+  // The full tool panel starts closed; the strip on the chart is the default
+  // surface. Opening it is a deliberate act, not the price of seeing a chart.
+  const [controlsOpen, setControlsOpen] = useState(false)
   const [showFibonacci, setShowFibonacci] = useState(false)
   const [showFibExtension, setShowFibExtension] = useState(false)
   const [showGaps, setShowGaps] = useState(false)
@@ -1089,6 +1092,8 @@ export default function ChartWorkspace({
         collapse: 'צמצם',
         expand: 'הרחב',
         resetChart: 'איפוס גרף',
+        showAllTools: 'כל הכלים והאינדיקטורים',
+        hideAllTools: 'הסתר כלים',
         clearDrawings: 'נקה סימונים',
         zoomIn: 'הגדל',
         zoomOut: 'הקטן',
@@ -1144,6 +1149,8 @@ export default function ChartWorkspace({
         collapse: 'Collapse',
         expand: 'Expand',
         resetChart: 'Reset chart',
+        showAllTools: 'All tools and indicators',
+        hideAllTools: 'Hide tools',
         clearDrawings: 'Clear drawings',
         zoomIn: 'Zoom in',
         zoomOut: 'Zoom out',
@@ -1174,8 +1181,22 @@ export default function ChartWorkspace({
 
       <div className="grid gap-4">
 
+        {/* Collapsed by default. Roughly 35 toggles sat between the page top
+            and the first candle, so the chart opened below the fold and every
+            change meant scrolling up to click and back down to look. The strip
+            attached to the chart covers the overlays used day to day; this
+            panel is the full set, which is an occasional need. */}
         <div className="hidden lg:block">
-          <div className="grid gap-4">
+          <button
+            type="button"
+            onClick={() => setControlsOpen(open => !open)}
+            aria-expanded={controlsOpen}
+            className="mb-3 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:border-emerald-400/40 hover:text-white"
+          >
+            <span>{controlsOpen ? chartCopy.hideAllTools : chartCopy.showAllTools}</span>
+            <span aria-hidden="true" className="text-xs text-slate-500">{controlsOpen ? '▲' : '▼'}</span>
+          </button>
+          <div className={`grid gap-4 ${controlsOpen ? '' : 'hidden'}`}>
             <ChartControls
               chartType={chartType}
               setChartType={setChartType}
