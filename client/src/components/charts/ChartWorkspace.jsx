@@ -159,7 +159,7 @@ function chipClass(active) {
 // carries everything; this is the subset you flip while watching the chart.
 function ChartQuickTools({ items }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="chart-quick-tools flex flex-wrap items-center gap-1.5">
       {items.map(item => (
         <button
           key={item.key}
@@ -546,6 +546,9 @@ export default function ChartWorkspace({
   // render does not re-render this component when the header toggles Pro mode,
   // so the button would flip while the chart below it stayed on the old engine.
   const proChart = useStore(s => s.proChart)
+  const viewMode = useStore(s => s.viewMode)
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false)
+  const isMobileLayout = viewMode === 'mobile' || (viewMode === 'auto' && isNarrowViewport)
   const n = ohlcv.length  const rsiLast = indicators?.rsi14?.[n - 1]
   const macdLine = indicators?.macd?.line?.[n - 1]
   const macdSignal = indicators?.macd?.signal?.[n - 1]
@@ -603,6 +606,23 @@ export default function ChartWorkspace({
   const [priceOffsetPct, setPriceOffsetPct] = useState(0)
   const [layoutHydrated, setLayoutHydrated] = useState(false)
   const [resizeState, setResizeState] = useState(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const updateViewport = () => setIsNarrowViewport(window.innerWidth < 768)
+    updateViewport()
+    window.addEventListener('resize', updateViewport)
+    return () => window.removeEventListener('resize', updateViewport)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobileLayout) return
+    setControlsOpen(false)
+    setChartExpanded(false)
+    setShowDetails(false)
+    setPricePanelHeightPx(null)
+    setVisibleBars(current => Math.min(current ?? DEFAULT_VISIBLE_BARS[interval] ?? n, 110))
+  }, [interval, isMobileLayout, n])
 
   const allPresets = useMemo(() => [...PRIMARY_PRESETS, ...INTRADAY_PRESETS], [])
   const activePreset = allPresets.find(item => item.id === selectedPresetId) ?? PRIMARY_PRESETS[0]
@@ -1200,7 +1220,9 @@ export default function ChartWorkspace({
         risk: 'Risk',
       }
 
-  const resolvedPriceChartHeight = pricePanelHeightPx ?? getBaseChartHeight(chartExpanded)
+  const resolvedPriceChartHeight = isMobileLayout
+    ? 360
+    : (pricePanelHeightPx ?? getBaseChartHeight(chartExpanded))
   const resizeHint = language === 'he'
     ? 'גרור בתוך הגרף להזזה, גלגלת לזום, צד ימין לסקאלת מחיר ותחתית לצפיפות נרות'
     : 'Drag inside to pan, wheel to zoom, right rail for price scale, bottom rail for candle density'
@@ -1278,7 +1300,7 @@ export default function ChartWorkspace({
           title={chartCopy.priceChart}
           subtitle={chartCopy.priceChartSubtitle}
           height="h-auto"
-          className="transition-[width] duration-150"
+          className={`chart-workspace__price transition-[width] duration-150 ${isMobileLayout ? 'chart-workspace__price--mobile' : ''}`}
           bodyClassName="relative"
           bodyStyle={{ height: `${resolvedPriceChartHeight}px` }}
           onWheel={handlePriceChartWheel}

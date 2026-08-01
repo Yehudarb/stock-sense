@@ -5,7 +5,7 @@ import useStore from '../../store/useStore'
 import LegalFooter from '../legal/LegalFooter'
 
 export default function Layout({ children, isConnected }) {
-  const { language, theme } = useStore()
+  const { language, theme, viewMode } = useStore()
   const isHebrew = language === 'he'
 
   useEffect(() => {
@@ -17,7 +17,12 @@ export default function Layout({ children, isConnected }) {
   }, [theme])
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface md:h-screen" dir={isHebrew ? 'rtl' : 'ltr'} data-theme={theme}>
+    <div
+      className={`app-shell flex min-h-screen flex-col bg-surface md:h-screen ${viewMode === 'mobile' ? 'app-shell--mobile-preview' : ''}`}
+      dir={isHebrew ? 'rtl' : 'ltr'}
+      data-theme={theme}
+      data-view-mode={viewMode}
+    >
       <Header isConnected={isConnected} />
       <div className="flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
         <Sidebar isConnected={isConnected} />

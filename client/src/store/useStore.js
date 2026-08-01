@@ -4,6 +4,7 @@ const useStore = create((set) => ({
   currentTicker: localStorage.getItem('lastTicker') ?? 'AAPL',
   language: localStorage.getItem('dashboardLanguage') ?? 'he',
   theme: localStorage.getItem('dashboardTheme') ?? 'dark',
+  viewMode: localStorage.getItem('dashboardViewMode') ?? 'auto',
   interval: '5m',
   ohlcv: [],
   snapshot: null,
@@ -53,6 +54,11 @@ const useStore = create((set) => ({
   setTheme: (theme) => {
     localStorage.setItem('dashboardTheme', theme)
     set({ theme })
+  },
+  setViewMode: (viewMode) => {
+    const nextMode = ['auto', 'desktop', 'mobile'].includes(viewMode) ? viewMode : 'auto'
+    localStorage.setItem('dashboardViewMode', nextMode)
+    set({ viewMode: nextMode })
   },
   setInterval: (interval) => set(state => ({
     interval,

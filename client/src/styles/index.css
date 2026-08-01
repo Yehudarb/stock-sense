@@ -366,3 +366,50 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
     display: none;
   }
 }
+
+/* Explicit mobile preview. Auto mode remains controlled by the viewport. */
+.app-shell--mobile-preview {
+  width: min(100%, 460px);
+  min-height: 100vh;
+  margin-inline: auto;
+  overflow-x: hidden;
+  border-inline: 1px solid var(--panel-border);
+  box-shadow: 0 0 40px rgba(2, 6, 23, 0.35);
+}
+
+.app-shell--mobile-preview > div {
+  flex-direction: column !important;
+}
+
+.app-shell--mobile-preview aside {
+  display: none;
+}
+
+.app-shell--mobile-preview main {
+  min-width: 0;
+  padding: 0.75rem;
+  overflow-x: hidden;
+}
+
+.app-shell--mobile-preview main > div {
+  gap: 1rem;
+}
+
+.app-shell--mobile-preview .chart-workspace__price {
+  min-width: 0;
+}
+
+.app-shell--mobile-preview .chart-quick-tools {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-shell--mobile-preview .chart-quick-tools::-webkit-scrollbar {
+  display: none;
+}
+
+.app-shell--mobile-preview .chart-quick-tools button:nth-child(n + 5) {
+  display: none;
+}

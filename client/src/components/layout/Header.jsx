@@ -49,6 +49,8 @@ export default function Header({ isConnected }) {
     setIntervalRefreshing,
     theme,
     setTheme,
+    viewMode,
+    setViewMode,
     simpleMode,
     setSimpleMode,
     setShowScanner,
@@ -70,6 +72,10 @@ export default function Header({ isConnected }) {
     refreshHint: isHebrew ? 'מחשב מחדש ניתוח לטווח החדש' : 'Recalculating analysis for the new timeframe',
     simpleModeOn: isHebrew ? 'מצב מתקדם' : 'Advanced mode',
     simpleModeOff: isHebrew ? 'מצב פשוט (TSLL)' : 'Simple mode (TSLL)',
+    display: isHebrew ? 'תצוגה' : 'Display',
+    auto: isHebrew ? 'אוטומטי' : 'Auto',
+    desktop: isHebrew ? 'מחשב' : 'Desktop',
+    mobile: isHebrew ? 'פלאפון' : 'Mobile',
   }
 
   const changeColor = snapshot?.change >= 0 ? 'text-green-400' : 'text-red-400'
@@ -182,6 +188,20 @@ export default function Header({ isConnected }) {
                 ? (isHebrew ? 'גרף Pro' : 'Pro chart')
                 : (isHebrew ? 'גרף קלאסי' : 'Classic chart')}
             </button>
+
+            <label className="flex items-center gap-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2 py-1 text-xs font-bold text-slate-300">
+              <span className="hidden sm:inline">{copy.display}</span>
+              <select
+                value={viewMode}
+                onChange={event => setViewMode(event.target.value)}
+                aria-label={copy.display}
+                className="cursor-pointer bg-transparent text-xs font-bold text-cyan-200 outline-none"
+              >
+                <option value="auto" className="bg-slate-900">{copy.auto}</option>
+                <option value="desktop" className="bg-slate-900">{copy.desktop}</option>
+                <option value="mobile" className="bg-slate-900">{copy.mobile}</option>
+              </select>
+            </label>
 
             <div className="relative" ref={dropdownRef}>
               <button
