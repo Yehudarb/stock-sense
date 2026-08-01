@@ -61,6 +61,18 @@ const PATTERN_DEFS = {
   DARK_CLOUD_COVER: { label: 'Dark Cloud Cover', category: 'Candlestick', weight: -54, direction: 'bearish', targetFactor: 0.35 },
   INSIDE_BAR: { label: 'Inside Bar', category: 'Candlestick', weight: 0, direction: 'neutral', targetFactor: 0.25 },
   OUTSIDE_BAR: { label: 'Outside Bar', category: 'Candlestick', weight: 0, direction: 'neutral', targetFactor: 0.25 },
+  SPINNING_TOP: { label: 'Spinning Top', category: 'Candlestick', weight: 0, direction: 'neutral', targetFactor: 0.2 },
+  BULLISH_MARUBOZU: { label: 'Bullish Marubozu', category: 'Candlestick', weight: 58, direction: 'bullish', targetFactor: 0.35 },
+  BEARISH_MARUBOZU: { label: 'Bearish Marubozu', category: 'Candlestick', weight: -58, direction: 'bearish', targetFactor: 0.35 },
+  HANGING_MAN: { label: 'Hanging Man', category: 'Candlestick', weight: -42, direction: 'bearish', targetFactor: 0.25 },
+  BULLISH_HARAMI: { label: 'Bullish Harami', category: 'Candlestick', weight: 42, direction: 'bullish', targetFactor: 0.3 },
+  BEARISH_HARAMI: { label: 'Bearish Harami', category: 'Candlestick', weight: -42, direction: 'bearish', targetFactor: 0.3 },
+  TWEEZER_BOTTOM: { label: 'Tweezer Bottom', category: 'Candlestick', weight: 46, direction: 'bullish', targetFactor: 0.3 },
+  TWEEZER_TOP: { label: 'Tweezer Top', category: 'Candlestick', weight: -46, direction: 'bearish', targetFactor: 0.3 },
+  THREE_INSIDE_UP: { label: 'Three Inside Up', category: 'Candlestick', weight: 55, direction: 'bullish', targetFactor: 0.35 },
+  THREE_INSIDE_DOWN: { label: 'Three Inside Down', category: 'Candlestick', weight: -55, direction: 'bearish', targetFactor: 0.35 },
+  THREE_OUTSIDE_UP: { label: 'Three Outside Up', category: 'Candlestick', weight: 62, direction: 'bullish', targetFactor: 0.4 },
+  THREE_OUTSIDE_DOWN: { label: 'Three Outside Down', category: 'Candlestick', weight: -62, direction: 'bearish', targetFactor: 0.4 },
 }
 
 function pctChange(from, to) {
@@ -631,8 +643,18 @@ function detectCandlesticks(found, ohlcv) {
   if (c.lower >= c.body * 2.2 && c.upper <= c.body * 0.9 && c.body / c.range < 0.42) addPattern(found, 'HAMMER', ohlcv, 1, 'confirmed', visual)
   if (c.upper >= c.body * 2.2 && c.lower <= c.body * 0.9 && c.body / c.range < 0.42 && c.bullish) addPattern(found, 'INVERTED_HAMMER', ohlcv, 1, 'confirmed', visual)
   if (c.upper >= c.body * 2.2 && c.lower <= c.body * 0.9 && c.body / c.range < 0.42 && c.bearish) addPattern(found, 'SHOOTING_STAR', ohlcv, 1, 'confirmed', visual)
+  if (c.body / c.range <= 0.3 && c.upper > c.body && c.lower > c.body) addPattern(found, 'SPINNING_TOP', ohlcv, 1, 'confirmed', visual)
+  if (c.body / c.range >= 0.85 && c.bullish && c.upper <= c.range * 0.08 && c.lower <= c.range * 0.08) addPattern(found, 'BULLISH_MARUBOZU', ohlcv, 1, 'confirmed', visual)
+  if (c.body / c.range >= 0.85 && c.bearish && c.upper <= c.range * 0.08 && c.lower <= c.range * 0.08) addPattern(found, 'BEARISH_MARUBOZU', ohlcv, 1, 'confirmed', visual)
+  const recentBars = ohlcv.slice(-5, -1)
+  const priorUp = recentBars.length >= 3 && recentBars.every((bar, index, bars) => index === 0 || bar.c >= bars[index - 1].c)
+  if (priorUp && c.lower >= c.body * 2.2 && c.upper <= c.body * 0.9 && c.body / c.range < 0.42) addPattern(found, 'HANGING_MAN', ohlcv, 1, 'confirmed', visual)
   if (p.bearish && c.bullish && last.o <= prev.c && last.c >= prev.o) addPattern(found, 'BULLISH_ENGULFING', ohlcv, 1, 'confirmed', visual)
   if (p.bullish && c.bearish && last.o >= prev.c && last.c <= prev.o) addPattern(found, 'BEARISH_ENGULFING', ohlcv, 1, 'confirmed', visual)
+  if (p.bearish && c.bullish && last.o >= prev.c && last.c <= prev.o) addPattern(found, 'BULLISH_HARAMI', ohlcv, 1, 'confirmed', visual)
+  if (p.bullish && c.bearish && last.o <= prev.c && last.c >= prev.o) addPattern(found, 'BEARISH_HARAMI', ohlcv, 1, 'confirmed', visual)
+  if (Math.abs(last.l - prev.l) / Math.max(prev.l, 0.01) <= 0.002 && p.bearish && c.bullish) addPattern(found, 'TWEEZER_BOTTOM', ohlcv, 1, 'confirmed', visual)
+  if (Math.abs(last.h - prev.h) / Math.max(prev.h, 0.01) <= 0.002 && p.bullish && c.bearish) addPattern(found, 'TWEEZER_TOP', ohlcv, 1, 'confirmed', visual)
   if (p.bearish && c.bullish && last.o < prev.l && last.c > prev.o - p.body * 0.5) addPattern(found, 'PIERCING_PATTERN', ohlcv, 1, 'confirmed', visual)
   if (p.bullish && c.bearish && last.o > prev.h && last.c < prev.o + p.body * 0.5) addPattern(found, 'DARK_CLOUD_COVER', ohlcv, 1, 'confirmed', visual)
   if (last.h < prev.h && last.l > prev.l) addPattern(found, 'INSIDE_BAR', ohlcv, 1, 'developing', visual)
@@ -642,6 +664,10 @@ function detectCandlesticks(found, ohlcv) {
     const t = candle(third)
     if (t.bearish && Math.abs(prev.c - prev.o) / Math.max(prev.h - prev.l, 0.0001) < 0.35 && c.bullish && last.c > (third.o + third.c) / 2) addPattern(found, 'MORNING_STAR', ohlcv, 1, 'confirmed', visual)
     if (t.bullish && Math.abs(prev.c - prev.o) / Math.max(prev.h - prev.l, 0.0001) < 0.35 && c.bearish && last.c < (third.o + third.c) / 2) addPattern(found, 'EVENING_STAR', ohlcv, 1, 'confirmed', visual)
+    if (t.bearish && p.bullish && c.bullish && prev.o > third.o && prev.c < third.o && last.c > third.o) addPattern(found, 'THREE_INSIDE_UP', ohlcv, 1, 'confirmed', visual)
+    if (t.bullish && p.bearish && c.bearish && prev.o < third.o && prev.c > third.o && last.c < third.o) addPattern(found, 'THREE_INSIDE_DOWN', ohlcv, 1, 'confirmed', visual)
+    if (t.bearish && p.bullish && c.bullish && prev.o <= third.c && prev.c >= third.o && last.c > prev.c) addPattern(found, 'THREE_OUTSIDE_UP', ohlcv, 1, 'confirmed', visual)
+    if (t.bullish && p.bearish && c.bearish && prev.o >= third.c && prev.c <= third.o && last.c < prev.c) addPattern(found, 'THREE_OUTSIDE_DOWN', ohlcv, 1, 'confirmed', visual)
   }
 
   const last3 = ohlcv.slice(-3)

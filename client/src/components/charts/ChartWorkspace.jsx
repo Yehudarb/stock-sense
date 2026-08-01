@@ -804,7 +804,6 @@ export default function ChartWorkspace({
   // panBy and zoomVisibleBars are re-created every render, so listing them
   // would re-subscribe the keydown handler continuously. Every piece of
   // state they read is already a dependency, so the closure cannot go stale.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPan, canZoom, maxOffset, n, activeVisibleBars, visibleBars, viewOffset])
 
   function handleResetChart() {

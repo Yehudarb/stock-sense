@@ -373,7 +373,6 @@ export default function PaperTradingPanel({
   // Field-level on purpose: depending on the whole snapshot and decision
   // objects would reset the order form on every render and wipe values the
   // user has typed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTicker, snapshot?.price, decision?.currentPrice, decision?.invalidation, decision?.stopLoss, decision?.takeProfit, decision?.holdUntil, decision?.downsidePct, decision?.upsidePct])
 
   useEffect(() => {

@@ -142,7 +142,10 @@ function deriveSupportResistance(ohlcv, indicators) {
     latest(indicators.sma20, ohlcv.length - 1),
     latest(indicators.sma50, ohlcv.length - 1),
     latest(indicators.sma100, ohlcv.length - 1),
+    latest(indicators.sma150, ohlcv.length - 1),
     latest(indicators.sma200, ohlcv.length - 1),
+    latest(indicators.ema9, ohlcv.length - 1),
+    latest(indicators.ema10, ohlcv.length - 1),
     latest(indicators.ema20, ohlcv.length - 1),
     latest(indicators.ema50, ohlcv.length - 1),
     latest(indicators.ema200, ohlcv.length - 1),
@@ -764,9 +767,6 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     95,
   ))
 
-  const rsi14 = latest(dailyIndicators.rsi14, primaryIndex)
-  const macdSignal = latest(dailyIndicators.macd.line, primaryIndex) > latest(dailyIndicators.macd.signal, primaryIndex) ? 'Bullish' : 'Bearish'
-  const priceVsSma200 = dailyBars.at(-1)?.c > latest(dailyIndicators.sma200, primaryIndex) ? 'Above' : 'Below'
   const keySupport = aggregateLevels(analyzedFrames, 'support')
   const keyResistance = aggregateLevels(analyzedFrames, 'resistance')
   const nearestResistance = keyResistance[0]
@@ -777,10 +777,6 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     patternInvalidation: patterns[0]?.invalidationLevel ?? patterns[0]?.invalidatedBelow ?? patterns[0]?.invalidatedAbove ?? null,
     vwap: latest(dailyIndicators.vwap, primaryIndex),
   })
-
-  // Must stay below `risk` — reading it earlier hits the const's temporal dead zone
-  // and throws ReferenceError for the whole analysis. `technicalScore` does not
-  // depend on this value, so computing it here changes no output.
   const riskRewardScore = Math.round(clamp(
     risk?.rrRatio != null
       ? 45 + risk.rrRatio * 18 - (dailyLevels.resistance[0] && dailyBars.at(-1)?.c > dailyLevels.resistance[0] * 0.985 ? 6 : 0)
@@ -788,6 +784,9 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     25,
     92,
   ))
+  const rsi14 = latest(dailyIndicators.rsi14, primaryIndex)
+  const macdSignal = latest(dailyIndicators.macd.line, primaryIndex) > latest(dailyIndicators.macd.signal, primaryIndex) ? 'Bullish' : 'Bearish'
+  const priceVsSma200 = dailyBars.at(-1)?.c > latest(dailyIndicators.sma200, primaryIndex) ? 'Above' : 'Below'
 
   const riskLevel = technicalScore >= 75 && riskRewardScore >= 70 ? 'Low' : technicalScore >= 55 ? 'Medium' : 'High'
   const mainRisk = nearestResistance && dailyBars.at(-1)?.c >= nearestResistance * 0.985
@@ -825,7 +824,10 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
       sma20: normalizePrice(latest(dailyIndicators.sma20, primaryIndex)),
       sma50: normalizePrice(latest(dailyIndicators.sma50, primaryIndex)),
       sma100: normalizePrice(latest(dailyIndicators.sma100, primaryIndex)),
+      sma150: normalizePrice(latest(dailyIndicators.sma150, primaryIndex)),
       sma200: normalizePrice(latest(dailyIndicators.sma200, primaryIndex)),
+      ema9: normalizePrice(latest(dailyIndicators.ema9, primaryIndex)),
+      ema10: normalizePrice(latest(dailyIndicators.ema10, primaryIndex)),
       ema20: normalizePrice(latest(dailyIndicators.ema20, primaryIndex)),
       ema50: normalizePrice(latest(dailyIndicators.ema50, primaryIndex)),
       ema200: normalizePrice(latest(dailyIndicators.ema200, primaryIndex)),
@@ -871,6 +873,7 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
       adl: round(latest(dailyIndicators.adl, primaryIndex), 0),
       volumeMovingAverage: round(latest(dailyIndicators.avgVol, primaryIndex), 0),
       obv: round(latest(dailyIndicators.obv, primaryIndex), 0),
+      movingAverageCrosses: dailyIndicators.movingAverageCrosses,
     },
     indicatorInterpretations: buildIndicatorInterpretations(dailyIndicators, dailyBars, primaryIndex),
     gapContext,

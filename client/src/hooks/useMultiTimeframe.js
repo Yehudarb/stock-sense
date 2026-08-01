@@ -9,6 +9,7 @@ const TIMEFRAMES = [
   { interval: '1mo', label: 'חודש', weight: 2 },
   { interval: '1d', label: 'יום', weight: 1.5 },
   { interval: '1h', label: 'שעה', weight: 1 },
+  { interval: '15m', label: '15 דק׳', weight: 0.75 },
   { interval: '5m', label: '5 דק׳', weight: 0.5 },
 ]
 

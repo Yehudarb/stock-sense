@@ -158,6 +158,8 @@ export function computeAll(ohlcv) {
   // MA as a participation gate); it sits between the 100 and 200 already here.
   const sma150Raw = SMA.calculate({ values: closes, period: 150 })
   const sma200Raw = SMA.calculate({ values: closes, period: 200 })
+  const ema9Raw   = EMA.calculate({ values: closes, period: 9 })
+  const ema10Raw  = EMA.calculate({ values: closes, period: 10 })
   const ema20Raw  = EMA.calculate({ values: closes, period: 20 })
   const ema50Raw  = EMA.calculate({ values: closes, period: 50 })
   const ema200Raw = EMA.calculate({ values: closes, period: 200 })
@@ -217,6 +219,8 @@ export function computeAll(ohlcv) {
     sma100:  pad(sma100Raw, n),
     sma150:  pad(sma150Raw, n),
     sma200:  pad(sma200Raw, n),
+    ema9:    pad(ema9Raw, n),
+    ema10:   pad(ema10Raw, n),
     ema20:   pad(ema20Raw, n),
     ema50:   pad(ema50Raw, n),
     ema200:  pad(ema200Raw, n),

@@ -97,6 +97,43 @@ function ExampleSection({ onAnalyzeTicker }) {
   )
 }
 
+function WorkspaceNav({ activeTab, onChange, language }) {
+  const isHebrew = language === 'he'
+  const tabs = [
+    ['intelligence', '01', isHebrew ? 'החלטה' : 'Decision', isHebrew ? 'מה עושים עכשיו' : 'What to do now'],
+    ['chart', '02', isHebrew ? 'גרף' : 'Chart', isHebrew ? 'מחיר, נרות ורמות' : 'Price, candles, levels'],
+    ['validation', '03', isHebrew ? 'אימות' : 'Validate', isHebrew ? 'בדיקת האות' : 'Check the signal'],
+    ['pro', '04', isHebrew ? 'דוח מקצועי' : 'Pro report', isHebrew ? 'תמונה מלאה' : 'Full research view'],
+    ['paper', '05', isHebrew ? 'דמו' : 'Paper', isHebrew ? 'תרגול בלבד' : 'Practice only'],
+  ]
+
+  return (
+    <nav className="workspace-nav" aria-label={isHebrew ? 'ניווט סביבת העבודה' : 'Workspace navigation'}>
+      <div className="workspace-nav__intro">
+        <div className="workspace-nav__eyebrow">{isHebrew ? 'מסלול ניתוח' : 'Analysis flow'}</div>
+        <div className="workspace-nav__hint">{isHebrew ? 'מתחילים בהחלטה ורק אז יורדים לפרטים.' : 'Start with the decision, then go deeper.'}</div>
+      </div>
+      <div className="workspace-nav__items">
+        {tabs.map(([id, step, label, description]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={activeTab === id}
+            onClick={() => onChange(id)}
+            className={`workspace-nav__item ${activeTab === id ? 'workspace-nav__item--active' : ''}`}
+          >
+            <span className="workspace-nav__step">{step}</span>
+            <span className="workspace-nav__copy">
+              <span className="workspace-nav__label">{label}</span>
+              <span className="workspace-nav__description">{description}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
 function PanelFallback() {
   return (
     <div className="rounded-2xl border border-white/8 bg-slate-950/40 px-4 py-10 text-center text-sm text-slate-400">
@@ -140,7 +177,7 @@ export default function AdvancedApp() {
   const [copiedReport, setCopiedReport] = useState(false)
   const [timeframeToast, setTimeframeToast] = useState('')
   const [showMoreKpis, setShowMoreKpis] = useState(false)
-  const [activeMainTab, setActiveMainTab] = useState('chart')
+  const [activeMainTab, setActiveMainTab] = useState('intelligence')
   const autoBotRunRef = useRef(false)
 
   useTicker()
@@ -291,7 +328,6 @@ export default function AdvancedApp() {
   // snapshot / signal / tradingBot objects would restart it on every render
   // and could fire repeated trade cycles. The specific values it reacts to
   // are all listed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentTicker,
     language,
@@ -342,7 +378,7 @@ export default function AdvancedApp() {
     copied: isHebrew ? 'הדוח הועתק' : 'Report copied',
     tabs: {
       chart: isHebrew ? 'גרף' : 'Chart',
-      intelligence: isHebrew ? 'סיכום' : 'Summary',
+      intelligence: isHebrew ? 'החלטה' : 'Decision',
     }
   }
 
@@ -522,33 +558,7 @@ export default function AdvancedApp() {
 
               {/* Main Tabbed Content Area */}
               <div className="space-y-6">
-                <div className="flex gap-1 p-1 w-fit rounded-2xl bg-slate-900/50 border border-white/5 mx-auto lg:mx-0">
-                  {[
-                    { id: 'chart', label: copy.tabs.chart },
-                    { id: 'intelligence', label: copy.tabs.intelligence },
-                    { id: 'pro', label: copy.tabs.pro },
-                    { id: 'validation', label: copy.tabs.validation },
-                    { id: 'paper', label: copy.tabs.paper },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      // Selection was communicated by background colour alone,
-                      // which a screen reader cannot see. aria-pressed is the
-                      // complete pattern for a button group; role="tab" would
-                      // need aria-controls that these detached panels lack.
-                      aria-pressed={activeMainTab === tab.id}
-                      onClick={() => setActiveMainTab(tab.id)}
-                      className={`px-8 py-2.5 text-xs font-bold rounded-xl transition-all ${
-                        activeMainTab === tab.id
-                          ? 'bg-primary text-slate-950 shadow-lg shadow-primary/20'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+                <WorkspaceNav activeTab={activeMainTab} onChange={setActiveMainTab} language={language} />
 
                 <div className="animate-in fade-in duration-500">
                   {activeMainTab === 'chart' && (
@@ -710,9 +720,10 @@ export default function AdvancedApp() {
             <div className="sticky bottom-4 z-40 mt-2 lg:hidden">
               <div className="mx-auto flex max-w-md items-center justify-between rounded-full border border-white/10 bg-slate-950/92 p-1 shadow-[0_20px_60px_rgba(2,6,23,0.45)] backdrop-blur-md">
                 {[ 
+                  { id: 'intelligence', label: isHebrew ? 'החלטה' : 'Decision' },
                   { id: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
-                  { id: 'intelligence', label: isHebrew ? 'סיכום' : 'Summary' },
-                  { id: 'pro', label: isHebrew ? 'מקצועי' : 'Pro' },
+                  { id: 'validation', label: isHebrew ? 'אימות' : 'Validate' },
+                  { id: 'pro', label: isHebrew ? 'דוח' : 'Report' },
                   { id: 'paper', label: isHebrew ? 'דמו' : 'Paper' },
                 ].map(tab => (
                   <button
