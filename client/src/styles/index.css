@@ -413,3 +413,89 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 .app-shell--mobile-preview .chart-quick-tools button:nth-child(n + 5) {
   display: none;
 }
+
+.cup-scanner-table-wrap {
+  overflow-x: auto;
+}
+
+.cup-scanner-cards {
+  display: none;
+}
+
+.cup-scanner-card {
+  width: 100%;
+  border: 1px solid #263449;
+  border-radius: 0.9rem;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 0.85rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.cup-scanner-card:hover,
+.cup-scanner-card:focus-visible {
+  border-color: #10b981;
+  outline: none;
+}
+
+.cup-scanner-card__top,
+.cup-scanner-card__meta,
+.cup-scanner-card__grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cup-scanner-card__top {
+  font-size: 0.8rem;
+}
+
+.cup-scanner-card__price {
+  margin: 0.55rem 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.cup-scanner-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.cup-scanner-card__grid span,
+.cup-scanner-card__meta span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.cup-scanner-card__grid b,
+.cup-scanner-card__meta {
+  color: #e5e7eb;
+}
+
+.cup-scanner-card__grid .positive {
+  color: #34d399;
+}
+
+.cup-scanner-card__meta {
+  margin-top: 0.7rem;
+  flex-wrap: wrap;
+  color: #94a3b8;
+  font-size: 0.68rem;
+}
+
+@media (max-width: 640px) {
+  .cup-scanner-table-wrap {
+    display: none;
+  }
+
+  .cup-scanner-cards {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.75rem;
+  }
+}

@@ -37,6 +37,7 @@ export default function CupHandleScannerModal() {
   const [candidates, setCandidates] = useState([])
   const [status, setStatus]         = useState('idle') // idle | scanning | done | error
   const [error, setError]           = useState(null)
+  const [scanRun, setScanRun]       = useState(0)
   const [stageFilter, setStageFilter] = useState(new Set(['near_breakout', 'broken_out']))
   const [minQuality, setMinQuality]   = useState(0.35)
   const cancelledRef = useRef(false)
@@ -72,7 +73,7 @@ export default function CupHandleScannerModal() {
         setStatus('error')
       })
     return () => { cancelledRef.current = true }
-  }, [showScanner])
+  }, [showScanner, scanRun, universe])
 
   if (!showScanner) return null
 
@@ -125,6 +126,18 @@ export default function CupHandleScannerModal() {
             </div>
           </div>
           <button
+            onClick={() => setScanRun(value => value + 1)}
+            disabled={status === 'scanning'}
+            style={{
+              background: status === 'scanning' ? '#1f2937' : '#0f766e',
+              border: '1px solid #14b8a6', color: '#ecfeff', borderRadius: 8,
+              padding: '6px 12px', cursor: status === 'scanning' ? 'not-allowed' : 'pointer',
+              marginInlineStart: 'auto',
+            }}
+          >
+            ↻ סריקה מחדש
+          </button>
+          <button
             onClick={() => setShowScanner(false)}
             style={{
               background: 'transparent', border: '1px solid #374151',
@@ -160,7 +173,7 @@ export default function CupHandleScannerModal() {
               </button>
             )
           })}
-          <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <label style={{ fontSize: 12, color: '#9ca3af' }}>איכות מינימלית</label>
             <input
               type="range" min="0" max="1" step="0.05"
@@ -208,7 +221,9 @@ export default function CupHandleScannerModal() {
           )}
 
           {visible.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <div className="cup-scanner-results">
+            <div className="cup-scanner-table-wrap">
+            <table className="cup-scanner-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#0b0f19', color: '#9ca3af', fontSize: 11 }}>
                   <th style={cellHead}>מניה</th>
@@ -230,6 +245,11 @@ export default function CupHandleScannerModal() {
                     <tr
                       key={c.ticker}
                       onClick={() => jumpTo(c.ticker)}
+                      tabIndex={0}
+                      role="button"
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') jumpTo(c.ticker)
+                      }}
                       style={{
                         cursor: 'pointer', borderTop: '1px solid #1f2937',
                         transition: 'background 100ms',
@@ -259,6 +279,38 @@ export default function CupHandleScannerModal() {
                 })}
               </tbody>
             </table>
+            </div>
+            <div className="cup-scanner-cards">
+              {visible.map(c => {
+                const stage = STAGE_LABEL[c.stage] || STAGE_LABEL.developing
+                return (
+                  <button
+                    key={`card-${c.ticker}`}
+                    type="button"
+                    onClick={() => jumpTo(c.ticker)}
+                    className="cup-scanner-card"
+                  >
+                    <div className="cup-scanner-card__top">
+                      <strong>{c.ticker}</strong>
+                      <span style={{ color: stage.color }}>{stage.text}</span>
+                    </div>
+                    <div className="cup-scanner-card__price">${fmtPrice(c.currentPrice)}</div>
+                    <div className="cup-scanner-card__grid">
+                      <span>Pivot <b>${fmtPrice(c.pivot)}</b></span>
+                      <span>Target <b>${fmtPrice(c.target)}</b></span>
+                      <span>Stop <b>${fmtPrice(c.stopLoss)}</b></span>
+                      <span>Upside <b className={c.upsidePct > 0 ? 'positive' : ''}>{fmtPct(c.upsidePct)}</b></span>
+                    </div>
+                    <div className="cup-scanner-card__meta">
+                      <span>Quality {(c.quality * 100).toFixed(0)}</span>
+                      <span>Score {c.opportunityScore}</span>
+                      <span>{c.breakoutConfirmed ? 'Volume confirmed' : 'Needs volume'}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            </div>
           )}
         </div>
 

@@ -491,6 +491,8 @@ function detectCupHandle(found, ohlcv) {
 
     const leftRim = rangeHigh(leftRimBars)
     const rightRim = rangeHigh(rightRimBars)
+    const leftRimClose = rangeHigh(leftRimBars.map(bar => ({ h: bar.c })))
+    const rightRimClose = rangeHigh(rightRimBars.map(bar => ({ h: bar.c })))
     const cupLow = rangeLow(bottomBars)
     const rim = Math.max(leftRim, rightRim)
     const handleHigh = rangeHigh(handleBars)
@@ -501,6 +503,11 @@ function detectCupHandle(found, ohlcv) {
     const rimAsym = Math.abs(leftRim - rightRim) / rim
     const handlePullback = (rightRim - handleLow) / rightRim
     const handleShallowerThanCup = (rightRim - handleLow) < (rightRim - cupLow) * 0.55
+    const rimRecovery = leftRimClose > 0 ? rightRimClose / leftRimClose : 0
+    const cupVolume = avg(cupBars.map(bar => bar.v ?? 0))
+    const handleVolume = avg(handleBars.map(bar => bar.v ?? 0))
+    const handleReferenceVolume = avg(cupBars.slice(-Math.min(20, cupBars.length)).map(bar => bar.v ?? 0))
+    const handleVolumeRatio = handleReferenceVolume > 0 ? handleVolume / handleReferenceVolume : 1
 
     // Cup low should live near the middle of the cup — a V (early low) or a
     // slope (late low) both disqualify a proper rounded base.
@@ -515,7 +522,8 @@ function detectCupHandle(found, ohlcv) {
       handlePullback >= 0.005 && handlePullback <= 0.20 &&
       handleShallowerThanCup &&
       cupLowPosition >= 0.30 && cupLowPosition <= 0.75 &&
-      handleHigh <= rim * 1.005
+      handleHigh <= rim * 1.005 &&
+      rimRecovery >= 0.92
 
     if (!ok) continue
 
@@ -524,13 +532,16 @@ function detectCupHandle(found, ohlcv) {
     const depthScore   = 1 - Math.abs(cupDepth   - 0.20) / 0.30
     const handleScore  = 1 - Math.abs(handlePullback - 0.06) / 0.15
     const rimScore     = 1 - (rimAsym / 0.08)
-    const quality = clamp01((depthScore + handleScore + rimScore) / 3)
+    const volumeScore = handleVolumeRatio <= 0.9 ? 1 : handleVolumeRatio <= 1.1 ? 0.65 : 0.25
+    const recoveryScore = clamp01((rimRecovery - 0.92) / 0.08)
+    const quality = clamp01((depthScore + handleScore + rimScore + volumeScore + recoveryScore) / 5)
     if (best && quality <= best.quality) continue
 
     best = {
       quality, offset, window, cupBars, handleBars,
       leftRim, rightRim, cupLow, rim, handleHigh, handleLow,
       cupDepth, rimAsym, handlePullback, handleLen, windowSize,
+      rimRecovery, cupVolume, handleVolume, handleVolumeRatio,
     }
   }
 
@@ -541,8 +552,14 @@ function detectCupHandle(found, ohlcv) {
   const cupDollarDepth = pivot - best.cupLow
   const pivotTarget = pivot + cupDollarDepth * (PATTERN_DEFS.CUP_HANDLE.targetFactor || 0.9)
   const distToBreakoutPct = (pivot - current) / pivot
+  const recentVolume = avg(ohlcv.slice(-20).map(bar => bar.v ?? 0))
+  const lastVolume = ohlcv[n - 1]?.v ?? 0
+  const breakoutVolumeRatio = recentVolume > 0 ? lastVolume / recentVolume : 0
+  const priceBreakout = current >= pivot * 1.005
+  const breakoutConfirmed = priceBreakout && breakoutVolumeRatio >= 1.2
   let stage
-  if (current >= pivot * 1.005) stage = 'broken_out'
+  if (breakoutConfirmed) stage = 'broken_out'
+  else if (priceBreakout) stage = 'near_breakout'
   else if (distToBreakoutPct <= 0.02) stage = 'near_breakout'
   else if (current <= best.handleHigh) stage = 'in_handle'
   else stage = 'cup_forming'
@@ -585,6 +602,13 @@ function detectCupHandle(found, ohlcv) {
       distanceToBreakoutPct: distToBreakoutPct,
       stage,
       quality: best.quality,
+      breakoutConfirmed,
+      breakoutVolumeRatio,
+      handleVolumeRatio: best.handleVolumeRatio,
+      handleVolumeContracting: best.handleVolumeRatio <= 0.9,
+      cupBars: best.windowSize - best.handleLen,
+      handleBars: best.handleLen,
+      rimRecovery: best.rimRecovery,
     },
   )
 }

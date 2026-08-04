@@ -20,13 +20,13 @@ import { detectPatterns } from './patterns'
 //
 // Ties broken by shorter time-to-breakout (the trade-ready ones surface first).
 
-const CONCURRENCY_LIMIT = 8
+const CONCURRENCY_LIMIT = 6
 const BARS_LIMIT = 160 // ~7 months of daily bars — long enough to hold any cup
 
 async function fetchBars(ticker) {
   try {
     const res = await axios.get(
-      `/api/market/bars/${encodeURIComponent(ticker)}?interval=1d&limit=${BARS_LIMIT}`,
+      `/api/market/bars/${encodeURIComponent(ticker)}?interval=1d&limit=${Math.max(BARS_LIMIT, 260)}`,
       { timeout: 15000 },
     )
     const bars = Array.isArray(res.data) ? res.data
@@ -36,12 +36,19 @@ async function fetchBars(ticker) {
     // Bars may already be in {t,o,h,l,c,v} form — some server variants nest under
     // "candles" or return timestamps as seconds. Normalize defensively so a data
     // shape mismatch on one ticker doesn't tank the whole scan.
-    return bars
+    const normalized = bars
       .map(b => ({
         t: typeof b.t === 'number' ? (b.t < 2e10 ? b.t * 1000 : b.t) : new Date(b.t).getTime(),
         o: Number(b.o), h: Number(b.h), l: Number(b.l), c: Number(b.c), v: Number(b.v || 0),
       }))
-      .filter(b => Number.isFinite(b.c) && Number.isFinite(b.h) && Number.isFinite(b.l))
+      .filter(b => (
+        Number.isFinite(b.t) && Number.isFinite(b.o) && Number.isFinite(b.c) &&
+        Number.isFinite(b.h) && Number.isFinite(b.l) && b.o > 0 && b.c > 0 &&
+        b.h >= Math.max(b.o, b.c, b.l) && b.l <= Math.min(b.o, b.c) && b.v >= 0
+      ))
+      .sort((a, b) => a.t - b.t)
+
+    return normalized.filter((bar, index, rows) => index === 0 || bar.t !== rows[index - 1].t)
   } catch {
     return []
   }
@@ -74,10 +81,12 @@ function scoreCandidate(cup, currentPrice) {
     cup.meta?.stage === 'broken_out'    ? 20 :
     cup.meta?.stage === 'in_handle'     ? 10 :
     0
-  const distancePenalty = distancePct > 0 ? Math.min(20, distancePct * 100) : 0
-  return Number(
-    ((quality * 40) + (upsidePct * 2) + stageBonus - distancePenalty).toFixed(1),
-  )
+  const distancePenalty = distancePct > 0 ? Math.min(15, distancePct * 100) : 0
+  const volumeBonus = Math.min(15, Math.max(0, (cup.meta?.breakoutVolumeRatio ?? 0) - 1) * 12)
+  const handleBonus = cup.meta?.handleVolumeContracting ? 8 : 0
+  const score = (quality * 42) + Math.min(15, Math.max(0, upsidePct)) +
+    stageBonus + volumeBonus + handleBonus - distancePenalty
+  return Number(Math.max(0, Math.min(100, score)).toFixed(1))
 }
 
 /**
@@ -118,6 +127,12 @@ export async function scanCupAndHandle(tickers, options = {}) {
             ? ((cup.meta.pivotTarget - currentPrice) / currentPrice) * 100
             : (cup.potentialPct ?? 0),
           distanceToBreakoutPct: cup.meta?.distanceToBreakoutPct ?? 0,
+          breakoutVolumeRatio: cup.meta?.breakoutVolumeRatio ?? 0,
+          handleVolumeRatio: cup.meta?.handleVolumeRatio ?? null,
+          handleVolumeContracting: cup.meta?.handleVolumeContracting ?? false,
+          breakoutConfirmed: cup.meta?.breakoutConfirmed ?? false,
+          cupBars: cup.meta?.cupBars ?? null,
+          handleBars: cup.meta?.handleBars ?? null,
           quality: cup.meta?.quality ?? 0,
           opportunityScore: scoreCandidate(cup, currentPrice),
         })
