@@ -140,24 +140,17 @@ export function aggregateBarsBySession(bars, groupSize) {
   return aggregated
 }
 
-export async function getBars(ticker, interval, limit = 200) {
-  const { interval: yInterval, range } = YAHOO_INTERVAL_MAP[interval] ?? YAHOO_INTERVAL_MAP['5m']
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${yInterval}&range=${range}&includePrePost=false`
+function chartResultToBars(result) {
+  const timestamps = result?.timestamp ?? []
+  const quote = result?.indicators?.quote?.[0] ?? {}
 
-  const data = await yfFetch(url)
-  const result = data?.chart?.result?.[0]
-  if (!result) throw new Error(`No data for ${ticker}`)
-
-  const timestamps = result.timestamp ?? []
-  const q = result.indicators?.quote?.[0] ?? {}
-
-  const bars = timestamps.map((t, i) => ({
-    t: t * 1000,
-    o: q.open?.[i]   ?? null,
-    h: q.high?.[i]   ?? null,
-    l: q.low?.[i]    ?? null,
-    c: q.close?.[i]  ?? null,
-    v: q.volume?.[i] ?? 0,
+  return timestamps.map((timestamp, index) => ({
+    t: timestamp * 1000,
+    o: quote.open?.[index] ?? null,
+    h: quote.high?.[index] ?? null,
+    l: quote.low?.[index] ?? null,
+    c: quote.close?.[index] ?? null,
+    v: quote.volume?.[index] ?? 0,
   })).filter(bar => (
     Number.isFinite(bar.t) &&
     Number.isFinite(bar.o) &&
@@ -168,9 +161,29 @@ export async function getBars(ticker, interval, limit = 200) {
     bar.l <= Math.min(bar.o, bar.c, bar.h) &&
     Number.isFinite(bar.v) && bar.v >= 0
   ))
+}
+
+export async function getBars(ticker, interval, limit = 200) {
+  const { interval: yInterval, range } = YAHOO_INTERVAL_MAP[interval] ?? YAHOO_INTERVAL_MAP['5m']
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${yInterval}&range=${range}&includePrePost=false`
+
+  const data = await yfFetch(url)
+  const result = data?.chart?.result?.[0]
+  if (!result) throw new Error(`No data for ${ticker}`)
+
+  const bars = chartResultToBars(result)
 
   const normalizedBars = interval === '4h' ? aggregateBarsBySession(bars, 4) : bars
   return normalizedBars.slice(-limit)
+}
+
+/** Fetch the compact two-year daily history used by the market-wide scanner. */
+export async function getScannerDailyBars(ticker, limit = 320) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2y&includePrePost=false`
+  const data = await yfFetch(url)
+  const result = data?.chart?.result?.[0]
+  if (!result) throw new Error(`No scanner data for ${ticker}`)
+  return chartResultToBars(result).slice(-Math.max(130, limit))
 }
 
 export async function getSnapshot(ticker) {

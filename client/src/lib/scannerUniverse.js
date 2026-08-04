@@ -1,8 +1,8 @@
-// Curated scanner universe. Not the S&P 500 — those endpoints get rate-limited
-// by Yahoo Finance when hit 500 times in a burst. This is ~80 large-caps that
-// actually TREND (i.e. produce readable technical structures) across sectors,
-// which is what the pattern scanner needs. Users can add their own on top via
-// the watchlist and the scanner will merge them in.
+// Lightweight validation universe used by the client-side backtest panel.
+// The market-wide Cup & Handle scanner no longer relies on this list: its
+// server job discovers the live Nasdaq/Yahoo universe, applies the $2B size
+// threshold and scans batched history. Keep this compact list for fast local
+// validation and for merging a user's watchlist without a full market scan.
 //
 // Curation criteria:
 //   • US-listed common stock or major ETF (excludes ADRs whose OHLCV Yahoo

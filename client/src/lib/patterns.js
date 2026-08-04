@@ -699,6 +699,14 @@ function detectCandlesticks(found, ohlcv) {
   if (last3.length === 3 && last3.every(bar => bar.c < bar.o) && last3[2].c < last3[1].c && last3[1].c < last3[0].c) addPattern(found, 'THREE_BLACK_CROWS', ohlcv, 1, 'confirmed', visual)
 }
 
+/** Return only the best current Cup & Handle setup for efficient screeners. */
+export function detectCupHandlePattern(ohlcv) {
+  if (!Array.isArray(ohlcv) || ohlcv.length < 45) return null
+  const found = []
+  detectCupHandle(found, ohlcv)
+  return found.find(pattern => pattern.key === 'CUP_HANDLE') ?? null
+}
+
 /**
  * Detects candlestick patterns on recent closed bars for chart markers.
  * The primary detector describes the latest setup; a marker layer must also
@@ -724,7 +732,7 @@ export function detectRecentCandlestickPatterns(ohlcv, lookback = 80) {
   ))
 }
 
-export function detectPatterns(ohlcv) {
+export function detectPatterns(ohlcv, { includeMarkers = true } = {}) {
   const patterns = []
   if (!ohlcv || ohlcv.length < 25) return { patterns, markers: [], score: 0, best: null }
 
@@ -742,7 +750,7 @@ export function detectPatterns(ohlcv) {
 
   const score = patterns.reduce((sum, pattern) => sum + pattern.weight, 0)
   const best = [...patterns].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))[0] ?? null
-  const markers = detectRecentCandlestickPatterns(ohlcv)
+  const markers = includeMarkers ? detectRecentCandlestickPatterns(ohlcv) : []
 
   return { patterns, markers, score, best }
 }

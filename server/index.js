@@ -14,6 +14,7 @@ import tradingBotRouter from './routes/tradingBot.js'
 import finnhubRouter from './routes/finnhub.js'
 import tradingEngineRouter from './routes/trading-engine.js'
 import stockAnalysisProRouter from './routes/stockAnalysisPro.js'
+import scannerRouter from './routes/scanner.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { initSocketBridge } from './services/socketBridge.js'
 
@@ -55,6 +56,7 @@ app.use('/api/trading-bot', tradingBotRouter)
 app.use('/api/finnhub', finnhubRouter)
 app.use('/api/trading', tradingEngineRouter)
 app.use('/api/stock-analysis-pro', stockAnalysisProRouter)
+app.use('/api/scanner', scannerRouter)
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }))
 
 if (hasClientBuild) {
