@@ -38,7 +38,13 @@ test('every colour is a usable CSS value', () => {
 })
 
 test('the moving averages the chart draws are all present', () => {
-  for (const key of ['sma20', 'sma50', 'sma100', 'sma150', 'sma200', 'ema20', 'ema50', 'ema200']) {
+  for (const key of ['sma20', 'sma50', 'sma100', 'sma150', 'sma200', 'ema9', 'ema10', 'ema20', 'ema50', 'ema200', 'wma20', 'wma50']) {
+    assert.ok(OVERLAY_COLORS[key], `missing palette entry for ${key}`)
+  }
+})
+
+test('every Ichimoku component has a legend colour', () => {
+  for (const key of ['ichimokuTenkan', 'ichimokuKijun', 'ichimokuSpanA', 'ichimokuSpanB', 'ichimokuChikou']) {
     assert.ok(OVERLAY_COLORS[key], `missing palette entry for ${key}`)
   }
 })

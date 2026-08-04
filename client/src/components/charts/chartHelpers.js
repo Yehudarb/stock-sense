@@ -76,8 +76,8 @@ export function isTrendlinePattern(pattern) {
 }
 
 // Anchors the retracement on the extreme high/low of the supplied bars. Which
-// bars those are is the caller's choice: PriceChart passes its visible window,
-// the Pro chart passes the full series because its zoom is chart-native.
+// bars those are is the caller's choice. Both chart engines pass the selected
+// visible window so the levels describe the candles the user is inspecting.
 export function computeFibonacci(ohlcv, includeExtensions = false) {
   if (!ohlcv?.length || ohlcv.length < 5) return null
 
@@ -138,6 +138,8 @@ export const OVERLAY_COLORS = {
   sma100: '#e11d48',
   sma150: '#14b8a6',
   sma200: '#ec4899',
+  ema9:   '#86efac',
+  ema10:  '#34d399',
   ema20:  '#4ade80',
   ema50:  '#16a34a',
   ema200: '#7c3aed',
@@ -157,6 +159,7 @@ export const OVERLAY_COLORS = {
   ichimokuKijun: '#2563eb',
   ichimokuSpanA: 'rgba(16, 185, 129, 0.5)',
   ichimokuSpanB: 'rgba(239, 68, 68, 0.5)',
+  ichimokuChikou: 'rgba(226, 232, 240, 0.52)',
 
   // Levels.
   pivot: '#cbd5e1', pivotR1: '#84cc16', pivotS1: '#fb7185',

@@ -48,7 +48,7 @@ function scoreTimeframe(config, bars) {
     }
   }
 
-  const indicators = computeAll(bars)
+  const indicators = computeAll(bars, config.interval)
   if (!indicators) {
     return {
       ...config,

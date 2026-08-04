@@ -22,6 +22,10 @@ const AXIS_FONT_SIZE = 13
 // code that draws them can never disagree again.
 const C = OVERLAY_COLORS
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
 // ── Data adapters ────────────────────────────────────────────────────────
 // Convert our {t,o,h,l,c,v} bars to the shapes lightweight-charts expects.
 function toCandles(ohlcv) {
@@ -212,7 +216,7 @@ function projectLineToLastBar(ohlcv, line) {
 // split it into "up" (green) and "down" (red) segments and let the color
 // change tell the story. We build two aligned arrays with gaps at the
 // direction changes so each series only draws its half of the signal.
-function toSupertrendSeries(ohlcv, supertrend) {
+export function toSupertrendSeries(ohlcv, supertrend) {
   // computeAll() emits { upper, lower, line, direction, flipped } — the plotted
   // series is `line`, and `direction` holds the strings 'bullish' / 'bearish'.
   // PriceChart reads supertrend.line; this chart read a `value` key that has
@@ -227,8 +231,8 @@ function toSupertrendSeries(ohlcv, supertrend) {
     const time = Math.floor((ohlcv[i].t || 0) / 1000)
     if (!Number.isFinite(time) || time <= 0) continue
     const dir = supertrend.direction?.[i]
-    if (dir === 'bullish')      up.push({ time, value: v })
-    else if (dir === 'bearish') down.push({ time, value: v })
+    up.push(dir === 'bullish' ? { time, value: v } : { time })
+    down.push(dir === 'bearish' ? { time, value: v } : { time })
   }
   return { up, down }
 }
@@ -244,6 +248,8 @@ export default function TradingViewChart({
   showWMA = false,
   showBB = false,
   showVWAP = false,
+  showVolume = false,
+  showVolumeMA = false,
   showSupertrend = false,
   showIchimoku = false,
   showKeltner = false,
@@ -272,11 +278,13 @@ export default function TradingViewChart({
   // How many of the loaded bars to show. The rest is warmup history that
   // feeds the indicators without being displayed.
   visibleBars = null,
+  viewOffset = 0,
   // Needed for framing: several presets share a visibleBars value (1H and 4H
   // are both 180, as are 1m/5m/15m at 160), so visibleBars alone cannot tell
   // that the timeframe changed underneath the chart.
   interval = null,
-  chartType = 'candle', // 'candle' | 'line'
+  chartType = 'candlestick',
+  measurementEnabled = false,
 }) {
   const containerRef  = useRef(null)
   const chartRef      = useRef(null)
@@ -285,6 +293,7 @@ export default function TradingViewChart({
   const theme         = useStore(s => s.theme) || 'dark'
   const currentTicker = useStore(s => s.currentTicker)
   const [hovered, setHovered] = useState(null)
+  const [measurement, setMeasurement] = useState(null)
   // Bumped every time the chart instance is rebuilt (theme / chart-type change).
   // The overlay effects below depend on it, otherwise they keep their old deps,
   // never re-run, and every indicator silently disappears with the old chart.
@@ -339,25 +348,31 @@ export default function TradingViewChart({
 
     // Primary series is either candles or a line-of-closes — respects the app
     // "chart type" toggle without duplicating rendering.
-    const priceSeries = chartType === 'line'
+    const priceSeries = chartType === 'area'
       ? chart.addSeries(AreaSeries, {
           topColor: 'rgba(59,130,246,0.35)',
           bottomColor: 'rgba(59,130,246,0)',
           lineColor: '#3b82f6', lineWidth: 2,
           priceLineVisible: true, lastValueVisible: true,
         })
-      : chart.addSeries(CandlestickSeries, {
+      : chartType === 'line'
+        ? chart.addSeries(LineSeries, {
+            color: '#38bdf8', lineWidth: 2,
+            priceLineVisible: true, lastValueVisible: true,
+          })
+        : chart.addSeries(CandlestickSeries, {
           upColor: palette.up, downColor: palette.down,
           borderUpColor: palette.up, borderDownColor: palette.down,
           wickUpColor: palette.wickUp, wickDownColor: palette.wickDown,
           priceLineVisible: true, lastValueVisible: true,
-        })
+          })
     seriesRef.current.price = priceSeries
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#94a3b8',
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
+      visible: showVolume,
     })
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } })
     seriesRef.current.volume = volumeSeries
@@ -387,7 +402,7 @@ export default function TradingViewChart({
   useEffect(() => {
     const { price, volume: vol } = seriesRef.current
     if (!price) return
-    price.setData(chartType === 'line' ? lineData : candles)
+    price.setData(chartType === 'candlestick' ? candles : lineData)
     if (vol) vol.setData(volume)
     if (candles.length && !chartRef.current._fittedOnce) {
       // The series now carries warmup history the user did not ask to see, so
@@ -395,10 +410,11 @@ export default function TradingViewChart({
       // `visibleBars` instead — the warmup stays loaded and feeds the
       // indicators, it just sits off-screen to the left.
       const ts = chartRef.current.timeScale()
-      if (visibleBars && candles.length > visibleBars) {
+      const endIndex = Math.max(1, candles.length - viewOffset)
+      if (visibleBars && endIndex > visibleBars) {
         ts.setVisibleRange({
-          from: candles[candles.length - visibleBars].time,
-          to: candles[candles.length - 1].time,
+          from: candles[endIndex - visibleBars].time,
+          to: candles[endIndex - 1].time,
         })
       } else {
         ts.fitContent()
@@ -407,12 +423,20 @@ export default function TradingViewChart({
     }
   // chartEpoch: a theme switch rebuilds the chart without changing chartType,
   // so without it the freshly created price/volume series never get their data.
-  }, [chartEpoch, candles, volume, lineData, chartType, visibleBars])
+  }, [chartEpoch, candles, volume, lineData, chartType, viewOffset, visibleBars])
 
   // A new ticker or a new period must re-frame the view.
   useEffect(() => {
-    if (chartRef.current) chartRef.current._fittedOnce = false
-  }, [currentTicker, visibleBars, interval])
+    const chart = chartRef.current
+    if (!chart || !candles.length) return
+    const endIndex = Math.max(1, candles.length - viewOffset)
+    const startIndex = visibleBars ? Math.max(0, endIndex - visibleBars) : 0
+    chart.timeScale().setVisibleRange({
+      from: candles[startIndex].time,
+      to: candles[endIndex - 1].time,
+    })
+    chart._fittedOnce = true
+  }, [candles, chartEpoch, currentTicker, interval, viewOffset, visibleBars])
 
   // ── Overlay wiring ───────────────────────────────────────────────
   // Each overlay is created lazily and torn down when its toggle turns off so
@@ -430,6 +454,7 @@ export default function TradingViewChart({
           color, lineWidth: opts.width || 2,
           priceLineVisible: false, lastValueVisible: true,
           lineStyle: opts.style || LineStyle.Solid,
+          ...(opts.priceScaleId ? { priceScaleId: opts.priceScaleId } : {}),
         })
       }
       seriesRef.current[key].setData(data)
@@ -456,8 +481,13 @@ export default function TradingViewChart({
     }
     else { remove('sma20'); remove('sma50'); remove('sma100'); remove('sma150'); remove('sma200') }
 
-    if (showEMA) { ensureLine('ema20', indicators.ema20, C.ema20); ensureLine('ema50', indicators.ema50, C.ema50); ensureLine('ema200', indicators.ema200, C.ema200, { width: 1 }) }
-    else { remove('ema20'); remove('ema50'); remove('ema200') }
+    if (showEMA) {
+      ensureLine('ema9', indicators.ema9, C.ema9, { width: 1 })
+      ensureLine('ema10', indicators.ema10, C.ema10, { width: 1 })
+      ensureLine('ema20', indicators.ema20, C.ema20)
+      ensureLine('ema50', indicators.ema50, C.ema50)
+      ensureLine('ema200', indicators.ema200, C.ema200, { width: 1 })
+    } else { remove('ema9'); remove('ema10'); remove('ema20'); remove('ema50'); remove('ema200') }
 
     if (showWMA) { ensureLine('wma20', indicators.wma20, C.wma20); ensureLine('wma50', indicators.wma50, C.wma50) }
     else         { remove('wma20'); remove('wma50') }
@@ -492,23 +522,110 @@ export default function TradingViewChart({
       ensureLine('ichBase', indicators.ichimoku.base,       C.ichimokuKijun, { width: 1 })
       ensureLine('ichSpanA', indicators.ichimoku.spanA,     C.ichimokuSpanA, { width: 1 })
       ensureLine('ichSpanB', indicators.ichimoku.spanB,     C.ichimokuSpanB, { width: 1 })
-    } else { remove('ichConv'); remove('ichBase'); remove('ichSpanA'); remove('ichSpanB') }
+      ensureLine('ichLagging', indicators.ichimoku.laggingSpan, C.ichimokuChikou, { width: 1 })
+    } else { remove('ichConv'); remove('ichBase'); remove('ichSpanA'); remove('ichSpanB'); remove('ichLagging') }
 
     if (showKeltner && indicators.keltner) {
       ensureLine('keltUpper', indicators.keltner.upper, C.keltnerUpper, { width: 1, style: LineStyle.Dashed })
+      ensureLine('keltMiddle', indicators.keltner.middle, C.keltnerMiddle, { width: 1 })
       ensureLine('keltLower', indicators.keltner.lower, C.keltnerLower, { width: 1, style: LineStyle.Dashed })
-    } else { remove('keltUpper'); remove('keltLower') }
+    } else { remove('keltUpper'); remove('keltMiddle'); remove('keltLower') }
 
     if (showDonchian && indicators.donchian) {
       ensureLine('donchUpper', indicators.donchian.upper, C.donchianUpper, { width: 1, style: LineStyle.Dashed })
+      ensureLine('donchMiddle', indicators.donchian.middle, C.donchianMiddle, { width: 1, style: LineStyle.Dotted })
       ensureLine('donchLower', indicators.donchian.lower, C.donchianLower, { width: 1, style: LineStyle.Dashed })
-    } else { remove('donchUpper'); remove('donchLower') }
+    } else { remove('donchUpper'); remove('donchMiddle'); remove('donchLower') }
+
+    if (showVolume && showVolumeMA) {
+      ensureLine('volumeMA', indicators.avgVol, C.volumeMA, { width: 1, priceScaleId: 'volume' })
+    } else remove('volumeMA')
   }, [
     chartEpoch,
     ohlcv, indicators,
-    showSMA, showEMA, showWMA, showBB, showVWAP,
+    showSMA, showEMA, showWMA, showBB, showVWAP, showVolume, showVolumeMA,
     showSupertrend, showIchimoku, showKeltner, showDonchian,
   ])
+
+  useEffect(() => {
+    seriesRef.current.volume?.applyOptions({ visible: showVolume })
+    if (showVolume) {
+      seriesRef.current.volume?.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } })
+    }
+  }, [chartEpoch, showVolume])
+
+  useEffect(() => {
+    const chart = chartRef.current
+    const container = containerRef.current
+    const priceSeries = seriesRef.current.price
+    if (!chart || !container || !priceSeries) return undefined
+
+    chart.applyOptions({
+      handleScroll: measurementEnabled
+        ? false
+        : { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+      handleScale: measurementEnabled
+        ? false
+        : { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
+    })
+
+    if (!measurementEnabled) {
+      setMeasurement(null)
+      container.style.cursor = ''
+      return undefined
+    }
+
+    container.style.cursor = 'crosshair'
+    const pointFromEvent = event => {
+      const rect = container.getBoundingClientRect()
+      const x = clamp(event.clientX - rect.left, 0, rect.width)
+      const y = clamp(event.clientY - rect.top, 0, rect.height)
+      return {
+        x,
+        y,
+        price: priceSeries.coordinateToPrice(y),
+        logical: chart.timeScale().coordinateToLogical(x),
+      }
+    }
+    const stopNativeInteraction = event => {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    const handlePointerDown = event => {
+      if (event.button !== 0) return
+      stopNativeInteraction(event)
+      const point = pointFromEvent(event)
+      container.setPointerCapture?.(event.pointerId)
+      setMeasurement({ active: true, start: point, end: point })
+    }
+    const handlePointerMove = event => {
+      stopNativeInteraction(event)
+      setMeasurement(current => {
+        if (!current?.active) return current
+        return { ...current, end: pointFromEvent(event) }
+      })
+    }
+    const handlePointerUp = event => {
+      stopNativeInteraction(event)
+      setMeasurement(current => {
+        if (!current?.active) return current
+        return { ...current, active: false, end: pointFromEvent(event) }
+      })
+      container.releasePointerCapture?.(event.pointerId)
+    }
+
+    container.addEventListener('pointerdown', handlePointerDown, true)
+    container.addEventListener('pointermove', handlePointerMove, true)
+    container.addEventListener('pointerup', handlePointerUp, true)
+    container.addEventListener('pointercancel', handlePointerUp, true)
+    return () => {
+      container.style.cursor = ''
+      container.removeEventListener('pointerdown', handlePointerDown, true)
+      container.removeEventListener('pointermove', handlePointerMove, true)
+      container.removeEventListener('pointerup', handlePointerUp, true)
+      container.removeEventListener('pointercancel', handlePointerUp, true)
+    }
+  }, [chartEpoch, measurementEnabled])
 
   // ── Chart-pattern, triangle and gap geometry ─────────────────────
   // These are shapes spanning a bar range rather than a value per bar, so each
@@ -583,15 +700,15 @@ export default function TradingViewChart({
       // gap counts as visible if any part of its span is — an old gap still
       // unfilled reaches into view even though its index is low, and that is
       // exactly the one worth seeing.
-      const lastIndex = ohlcv.length - 1
-      const windowStart = visibleBars ? Math.max(0, lastIndex - visibleBars) : 0
+      const windowEnd = Math.max(0, ohlcv.length - 1 - viewOffset)
+      const windowStart = visibleBars ? Math.max(0, windowEnd - visibleBars + 1) : 0
       const recentGaps = (gaps?.gaps ?? [])
-        .filter(gap => (gap.endIndex ?? lastIndex) >= windowStart && gap.index <= lastIndex)
+        .filter(gap => (gap.endIndex ?? windowEnd) >= windowStart && gap.index <= windowEnd)
         .sort((a, b) => b.index - a.index)
         .slice(0, 10)
       recentGaps.forEach(gap => {
         const from = timeAtIndex(ohlcv, gap.index)
-        const to = timeAtIndex(ohlcv, gap.endIndex ?? ohlcv.length - 1)
+        const to = timeAtIndex(ohlcv, Math.min(gap.endIndex ?? windowEnd, windowEnd))
         if (from == null || to == null || from === to) return
         if (!Number.isFinite(gap.zoneLow) || !Number.isFinite(gap.zoneHigh)) return
         // Most gaps are only 1-4 bars wide, and a 1px dotted hairline over that
@@ -614,7 +731,7 @@ export default function TradingViewChart({
         delete seriesRef.current[key]
       }
     }
-  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps, extendTrendlines, visibleBars])
+  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps, extendTrendlines, viewOffset, visibleBars])
 
   // ── Horizontal price lines (pivots, prev high/low, 52-week hi/lo) ──
   // These are per-level and don't need per-bar data, so createPriceLine on
@@ -647,22 +764,24 @@ export default function TradingViewChart({
       addLine({ value: p.pivot, color: C.pivot,  title: 'P',  width: 1 })
       addLine({ value: p.r1,    color: C.pivotR1, title: 'R1' })
       addLine({ value: p.r2,    color: C.pivotR1, title: 'R2', axisLabel: false })
+      addLine({ value: p.r3,    color: C.pivotR1, title: 'R3', axisLabel: false })
       addLine({ value: p.s1,    color: C.pivotS1, title: 'S1' })
       addLine({ value: p.s2,    color: C.pivotS1, title: 'S2', axisLabel: false })
+      addLine({ value: p.s3,    color: C.pivotS1, title: 'S3', axisLabel: false })
     }
     // Prefer indicators.priceLevels — the values PriceChart and the analysis
     // panels use — so both engines label the same levels. Recomputing them
     // locally let the two charts disagree by a few cents.
     const levels = indicators?.priceLevels
     if (showPrevHighLow) {
-      const prevBar = ohlcv?.length >= 2 ? ohlcv[ohlcv.length - 2] : null
-      addLine({ value: levels?.previousHigh ?? prevBar?.h, color: C.prevHigh, title: 'PDH' })
-      addLine({ value: levels?.previousLow  ?? prevBar?.l, color: C.prevLow,  title: 'PDL' })
+      // On intraday charts these are the prior session's extremes, not the
+      // previous candle. If no complete prior session exists, draw nothing.
+      addLine({ value: levels?.previousHigh, color: C.prevHigh, title: 'PDH' })
+      addLine({ value: levels?.previousLow, color: C.prevLow, title: 'PDL' })
     }
     if (showHighLow52 && ohlcv?.length) {
-      const window = ohlcv.slice(-252) // ~1 trading year
-      addLine({ value: levels?.high52Week ?? Math.max(...window.map(b => b.h)), color: C.high52, title: '52W High' })
-      addLine({ value: levels?.low52Week  ?? Math.min(...window.map(b => b.l)), color: C.low52,  title: '52W Low' })
+      addLine({ value: technicalAnalysis?.keyLevels?.high52Week ?? levels?.high52Week, color: C.high52, title: '52W High' })
+      addLine({ value: technicalAnalysis?.keyLevels?.low52Week ?? levels?.low52Week, color: C.low52, title: '52W Low' })
     }
 
     // ── Trade levels and key structure (the "Levels" / אזור toggle) ──
@@ -740,10 +859,12 @@ export default function TradingViewChart({
     }
 
     // ── Fibonacci ──
-    // Anchored on the full series: this chart's zoom is chart-native, so there
-    // is no "visible window" to anchor to the way PriceChart has.
+    // Anchor to the selected visible range. Using the full warm-up history can
+    // put every retracement outside the candles the user is inspecting.
     if (showFibonacci || showFibExtension) {
-      const fib = computeFibonacci(ohlcv, showFibExtension)
+      const endIndex = Math.max(1, ohlcv.length - viewOffset)
+      const startIndex = visibleBars ? Math.max(0, endIndex - visibleBars) : 0
+      const fib = computeFibonacci(ohlcv.slice(startIndex, endIndex), showFibExtension)
       fib?.levels?.forEach(level => addLine({
         value: level.price,
         color: level.ratio === 0 || level.ratio === 1 ? 'rgba(148, 163, 184, 0.9)' : 'rgba(234, 179, 8, 0.75)',
@@ -756,7 +877,7 @@ export default function TradingViewChart({
     chartEpoch, ohlcv, indicators,
     showPivotPoints, showPrevHighLow, showHighLow52,
     showLevels, showFibonacci, showFibExtension, showTargets,
-    decision, technicalAnalysis, patterns,
+    decision, technicalAnalysis, patterns, viewOffset, visibleBars,
   ])
 
   // ── Zoom presets (kept — they're chart-native, not indicator toggles) ──
@@ -767,6 +888,9 @@ export default function TradingViewChart({
     chartRef.current.timeScale().setVisibleRange({ from, to })
   }
   const fitAll = () => chartRef.current?.timeScale().fitContent()
+  const measurementLabel = measurement?.start?.price != null && measurement?.end?.price != null
+    ? `${measurement.end.price >= measurement.start.price ? '+' : ''}${(((measurement.end.price - measurement.start.price) / measurement.start.price) * 100).toFixed(2)}% | ${measurement.end.price - measurement.start.price >= 0 ? '+' : ''}${(measurement.end.price - measurement.start.price).toFixed(2)} | ${Math.round(Math.abs((measurement.end.logical ?? 0) - (measurement.start.logical ?? 0)))} bars`
+    : null
 
   return (
     <div style={{ position: 'relative' }}>
@@ -823,6 +947,41 @@ export default function TradingViewChart({
       </div>
 
       <div ref={containerRef} style={{ height, width: '100%' }} />
+      {measurementEnabled && measurement?.start && measurement?.end && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}>
+          <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+            <line
+              x1={measurement.start.x}
+              y1={measurement.start.y}
+              x2={measurement.end.x}
+              y2={measurement.end.y}
+              stroke="#22d3ee"
+              strokeWidth="2"
+              strokeDasharray="6 4"
+            />
+            <circle cx={measurement.start.x} cy={measurement.start.y} r="4" fill="#22d3ee" />
+            <circle cx={measurement.end.x} cy={measurement.end.y} r="4" fill="#22d3ee" />
+          </svg>
+          {measurementLabel && (
+            <div style={{
+              position: 'absolute',
+              left: (measurement.start.x + measurement.end.x) / 2,
+              top: (measurement.start.y + measurement.end.y) / 2,
+              transform: 'translate(-50%, -130%)',
+              border: '1px solid rgba(34, 211, 238, 0.55)',
+              borderRadius: 6,
+              background: 'rgba(2, 6, 23, 0.92)',
+              color: '#cffafe',
+              padding: '5px 8px',
+              fontSize: 11,
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}>
+              {measurementLabel}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

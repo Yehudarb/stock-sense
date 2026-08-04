@@ -55,7 +55,7 @@ export default function useStockAnalysisPro({
     const barContext = getClosedAnalysisBars(ohlcv, interval)
     const analysisBars = barContext.bars
     const analysisIndicators = barContext.excludedLiveBar
-      ? computeAll(analysisBars)
+      ? computeAll(analysisBars, interval)
       : indicators
 
     return buildStockAnalysisPro({

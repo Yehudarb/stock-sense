@@ -158,7 +158,7 @@ export default function AdvancedApp() {
   } = useStore()
 
   const isHebrew = language === 'he'
-  const indicators = useIndicators(ohlcv)
+  const indicators = useIndicators(ohlcv, interval)
   // Multi-timeframe scoring is fetched BEFORE the signal so the signal engine
   // can factor higher-timeframe bias into its final decision (block bullish
   // reads against a weekly downtrend, etc).

@@ -37,7 +37,7 @@ export default function useTechnicalAnalysis(ticker) {
 
       try {
         const [dailyResult, weeklyResult, h4Result] = await Promise.allSettled([
-          axios.get(`/api/market/bars/${ticker}?interval=1d&limit=240`, { timeout: 20000 }),
+          axios.get(`/api/market/bars/${ticker}?interval=1d&limit=260`, { timeout: 20000 }),
           axios.get(`/api/market/bars/${ticker}?interval=5y&limit=260`, { timeout: 20000 }),
           axios.get(`/api/market/bars/${ticker}?interval=4h&limit=220`, { timeout: 20000 }),
         ])

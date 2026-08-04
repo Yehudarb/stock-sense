@@ -158,7 +158,16 @@ export async function getBars(ticker, interval, limit = 200) {
     l: q.low?.[i]    ?? null,
     c: q.close?.[i]  ?? null,
     v: q.volume?.[i] ?? 0,
-  })).filter(b => b.o != null && b.c != null)
+  })).filter(bar => (
+    Number.isFinite(bar.t) &&
+    Number.isFinite(bar.o) &&
+    Number.isFinite(bar.h) &&
+    Number.isFinite(bar.l) &&
+    Number.isFinite(bar.c) &&
+    bar.h >= Math.max(bar.o, bar.c, bar.l) &&
+    bar.l <= Math.min(bar.o, bar.c, bar.h) &&
+    Number.isFinite(bar.v) && bar.v >= 0
+  ))
 
   const normalizedBars = interval === '4h' ? aggregateBarsBySession(bars, 4) : bars
   return normalizedBars.slice(-limit)

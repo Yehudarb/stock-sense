@@ -3,7 +3,7 @@ import useStore from '../../store/useStore'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
 import ChartContainer from './ChartContainer'
-import { OVERLAY_COLORS } from './chartHelpers'
+import { isTrendlinePattern, OVERLAY_COLORS, patternBreakoutLevel } from './chartHelpers'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
@@ -246,6 +246,8 @@ function ChartControls({
   setShowGaps,
   showPatterns,
   setShowPatterns,
+  showTargets,
+  setShowTargets,
   measureMode,
   setMeasureMode,
   chartExpanded,
@@ -304,6 +306,7 @@ function ChartControls({
         <PanelToggle label={<LabelWithIcon icon="🧭" label={chartCopy.fibExtension} />} value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="🧱" label={chartCopy.zone} />} value={showGaps} onToggle={() => setShowGaps(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="🏷️" label={chartCopy.patternMarkers} />} value={showPatterns} onToggle={() => setShowPatterns(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="🎯" label={chartCopy.priceTargets} />} value={showTargets} onToggle={() => setShowTargets(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="📐" label={chartCopy.ruler} />} value={measureMode} onToggle={() => setMeasureMode(value => !value)} />
       </Group>
 
@@ -562,6 +565,7 @@ export default function ChartWorkspace({
   const [showSupertrend, setShowSupertrend] = useState(false)
   const [showIchimoku, setShowIchimoku] = useState(false)
   const [showATR, setShowATR] = useState(false)
+  const [showStoch, setShowStoch] = useState(false)
   const [showStochRsi, setShowStochRsi] = useState(false)
   const [showADX, setShowADX] = useState(false)
   const [showOBV, setShowOBV] = useState(false)
@@ -836,6 +840,7 @@ export default function ChartWorkspace({
     setShowSupertrend(false)
     setShowIchimoku(false)
     setShowATR(false)
+    setShowStoch(false)
     setShowStochRsi(false)
     setShowADX(false)
     setShowOBV(false)
@@ -856,6 +861,7 @@ export default function ChartWorkspace({
     setShowMACD(true)
     setShowPatterns(true)
     setShowTriangles(true)
+    setShowTargets(true)
     setShowFibonacci(false)
     setShowFibExtension(false)
     setShowGaps(true)
@@ -873,6 +879,7 @@ export default function ChartWorkspace({
   function handleClearDrawings() {
     setShowPatterns(false)
     setShowTriangles(false)
+    setShowTargets(false)
     setShowFibonacci(false)
     setShowFibExtension(false)
     setShowGaps(false)
@@ -897,12 +904,27 @@ export default function ChartWorkspace({
     })
   }
 
+  function toggleVolume() {
+    setShowVolume(current => {
+      if (current) setShowVolumeMA(false)
+      return !current
+    })
+  }
+
+  function toggleVolumeAverage() {
+    setShowVolumeMA(current => {
+      const next = !current
+      if (next) setShowVolume(true)
+      return next
+    })
+  }
+
   const coreIndicators = [
     ['📊 SMA', showSMA, () => setShowSMA(value => !value)],
     ['📈 EMA', showEMA, () => setShowEMA(value => !value)],
     ['⚡ RSI', showRSI, () => setShowRSI(value => !value)],
     ['〰️ MACD', showMACD, () => setShowMACD(value => !value)],
-    ['📦 Volume', showVolume, () => setShowVolume(value => !value)],
+    ['📦 Volume', showVolume, toggleVolume],
     ['🎯 VWAP', showVWAP, () => setShowVWAP(value => !value)],
     ['🫧 Bands', showBB, () => setShowBB(value => !value)],
     ['📏 ATR', showATR, () => setShowATR(value => !value)],
@@ -924,6 +946,7 @@ export default function ChartWorkspace({
     {
       label: 'Momentum',
       items: [
+        ['Stochastic', showStoch, () => setShowStoch(value => !value)],
         ['CCI', showCCI, () => setShowCCI(value => !value)],
         ['Momentum', showMomentum, () => setShowMomentum(value => !value)],
         ['Williams %R', showWilliamsR, () => setShowWilliamsR(value => !value)],
@@ -939,7 +962,7 @@ export default function ChartWorkspace({
     {
       label: 'Volume',
       items: [
-        ['Volume MA', showVolumeMA, () => setShowVolumeMA(value => !value)],
+        ['Volume MA', showVolumeMA, toggleVolumeAverage],
         ['Money Flow Index', showMFI, () => setShowMFI(value => !value)],
         ['Chaikin Money Flow', showCMF, () => setShowCMF(value => !value)],
         ['A/D Line', showADL, () => setShowADL(value => !value)],
@@ -961,18 +984,25 @@ export default function ChartWorkspace({
     chartType === 'area' ? { label: 'Area', color: OVERLAY_COLORS.area, action: () => setChartType('candlestick') } : null,
     showSMA ? { label: 'SMA 20', color: OVERLAY_COLORS.sma20, action: () => setShowSMA(false) } : null,
     showSMA ? { label: 'SMA 50', color: OVERLAY_COLORS.sma50, action: () => setShowSMA(false) } : null,
+    showSMA ? { label: 'SMA 100', color: OVERLAY_COLORS.sma100, action: () => setShowSMA(false) } : null,
+    showSMA ? { label: 'SMA 150', color: OVERLAY_COLORS.sma150, action: () => setShowSMA(false) } : null,
     showSMA ? { label: 'SMA 200', color: OVERLAY_COLORS.sma200, action: () => setShowSMA(false) } : null,
+    showEMA ? { label: 'EMA 9', color: OVERLAY_COLORS.ema9, action: () => setShowEMA(false) } : null,
+    showEMA ? { label: 'EMA 10', color: OVERLAY_COLORS.ema10, action: () => setShowEMA(false) } : null,
     showEMA ? { label: 'EMA 20', color: OVERLAY_COLORS.ema20, action: () => setShowEMA(false) } : null,
     showEMA ? { label: 'EMA 50', color: OVERLAY_COLORS.ema50, action: () => setShowEMA(false) } : null,
     showEMA ? { label: 'EMA 200', color: OVERLAY_COLORS.ema200, action: () => setShowEMA(false) } : null,
     showWMA ? { label: 'WMA 20', color: OVERLAY_COLORS.wma20, action: () => setShowWMA(false) } : null,
+    showWMA ? { label: 'WMA 50', color: OVERLAY_COLORS.wma50, action: () => setShowWMA(false) } : null,
     showBB ? { label: 'BB Upper', color: OVERLAY_COLORS.bbUpper, action: () => setShowBB(false) } : null,
     showBB ? { label: 'BB Mid', color: OVERLAY_COLORS.bbMiddle, action: () => setShowBB(false) } : null,
     showBB ? { label: 'BB Lower', color: OVERLAY_COLORS.bbLower, action: () => setShowBB(false) } : null,
     showVWAP ? { label: 'VWAP', color: OVERLAY_COLORS.vwap, action: () => setShowVWAP(false) } : null,
-    showSupertrend ? { label: 'Supertrend', color: OVERLAY_COLORS.supertrend, action: () => setShowSupertrend(false) } : null,
+    showSupertrend ? { label: 'Supertrend Up', color: OVERLAY_COLORS.supertrendUp, action: () => setShowSupertrend(false) } : null,
+    showSupertrend ? { label: 'Supertrend Down', color: OVERLAY_COLORS.supertrendDown, action: () => setShowSupertrend(false) } : null,
     showIchimoku ? { label: 'Ichimoku Tenkan', color: OVERLAY_COLORS.ichimokuTenkan, action: () => setShowIchimoku(false) } : null,
     showIchimoku ? { label: 'Ichimoku Kijun', color: OVERLAY_COLORS.ichimokuKijun, action: () => setShowIchimoku(false) } : null,
+    showIchimoku ? { label: 'Ichimoku Chikou', color: OVERLAY_COLORS.ichimokuChikou, action: () => setShowIchimoku(false) } : null,
     showKeltner ? { label: 'Keltner Upper', color: OVERLAY_COLORS.keltnerUpper, action: () => setShowKeltner(false) } : null,
     showKeltner ? { label: 'Keltner Mid', color: OVERLAY_COLORS.keltnerMiddle, action: () => setShowKeltner(false) } : null,
     showKeltner ? { label: 'Keltner Lower', color: OVERLAY_COLORS.keltnerLower, action: () => setShowKeltner(false) } : null,
@@ -985,9 +1015,10 @@ export default function ChartWorkspace({
     showPrevHighLow ? { label: 'Prev Low', color: OVERLAY_COLORS.previousLow, action: () => setShowPrevHighLow(false) } : null,
     showHighLow52 ? { label: '52W High', color: OVERLAY_COLORS.high52, action: () => setShowHighLow52(false) } : null,
     showHighLow52 ? { label: '52W Low', color: OVERLAY_COLORS.low52, action: () => setShowHighLow52(false) } : null,
-    showVolume ? { label: 'Volume', color: OVERLAY_COLORS.volume, action: () => setShowVolume(false) } : null,
+    showVolume ? { label: 'Volume', color: OVERLAY_COLORS.volume, action: toggleVolume } : null,
     showVolumeMA ? { label: 'Volume MA', color: OVERLAY_COLORS.volumeMA, action: () => setShowVolumeMA(false) } : null,
     showRSI ? { label: 'RSI', color: OVERLAY_COLORS.rsi, action: () => setShowRSI(false) } : null,
+    showStoch ? { label: 'Stochastic', color: '#60a5fa', action: () => setShowStoch(false) } : null,
     showStochRsi ? { label: 'Stoch RSI', color: '#c084fc', action: () => setShowStochRsi(false) } : null,
     showADX ? { label: 'ADX', color: '#f97316', action: () => setShowADX(false) } : null,
     showOBV ? { label: 'OBV', color: '#10b981', action: () => setShowOBV(false) } : null,
@@ -999,35 +1030,73 @@ export default function ChartWorkspace({
     showCMF ? { label: 'CMF', color: '#22c55e', action: () => setShowCMF(false) } : null,
     showADL ? { label: 'A/D Line', color: '#818cf8', action: () => setShowADL(false) } : null,
     showMACD ? { label: 'MACD', color: OVERLAY_COLORS.macd, action: () => setShowMACD(false) } : null,
+    showTargets ? { label: 'Pattern targets', color: '#a855f7', action: () => setShowTargets(false) } : null,
   ].filter(Boolean)
 
   const mainChartKeys = [
     showSMA ? { label: 'SMA 20', color: OVERLAY_COLORS.sma20 } : null,
     showSMA ? { label: 'SMA 50', color: OVERLAY_COLORS.sma50 } : null,
+    showSMA ? { label: 'SMA 100', color: OVERLAY_COLORS.sma100 } : null,
+    showSMA ? { label: 'SMA 150', color: OVERLAY_COLORS.sma150 } : null,
     showSMA ? { label: 'SMA 200', color: OVERLAY_COLORS.sma200 } : null,
+    showEMA ? { label: 'EMA 9', color: OVERLAY_COLORS.ema9 } : null,
+    showEMA ? { label: 'EMA 10', color: OVERLAY_COLORS.ema10 } : null,
     showEMA ? { label: 'EMA 20', color: OVERLAY_COLORS.ema20 } : null,
     showEMA ? { label: 'EMA 50', color: OVERLAY_COLORS.ema50 } : null,
     showEMA ? { label: 'EMA 200', color: OVERLAY_COLORS.ema200 } : null,
     showWMA ? { label: 'WMA 20', color: OVERLAY_COLORS.wma20 } : null,
+    showWMA ? { label: 'WMA 50', color: OVERLAY_COLORS.wma50 } : null,
     showBB ? { label: 'BB Upper', color: OVERLAY_COLORS.bbUpper } : null,
     showBB ? { label: 'BB Mid', color: OVERLAY_COLORS.bbMiddle } : null,
     showBB ? { label: 'BB Lower', color: OVERLAY_COLORS.bbLower } : null,
-    showVWAP ? { label: 'VWAP', color: OVERLAY_COLORS.vwap } : null,
-    showSupertrend ? { label: 'Supertrend', color: OVERLAY_COLORS.supertrend } : null,
+    showVWAP ? { label: indicators?.vwapMode === 'session' ? 'VWAP (session)' : 'VWAP (20)', color: OVERLAY_COLORS.vwap } : null,
+    showSupertrend ? { label: 'Supertrend Up', color: OVERLAY_COLORS.supertrendUp } : null,
+    showSupertrend ? { label: 'Supertrend Down', color: OVERLAY_COLORS.supertrendDown } : null,
+    showIchimoku ? { label: 'Tenkan', color: OVERLAY_COLORS.ichimokuTenkan } : null,
+    showIchimoku ? { label: 'Kijun', color: OVERLAY_COLORS.ichimokuKijun } : null,
+    showIchimoku ? { label: 'Cloud A', color: OVERLAY_COLORS.ichimokuSpanA } : null,
+    showIchimoku ? { label: 'Cloud B', color: OVERLAY_COLORS.ichimokuSpanB } : null,
+    showIchimoku ? { label: 'Chikou', color: OVERLAY_COLORS.ichimokuChikou } : null,
+    showKeltner ? { label: 'Keltner High', color: OVERLAY_COLORS.keltnerUpper } : null,
+    showKeltner ? { label: 'Keltner Mid', color: OVERLAY_COLORS.keltnerMiddle } : null,
+    showKeltner ? { label: 'Keltner Low', color: OVERLAY_COLORS.keltnerLower } : null,
+    showDonchian ? { label: 'Donchian High', color: OVERLAY_COLORS.donchianUpper } : null,
+    showDonchian ? { label: 'Donchian Mid', color: OVERLAY_COLORS.donchianMiddle } : null,
+    showDonchian ? { label: 'Donchian Low', color: OVERLAY_COLORS.donchianLower } : null,
     showPivotPoints ? { label: 'Pivot', color: OVERLAY_COLORS.pivot } : null,
     showPrevHighLow ? { label: 'Prev High', color: OVERLAY_COLORS.previousHigh } : null,
     showPrevHighLow ? { label: 'Prev Low', color: OVERLAY_COLORS.previousLow } : null,
     showHighLow52 ? { label: '52W High', color: OVERLAY_COLORS.high52 } : null,
     showHighLow52 ? { label: '52W Low', color: OVERLAY_COLORS.low52 } : null,
+    showTargets ? { label: 'Pattern targets', color: '#a855f7' } : null,
   ].filter(Boolean)
 
   const secondaryPanels = [
+    showStoch ? {
+      key: 'stochastic',
+      title: 'Stochastic Oscillator',
+      subtitle: 'Momentum and turning points',
+      yMin: 0,
+      yMax: 100,
+      referenceLines: [
+        { value: 80, label: '80', color: 'rgba(244, 63, 94, 0.48)' },
+        { value: 20, label: '20', color: 'rgba(16, 185, 129, 0.48)' },
+      ],
+      datasets: [
+        { label: 'Stochastic %K', values: indicators?.stoch?.k, color: '#60a5fa' },
+        { label: 'Stochastic %D', values: indicators?.stoch?.d, color: '#fb923c' },
+      ],
+    } : null,
     showStochRsi ? {
       key: 'stoch-rsi',
       title: 'Stochastic RSI',
       subtitle: 'Fast momentum oscillator',
       yMin: 0,
       yMax: 100,
+      referenceLines: [
+        { value: 80, label: '80', color: 'rgba(244, 63, 94, 0.48)' },
+        { value: 20, label: '20', color: 'rgba(16, 185, 129, 0.48)' },
+      ],
       datasets: [
         { label: 'Stoch RSI %K', values: indicators?.stochRsi?.k, color: '#c084fc' },
         { label: 'Stoch RSI %D', values: indicators?.stochRsi?.d, color: '#f0abfc' },
@@ -1038,7 +1107,8 @@ export default function ChartWorkspace({
       title: 'ADX / Directional Index',
       subtitle: 'Trend strength with +DI and -DI',
       yMin: 0,
-      yMax: 60,
+      yMax: 100,
+      referenceLines: [{ value: 25, label: 'Trend 25', color: 'rgba(249, 115, 22, 0.55)' }],
       datasets: [
         { label: 'ADX', values: indicators?.adx?.adx, color: '#f97316' },
         { label: '+DI', values: indicators?.adx?.pdi, color: '#22c55e' },
@@ -1061,12 +1131,18 @@ export default function ChartWorkspace({
       key: 'cci',
       title: 'CCI',
       subtitle: 'Commodity Channel Index',
+      referenceLines: [
+        { value: 100, label: '+100', color: 'rgba(244, 63, 94, 0.48)' },
+        { value: -100, label: '-100', color: 'rgba(16, 185, 129, 0.48)' },
+        { value: 0, color: 'rgba(148, 163, 184, 0.30)' },
+      ],
       datasets: [{ label: 'CCI 20', values: indicators?.cci20, color: '#38bdf8' }],
     } : null,
     showMomentum ? {
       key: 'momentum',
       title: 'Momentum',
       subtitle: '10-bar price momentum',
+      referenceLines: [{ value: 0, label: '0', color: 'rgba(148, 163, 184, 0.40)' }],
       datasets: [{ label: 'Momentum 10', values: indicators?.momentum10, color: '#a3e635' }],
     } : null,
     showWilliamsR ? {
@@ -1075,6 +1151,10 @@ export default function ChartWorkspace({
       subtitle: 'Overbought / oversold pressure',
       yMin: -100,
       yMax: 0,
+      referenceLines: [
+        { value: -20, label: '-20', color: 'rgba(244, 63, 94, 0.48)' },
+        { value: -80, label: '-80', color: 'rgba(16, 185, 129, 0.48)' },
+      ],
       datasets: [{ label: 'Williams %R', values: indicators?.willR, color: '#fb7185' }],
     } : null,
     showMFI ? {
@@ -1083,6 +1163,10 @@ export default function ChartWorkspace({
       subtitle: 'Volume-weighted momentum',
       yMin: 0,
       yMax: 100,
+      referenceLines: [
+        { value: 80, label: '80', color: 'rgba(244, 63, 94, 0.48)' },
+        { value: 20, label: '20', color: 'rgba(16, 185, 129, 0.48)' },
+      ],
       datasets: [{ label: 'MFI 14', values: indicators?.mfi14, color: '#2dd4bf' }],
     } : null,
     showCMF ? {
@@ -1091,6 +1175,7 @@ export default function ChartWorkspace({
       subtitle: 'Accumulation / distribution pressure',
       yMin: -1,
       yMax: 1,
+      referenceLines: [{ value: 0, label: '0', color: 'rgba(148, 163, 184, 0.40)' }],
       datasets: [{ label: 'CMF 20', values: indicators?.cmf20, color: '#22c55e' }],
     } : null,
     showADL ? {
@@ -1101,7 +1186,50 @@ export default function ChartWorkspace({
     } : null,
   ].filter(Boolean)
 
-  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolumeMA}-${showPatterns}-${showTriangles}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}`
+  const viewEndIndex = Math.max(0, n - 1 - viewOffset)
+  const viewStartIndex = Math.max(0, viewEndIndex - activeVisibleBars + 1)
+  const detectedPatterns = signal?.patterns?.patterns ?? []
+  const patternsInView = detectedPatterns.filter(pattern => {
+    const start = pattern?.visual?.startIndex
+    const end = pattern?.visual?.endIndex
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return true
+    return end >= viewStartIndex && start <= viewEndIndex
+  })
+  const gapsInView = (signal?.pro?.gaps?.gaps ?? []).filter(gap => (
+    gap?.index <= viewEndIndex && (gap?.endIndex ?? viewEndIndex) >= viewStartIndex
+  ))
+  const spot = ohlcv?.[ohlcv.length - 1]?.c
+  const bestPatternKey = signal?.patterns?.best?.key
+  const hasTargetablePattern = detectedPatterns.some(pattern => {
+    const isSelected = pattern.key === bestPatternKey || ['near_breakout', 'broken_out'].includes(pattern.meta?.stage)
+    const direction = pattern.direction ?? pattern.bias
+    const hasCoherentTarget = Number.isFinite(pattern.targetPrice) && Number.isFinite(spot) && (
+      direction === 'bearish' ? pattern.targetPrice < spot : pattern.targetPrice > spot
+    )
+    return isSelected && (
+      patternBreakoutLevel(pattern, spot) != null ||
+      hasCoherentTarget ||
+      Number.isFinite(pattern.meta?.invalidationLevel)
+    )
+  })
+
+  const chartToolNotices = isLoading
+    ? []
+    : [
+        showTriangles && !patternsInView.some(isTrendlinePattern) ? 'trendline' : null,
+        showPatterns && !patternsInView.some(pattern => !isTrendlinePattern(pattern)) ? 'patterns' : null,
+        showGaps && gapsInView.length === 0 ? 'gaps' : null,
+        showTargets && !hasTargetablePattern ? 'targets' : null,
+      ].filter(Boolean)
+
+  const lowerPanelLinks = [
+    showVolume && !proChart ? { key: 'volume', label: 'Volume' } : null,
+    showRSI ? { key: 'rsi', label: 'RSI' } : null,
+    showMACD ? { key: 'macd', label: 'MACD' } : null,
+    ...secondaryPanels.map(panel => ({ key: panel.key, label: panel.title })),
+  ].filter(Boolean)
+
+  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolume}-${showVolumeMA}-${showRSI}-${showMACD}-${showStoch}-${showStochRsi}-${showATR}-${showADX}-${showOBV}-${showCCI}-${showMomentum}-${showWilliamsR}-${showMFI}-${showCMF}-${showADL}-${showPatterns}-${showTriangles}-${showTargets}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}-${measureMode}`
   const patternSummary = technicalAnalysis?.patterns ?? []
   const signalCount = technicalAnalysis?.indicatorInterpretations?.length ?? 0
   const chartCopy = language === 'he'
@@ -1161,6 +1289,14 @@ export default function ChartWorkspace({
         macdPanel: 'פאנל MACD',
         disclaimerFoot: 'הציונים מתארים התאמה לכללים, לא הסתברות לתוצאה. פעל רק עם ניהול סיכון.',
         risk: 'סיכון',
+        lowerPanels: 'פאנלים פעילים מתחת לגרף',
+        jumpToPanel: 'עבור לפאנל',
+        toolNotices: {
+          trendline: 'לא זוהה קו מגמה תקף בטווח המוצג. הכלי פעיל ויופיע כאשר יימצא מבנה מתאים.',
+          patterns: 'לא זוהתה תבנית גרפית תקפה בטווח המוצג.',
+          gaps: 'לא נמצא אזור Gap בטווח המוצג.',
+          targets: 'אין כרגע תבנית עם טריגר או יעד תקפים להצגה.',
+        },
       }
     : {
         activeStructures: 'Active chart structures',
@@ -1218,14 +1354,26 @@ export default function ChartWorkspace({
         macdPanel: 'MACD panel',
         disclaimerFoot: 'Scores describe rule alignment, not outcome probability.',
         risk: 'Risk',
+        lowerPanels: 'Active panels below the chart',
+        jumpToPanel: 'Jump to panel',
+        toolNotices: {
+          trendline: 'No valid trendline structure was detected in the visible range. The tool remains active.',
+          patterns: 'No valid chart pattern was detected in the visible range.',
+          gaps: 'No gap zone was found in the visible range.',
+          targets: 'No pattern currently has a valid trigger or target to display.',
+        },
       }
 
   const resolvedPriceChartHeight = isMobileLayout
     ? 360
     : (pricePanelHeightPx ?? getBaseChartHeight(chartExpanded))
-  const resizeHint = language === 'he'
-    ? 'גרור בתוך הגרף להזזה, גלגלת לזום, צד ימין לסקאלת מחיר ותחתית לצפיפות נרות'
-    : 'Drag inside to pan, wheel to zoom, right rail for price scale, bottom rail for candle density'
+  const resizeHint = proChart
+    ? (language === 'he'
+        ? 'גרור בתוך הגרף להזזה, גלגלת לזום וגרור את ציר המחיר לשינוי קנה המידה'
+        : 'Drag inside to pan, wheel to zoom, and drag the price axis to rescale')
+    : (language === 'he'
+        ? 'גרור בתוך הגרף להזזה, גלגלת לזום, צד ימין לסקאלת מחיר ותחתית לצפיפות נרות'
+        : 'Drag inside to pan, wheel to zoom, right rail for price scale, bottom rail for candle density')
 
   return (
     <section className="space-y-4">
@@ -1268,6 +1416,8 @@ export default function ChartWorkspace({
               setShowGaps={setShowGaps}
               showPatterns={showPatterns}
               setShowPatterns={setShowPatterns}
+              showTargets={showTargets}
+              setShowTargets={setShowTargets}
               measureMode={measureMode}
               setMeasureMode={setMeasureMode}
               chartExpanded={chartExpanded}
@@ -1303,7 +1453,7 @@ export default function ChartWorkspace({
           className={`chart-workspace__price transition-[width] duration-150 ${isMobileLayout ? 'chart-workspace__price--mobile' : ''}`}
           bodyClassName="relative"
           bodyStyle={{ height: `${resolvedPriceChartHeight}px` }}
-          onWheel={handlePriceChartWheel}
+          onWheel={proChart ? undefined : handlePriceChartWheel}
           toolbar={(
             <ChartQuickTools
               items={[
@@ -1311,6 +1461,9 @@ export default function ChartWorkspace({
                 { key: 'ema', icon: '📈', label: 'EMA', value: showEMA, onToggle: () => setShowEMA(v => !v) },
                 { key: 'bb', icon: '🫧', label: chartCopy.bands ?? 'Bands', value: showBB, onToggle: () => setShowBB(v => !v) },
                 { key: 'vwap', icon: '🎯', label: 'VWAP', value: showVWAP, onToggle: () => setShowVWAP(v => !v) },
+                { key: 'volume', icon: '📦', label: 'Volume', value: showVolume, onToggle: toggleVolume },
+                { key: 'rsi', icon: '⚡', label: 'RSI', value: showRSI, onToggle: () => setShowRSI(v => !v) },
+                { key: 'macd', icon: '〰️', label: 'MACD', value: showMACD, onToggle: () => setShowMACD(v => !v) },
                 { key: 'trend', icon: '📏', label: chartCopy.trendline, value: showTriangles, onToggle: () => setShowTriangles(v => !v) },
                 { key: 'extend', icon: '➡️', label: chartCopy.extendTrendlines, value: extendTrendlines, onToggle: () => setExtendTrendlines(v => !v) },
                 { key: 'levels', icon: '📍', label: chartCopy.horizontalLine, value: showLevels, onToggle: () => setShowLevels(v => !v) },
@@ -1332,7 +1485,7 @@ export default function ChartWorkspace({
         >
           <div className="mb-3 hidden items-center justify-between gap-3 text-xs text-slate-400 lg:flex">
             <span>{resizeHint}</span>
-            <span>{activeVisibleBars} bars · Y {priceScale.toFixed(2)}x</span>
+            <span>{activeVisibleBars} bars · {proChart ? 'native scale' : `Y ${priceScale.toFixed(2)}x`}</span>
           </div>
           <div className="mb-2 flex items-center gap-2 text-sm text-slate-400 md:hidden">
             <span>{language === 'he' ? 'צופה ב-' : 'Viewing:'}</span>
@@ -1347,7 +1500,7 @@ export default function ChartWorkspace({
             type="button"
             aria-label="Adjust price scale"
             onPointerDown={event => startResize('priceScale', event)}
-            className="absolute inset-y-8 right-1 z-10 hidden w-3 cursor-ns-resize items-center justify-center rounded-full lg:flex"
+            className={`${proChart ? 'hidden' : 'absolute inset-y-8 right-1 z-10 hidden w-3 cursor-ns-resize items-center justify-center rounded-full lg:flex'}`}
           >
             <span className="h-16 w-1 rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
@@ -1355,7 +1508,7 @@ export default function ChartWorkspace({
             type="button"
             aria-label="Adjust candle density"
             onPointerDown={event => startResize('timeScale', event)}
-            className="absolute bottom-1 left-12 right-12 z-10 hidden h-3 cursor-ew-resize items-center justify-center rounded-full lg:flex"
+            className={`${proChart ? 'hidden' : 'absolute bottom-1 left-12 right-12 z-10 hidden h-3 cursor-ew-resize items-center justify-center rounded-full lg:flex'}`}
           >
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
@@ -1374,6 +1527,8 @@ export default function ChartWorkspace({
                 showWMA={showWMA}
                 showBB={showBB}
                 showVWAP={showVWAP}
+                showVolume={showVolume}
+                showVolumeMA={showVolumeMA}
                 showSupertrend={showSupertrend}
                 showIchimoku={showIchimoku}
                 showKeltner={showKeltner}
@@ -1394,7 +1549,9 @@ export default function ChartWorkspace({
                 extendTrendlines={extendTrendlines}
                 showTargets={showTargets}
                 visibleBars={activeVisibleBars}
+                viewOffset={viewOffset}
                 interval={interval}
+                measurementEnabled={measureMode}
               />
             ) : (
             <PriceChart
@@ -1420,6 +1577,7 @@ export default function ChartWorkspace({
               showGaps={showGaps}
               showPatterns={showPatterns}
               showTriangles={showTriangles}
+              showTargets={showTargets}
               showLevels={showLevels}
               ticker={currentTicker}
               decision={signal?.decision}
@@ -1440,6 +1598,29 @@ export default function ChartWorkspace({
             )}
           </SafeChart>
         </ChartContainer>
+
+        {chartToolNotices.length > 0 && (
+          <div className="space-y-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-xs text-amber-100">
+            {chartToolNotices.map(key => <div key={key}>{chartCopy.toolNotices[key]}</div>)}
+          </div>
+        )}
+
+        {lowerPanelLinks.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-cyan-400/15 bg-cyan-400/10 px-4 py-3 text-xs text-slate-300">
+            <span className="font-semibold text-cyan-100">{chartCopy.lowerPanels}:</span>
+            {lowerPanelLinks.map(panel => (
+              <button
+                key={panel.key}
+                type="button"
+                title={chartCopy.jumpToPanel}
+                onClick={() => document.getElementById(`chart-panel-${panel.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 font-semibold text-white transition hover:border-cyan-300/50 hover:text-cyan-200"
+              >
+                {panel.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {measureMode && (
           <div className="rounded-2xl border border-cyan-400/18 bg-cyan-400/10 px-4 py-3 text-xs font-medium text-cyan-100">
@@ -1469,6 +1650,8 @@ export default function ChartWorkspace({
             setShowGaps={setShowGaps}
             showPatterns={showPatterns}
             setShowPatterns={setShowPatterns}
+            showTargets={showTargets}
+            setShowTargets={setShowTargets}
             measureMode={measureMode}
             setMeasureMode={setMeasureMode}
             chartExpanded={chartExpanded}
@@ -1514,7 +1697,8 @@ export default function ChartWorkspace({
           )}
         </div>
 
-        {showVolume && (
+        {showVolume && !proChart && (
+          <div id="chart-panel-volume" className="scroll-mt-24">
           <ChartContainer
             title={chartCopy.volume}
             subtitle={chartCopy.volumeSubtitle}
@@ -1537,11 +1721,13 @@ export default function ChartWorkspace({
               />
             </SafeChart>
           </ChartContainer>
+          </div>
         )}
 
         {(showRSI || showMACD) && (
           <div className={`grid gap-4 ${showRSI && showMACD ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
             {showRSI && (
+              <div id="chart-panel-rsi" className="scroll-mt-24">
               <ChartContainer
                 title={chartCopy.rsiPanel}
                 subtitle={`RSI (14)${rsiLast != null ? ` · ${rsiLast.toFixed(1)}` : ''}`}
@@ -1564,9 +1750,11 @@ export default function ChartWorkspace({
                   />
                 </SafeChart>
               </ChartContainer>
+              </div>
             )}
 
             {showMACD && (
+              <div id="chart-panel-macd" className="scroll-mt-24">
               <ChartContainer
                 title={chartCopy.macdPanel}
                 subtitle={`MACD (12, 26, 9)${macdLine != null && macdSignal != null ? ` · ${macdLine.toFixed(2)} / ${macdSignal.toFixed(2)}` : ''}`}
@@ -1590,6 +1778,7 @@ export default function ChartWorkspace({
                   />
                 </SafeChart>
               </ChartContainer>
+              </div>
             )}
           </div>
         )}
@@ -1597,8 +1786,8 @@ export default function ChartWorkspace({
         {secondaryPanels.length > 0 && (
           <div className="grid gap-4 xl:grid-cols-2">
             {secondaryPanels.map(panel => (
+              <div key={panel.key} id={`chart-panel-${panel.key}`} className="scroll-mt-24">
               <ChartContainer
-                key={panel.key}
                 title={panel.title}
                 subtitle={panel.subtitle}
                 height="h-[180px]"
@@ -1619,9 +1808,11 @@ export default function ChartWorkspace({
                     datasets={panel.datasets}
                     yMin={panel.yMin}
                     yMax={panel.yMax}
+                    referenceLines={panel.referenceLines}
                   />
                 </SafeChart>
               </ChartContainer>
+              </div>
             ))}
           </div>
         )}

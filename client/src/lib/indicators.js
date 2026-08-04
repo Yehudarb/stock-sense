@@ -23,6 +23,84 @@ function pad(arr, totalLen) {
   return [...Array(Math.max(0, fill)).fill(null), ...arr]
 }
 
+const INTRADAY_INTERVALS = new Set(['1m', '5m', '15m', '1h', '4h'])
+const SESSION_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/New_York',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+function sessionKey(timestamp) {
+  const parts = SESSION_FORMATTER.formatToParts(new Date(timestamp))
+  const value = type => parts.find(part => part.type === type)?.value
+  return `${value('year')}-${value('month')}-${value('day')}`
+}
+
+function isIntradaySeries(ohlcv, interval) {
+  if (INTRADAY_INTERVALS.has(interval)) return true
+  if (interval) return false
+
+  const tail = ohlcv.slice(-40)
+  return tail.some((bar, index) => (
+    index > 0 && sessionKey(bar.t) === sessionKey(tail[index - 1].t)
+  ))
+}
+
+function aggregateSessions(ohlcv) {
+  const sessions = []
+  for (const bar of ohlcv) {
+    const key = sessionKey(bar.t)
+    const current = sessions.at(-1)
+    if (!current || current.key !== key) {
+      sessions.push({ key, o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v ?? 0 })
+      continue
+    }
+    current.h = Math.max(current.h, bar.h)
+    current.l = Math.min(current.l, bar.l)
+    current.c = bar.c
+    current.v += bar.v ?? 0
+  }
+  return sessions
+}
+
+function shiftForward(values, periods) {
+  return values.map((_value, index) => (index >= periods ? values[index - periods] : null))
+}
+
+function shiftBackward(values, periods) {
+  return values.map((_value, index) => (index + periods < values.length ? values[index + periods] : null))
+}
+
+function calculateVwap(ohlcv, intraday, rollingPeriod = 20) {
+  if (intraday) {
+    let activeSession = null
+    let cumulativeTpv = 0
+    let cumulativeVolume = 0
+    return ohlcv.map(bar => {
+      const key = sessionKey(bar.t)
+      if (key !== activeSession) {
+        activeSession = key
+        cumulativeTpv = 0
+        cumulativeVolume = 0
+      }
+      const volume = bar.v ?? 0
+      const typicalPrice = (bar.h + bar.l + bar.c) / 3
+      cumulativeTpv += typicalPrice * volume
+      cumulativeVolume += volume
+      return cumulativeVolume > 0 ? cumulativeTpv / cumulativeVolume : null
+    })
+  }
+
+  return ohlcv.map((_bar, index) => {
+    const window = ohlcv.slice(Math.max(0, index - rollingPeriod + 1), index + 1)
+    const volume = window.reduce((sum, bar) => sum + (bar.v ?? 0), 0)
+    if (volume <= 0) return null
+    const tpv = window.reduce((sum, bar) => sum + ((bar.h + bar.l + bar.c) / 3) * (bar.v ?? 0), 0)
+    return tpv / volume
+  })
+}
+
 function donchian(highs, lows, period, _totalLen) {
   const upper = [], lower = [], middle = []
   for (let i = 0; i < highs.length; i++) {
@@ -83,7 +161,7 @@ function supertrend(ohlcv, atrValues, multiplier = 3) {
     const prevUpper = upper[index - 1]
     const prevLower = lower[index - 1]
     const prevClose = ohlcv[index - 1]?.c
-    const prevDirection = direction[index - 1] ?? 'bullish'
+    const prevDirection = direction[index - 1]
 
     const finalUpper = prevUpper != null && prevClose != null && prevClose <= prevUpper
       ? Math.min(basicUpper, prevUpper)
@@ -92,11 +170,11 @@ function supertrend(ohlcv, atrValues, multiplier = 3) {
       ? Math.max(basicLower, prevLower)
       : basicLower
 
-    const nextDirection = bar.c > finalUpper
-      ? 'bullish'
-      : bar.c < finalLower
-        ? 'bearish'
-        : prevDirection
+    const nextDirection = prevDirection == null
+      ? (bar.c >= hl2 ? 'bullish' : 'bearish')
+      : prevDirection === 'bullish'
+        ? (bar.c < finalLower ? 'bearish' : 'bullish')
+        : (bar.c > finalUpper ? 'bullish' : 'bearish')
 
     upper.push(finalUpper)
     lower.push(finalLower)
@@ -109,7 +187,8 @@ function supertrend(ohlcv, atrValues, multiplier = 3) {
 }
 
 function pivotPoints(ohlcv) {
-  const previous = ohlcv[ohlcv.length - 2] ?? ohlcv[ohlcv.length - 1]
+  const sessions = aggregateSessions(ohlcv)
+  const previous = sessions[sessions.length - 2] ?? sessions[sessions.length - 1]
   if (!previous) return null
 
   const pivot = (previous.h + previous.l + previous.c) / 3
@@ -126,10 +205,11 @@ function pivotPoints(ohlcv) {
   }
 }
 
-function priceLevels(ohlcv) {
+function priceLevels(ohlcv, intraday) {
   const recent = ohlcv.slice(-60)
-  const lookback52 = ohlcv.slice(-252)
-  const previous = ohlcv[ohlcv.length - 2]
+  const lookback52 = intraday ? [] : ohlcv.slice(-252)
+  const sessions = aggregateSessions(ohlcv)
+  const previous = sessions[sessions.length - 2]
 
   return {
     previousHigh: previous?.h ?? null,
@@ -141,7 +221,7 @@ function priceLevels(ohlcv) {
   }
 }
 
-export function computeAll(ohlcv) {
+export function computeAll(ohlcv, interval = null) {
   if (!ohlcv || ohlcv.length < 30) return null
 
   const closes  = ohlcv.map(b => b.c)
@@ -150,6 +230,7 @@ export function computeAll(ohlcv) {
   const opens   = ohlcv.map(b => b.o)
   const volumes = ohlcv.map(b => b.v)
   const n = ohlcv.length
+  const intraday = isIntradaySeries(ohlcv, interval)
 
   const sma20Raw  = SMA.calculate({ values: closes, period: 20 })
   const sma50Raw  = SMA.calculate({ values: closes, period: 50 })
@@ -200,14 +281,7 @@ export function computeAll(ohlcv) {
       : null
   ))
 
-  let cumulativeTpv = 0
-  let cumulativeVolume = 0
-  const vwap = ohlcv.map((bar, index) => {
-    const typicalPrice = ((highs[index] ?? bar.h) + (lows[index] ?? bar.l) + closes[index]) / 3
-    cumulativeTpv += typicalPrice * (volumes[index] ?? 0)
-    cumulativeVolume += volumes[index] ?? 0
-    return cumulativeVolume > 0 ? cumulativeTpv / cumulativeVolume : null
-  })
+  const vwap = calculateVwap(ohlcv, intraday)
 
   const bodySize = ohlcv.map((bar, index) => Math.abs(closes[index] - opens[index]))
   const averageBody = pad(SMA.calculate({ values: bodySize, period: 20 }), n)
@@ -267,16 +341,22 @@ export function computeAll(ohlcv) {
       lower: pad(keltnerRaw.map(item => item.lower ?? null), n),
     },
     donchian: { upper: dc20.upper, middle: dc20.middle, lower: dc20.lower },
-    ichimoku: {
-      conversion: pad(ichimokuRaw.map(item => item.conversion ?? null), n),
-      base: pad(ichimokuRaw.map(item => item.base ?? null), n),
-      spanA: pad(ichimokuRaw.map(item => item.spanA ?? null), n),
-      spanB: pad(ichimokuRaw.map(item => item.spanB ?? null), n),
-    },
+    ichimoku: (() => {
+      const conversion = pad(ichimokuRaw.map(item => item.conversion ?? null), n)
+      const base = pad(ichimokuRaw.map(item => item.base ?? null), n)
+      return {
+        conversion,
+        base,
+        spanA: shiftForward(pad(ichimokuRaw.map(item => item.spanA ?? null), n), 26),
+        spanB: shiftForward(pad(ichimokuRaw.map(item => item.spanB ?? null), n), 26),
+        laggingSpan: shiftBackward(closes, 26),
+      }
+    })(),
     supertrend: supertrendResult,
     vwap,
+    vwapMode: intraday ? 'session' : 'rolling-20',
     pivotPoints: pivotPoints(ohlcv),
-    priceLevels: priceLevels(ohlcv),
+    priceLevels: priceLevels(ohlcv, intraday),
     avgVol,
     avgVol50,
     volumeMA: avgVol,

@@ -25,7 +25,7 @@ export default function SimpleApp() {
   }, [currentTicker, setCurrentTicker])
 
   useTicker()
-  const indicators = useIndicators(ohlcv)
+  const indicators = useIndicators(ohlcv, interval)
   const signal = useSignal(ohlcv, indicators, language, null, interval)
   const { isConnected } = useSocket()
   const paperTrading = usePaperTrading(`${TICKER}-${snapshot?.price ?? 'na'}`)

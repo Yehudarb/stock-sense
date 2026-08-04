@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
 import useStore from '../../store/useStore'
-import { computeFibonacci, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, isTrendlinePattern, labelsFromBars, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import { computeFibonacci, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, isTrendlinePattern, labelsFromBars, OVERLAY_COLORS, patternBreakoutLevel, seriesFromBars, seriesFromIndicator } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 const TV_GREEN = TRADER_COLORS.entry
@@ -76,7 +76,7 @@ function pushRangeValues(values, source) {
   values.push(...(source ?? []).filter(value => value != null))
 }
 
-function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci, decision, demoLevels = []) {
+function buildPriceRange(ohlcv, indicators, overlays, targetPatterns, gaps, fibonacci, decision, demoLevels = []) {
   const values = []
 
   ohlcv?.forEach(bar => {
@@ -84,9 +84,25 @@ function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci,
     if (bar?.l != null) values.push(bar.l)
   })
 
-  if (overlays.showSMA) pushRangeValues(values, indicators?.sma20)
-  if (overlays.showEMA) pushRangeValues(values, indicators?.ema50)
-  if (overlays.showWMA) pushRangeValues(values, indicators?.wma20)
+  if (overlays.showSMA) {
+    pushRangeValues(values, indicators?.sma20)
+    pushRangeValues(values, indicators?.sma50)
+    pushRangeValues(values, indicators?.sma100)
+    pushRangeValues(values, indicators?.sma150)
+    pushRangeValues(values, indicators?.sma200)
+  }
+  if (overlays.showEMA) {
+    pushRangeValues(values, indicators?.ema9)
+    pushRangeValues(values, indicators?.ema10)
+    pushRangeValues(values, indicators?.ema20)
+    pushRangeValues(values, indicators?.ema50)
+    pushRangeValues(values, indicators?.ema200)
+  }
+  if (overlays.showWMA) {
+    pushRangeValues(values, indicators?.wma20)
+    pushRangeValues(values, indicators?.wma50)
+  }
+  if (overlays.showVWAP) pushRangeValues(values, indicators?.vwap)
   if (overlays.showSupertrend) pushRangeValues(values, indicators?.supertrend?.line)
   if (overlays.showBB) {
     pushRangeValues(values, indicators?.bb20?.upper)
@@ -105,8 +121,16 @@ function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci,
     pushRangeValues(values, indicators?.ichimoku?.spanB)
   }
 
-  patterns?.patterns?.forEach(pattern => {
-    if (pattern.targetPrice != null) values.push(pattern.targetPrice)
+  const spot = ohlcv?.at(-1)?.c
+  targetPatterns?.forEach(pattern => {
+    const bullish = (pattern.direction ?? pattern.bias) !== 'bearish'
+    const coherentTarget = Number.isFinite(pattern.targetPrice) && Number.isFinite(spot) && (
+      bullish ? pattern.targetPrice > spot : pattern.targetPrice < spot
+    )
+    if (coherentTarget) values.push(pattern.targetPrice)
+    const trigger = patternBreakoutLevel(pattern, spot)
+    if (trigger != null) values.push(trigger)
+    if (pattern.meta?.invalidationLevel != null) values.push(pattern.meta.invalidationLevel)
   })
 
   gaps?.forEach(gap => {
@@ -116,17 +140,19 @@ function buildPriceRange(ohlcv, indicators, overlays, patterns, gaps, fibonacci,
 
   fibonacci?.levels?.forEach(level => values.push(level.price))
 
-  ;[
-    decision?.entryLow,
-    decision?.entryHigh,
-    decision?.invalidation,
-    decision?.stopLoss,
-    decision?.takeProfit,
-    decision?.support,
-    decision?.resistance,
-  ].forEach(value => {
-    if (value != null) values.push(value)
-  })
+  if (overlays.showLevels) {
+    ;[
+      decision?.entryLow,
+      decision?.entryHigh,
+      decision?.invalidation,
+      decision?.stopLoss,
+      decision?.takeProfit,
+      decision?.support,
+      decision?.resistance,
+    ].forEach(value => {
+      if (value != null) values.push(value)
+    })
+  }
 
   demoLevels.forEach(level => {
     if (level?.price != null) values.push(level.price)
@@ -170,6 +196,15 @@ function sliceIndicatorTree(value, startIndex, endIndex) {
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => [key, sliceIndicatorTree(child, startIndex, endIndex)]),
   )
+}
+
+function patternsForTargets(patternResult) {
+  const patterns = patternResult?.patterns ?? []
+  const bestKey = patternResult?.best?.key
+  return patterns
+    .filter(pattern => pattern.key === bestKey || ['near_breakout', 'broken_out'].includes(pattern.meta?.stage))
+    .sort((a, b) => Math.abs(b.weight ?? 0) - Math.abs(a.weight ?? 0))
+    .slice(0, 3)
 }
 
 function normalizePatternsForView(patternResult, viewStart, viewEnd) {
@@ -858,6 +893,7 @@ export default function PriceChart({
   showGaps = true,
   showPatterns = true,
   showTriangles = true,
+  showTargets = true,
   showLevels = true,
   ticker,
   decision,
@@ -896,6 +932,7 @@ export default function PriceChart({
     )) ?? []
     const filteredPatternResult = { ...patterns, patterns: patternSource }
     const visiblePatterns = patternSource.length ? normalizePatternsForView(filteredPatternResult, viewStart, viewEnd) : { patterns: [], score: 0, best: null }
+    const targetPatterns = showTargets ? patternsForTargets(patterns) : []
     const visibleGaps = showGaps ? normalizeGapsForView(gaps, viewStart, viewEnd) : []
     const fibonacci = showFibonacci || showFibExtension ? computeFibonacci(visibleOhlcv, showFibExtension) : null
     const labels = labelsFromBars(visibleOhlcv, interval)
@@ -969,7 +1006,9 @@ export default function PriceChart({
       showIchimoku,
       showKeltner,
       showDonchian,
-    }, visiblePatterns, visibleGaps, fibonacci, decision, demoOverlayLevels), priceScale, priceOffsetPct)
+      showVWAP,
+      showLevels,
+    }, targetPatterns, visibleGaps, fibonacci, decision, demoOverlayLevels), priceScale, priceOffsetPct)
     const breakoutLevel = technicalAnalysis?.keyLevels?.breakoutLevels?.[0] ?? null
     const invalidationLevel = technicalAnalysis?.riskAssessment?.stopLoss ?? technicalAnalysis?.keyLevels?.stopLossDangerZones?.[0] ?? null
     const zoneCandidates = [
@@ -1001,7 +1040,7 @@ export default function PriceChart({
           }
         : null,
     ].filter(Boolean)
-    const levelCandidates = (showLevels || showPivotPoints || showPrevHighLow || showHighLow52)
+    const levelCandidates = (showLevels || showPivotPoints || showPrevHighLow || showHighLow52 || showTargets)
       ? [
           ...(showLevels ? [
             { price: decision?.support, color: TRADER_COLORS.support },
@@ -1012,27 +1051,36 @@ export default function PriceChart({
             ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(249, 115, 22, 0.9)' }))),
             ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
           ] : []),
-          // Matches the Pro chart's ladder. This drew only P/R1/S1 while the Pro
-          // chart drew P/R1/R2/S1/S2 from the same pivotPoints object, so the
-          // same toggle on the same data gave two different level sets
-          // depending on which engine was active. R3/S3 exist in computeAll but
-          // neither chart shows them; adding them here would recreate the
-          // mismatch in the other direction.
+          // Keep the complete P/R1-R3/S1-S3 ladder identical in both engines.
           ...(showPivotPoints && indicators?.pivotPoints ? [
             { price: indicators.pivotPoints.pivot, color: 'rgba(250, 204, 21, 0.9)' },
             { price: indicators.pivotPoints.r1, color: 'rgba(249, 115, 22, 0.82)' },
             { price: indicators.pivotPoints.r2, color: 'rgba(249, 115, 22, 0.62)' },
+            { price: indicators.pivotPoints.r3, color: 'rgba(249, 115, 22, 0.44)' },
             { price: indicators.pivotPoints.s1, color: 'rgba(6, 182, 212, 0.82)' },
             { price: indicators.pivotPoints.s2, color: 'rgba(6, 182, 212, 0.62)' },
+            { price: indicators.pivotPoints.s3, color: 'rgba(6, 182, 212, 0.44)' },
           ] : []),
           ...(showPrevHighLow && indicators?.priceLevels ? [
             { price: indicators.priceLevels.previousHigh, color: 'rgba(249, 115, 22, 0.82)' },
             { price: indicators.priceLevels.previousLow, color: 'rgba(6, 182, 212, 0.82)' },
           ] : []),
           ...(showHighLow52 && indicators?.priceLevels ? [
-            { price: indicators.priceLevels.high52Week, color: 'rgba(244, 114, 182, 0.88)' },
-            { price: indicators.priceLevels.low52Week, color: 'rgba(129, 140, 248, 0.88)' },
+            { price: technicalAnalysis?.keyLevels?.high52Week ?? indicators.priceLevels.high52Week, color: 'rgba(244, 114, 182, 0.88)', label: '52W H' },
+            { price: technicalAnalysis?.keyLevels?.low52Week ?? indicators.priceLevels.low52Week, color: 'rgba(129, 140, 248, 0.88)', label: '52W L' },
           ] : []),
+          ...(showTargets ? targetPatterns.flatMap(pattern => {
+            const spot = visibleOhlcv.at(-1)?.c
+            const bullish = (pattern.direction ?? pattern.bias) !== 'bearish'
+            const coherentTarget = Number.isFinite(pattern.targetPrice) && Number.isFinite(spot) && (
+              bullish ? pattern.targetPrice > spot : pattern.targetPrice < spot
+            )
+            return [
+              { price: patternBreakoutLevel(pattern, spot), color: '#38bdf8', label: 'Trigger', width: 1.5 },
+              { price: coherentTarget ? pattern.targetPrice : null, color: bullish ? TRADER_COLORS.takeProfit : TRADER_COLORS.bearish, label: 'Target', dash: [6, 4], width: 1.7 },
+              { price: pattern.meta?.invalidationLevel, color: TRADER_COLORS.stopLoss, label: 'SL', dash: [3, 4], width: 1.4 },
+            ]
+          }) : []),
         ].filter((level, index, levels) => level.price != null && levels.findIndex(item => item.price === level.price && item.color === level.color) === index)
       : []
 
@@ -1065,49 +1113,43 @@ export default function PriceChart({
     }
 
     if (showSMA && visibleIndicators?.sma20) {
-      datasets.push({
+      ;[
+        ['SMA 20', visibleIndicators.sma20, OVERLAY_COLORS.sma20, 1.6],
+        ['SMA 50', visibleIndicators.sma50, OVERLAY_COLORS.sma50, 1.4],
+        ['SMA 100', visibleIndicators.sma100, OVERLAY_COLORS.sma100, 1.1],
+        ['SMA 150', visibleIndicators.sma150, OVERLAY_COLORS.sma150, 1.5],
+        ['SMA 200', visibleIndicators.sma200, OVERLAY_COLORS.sma200, 1.4],
+      ].forEach(([label, values, color, width]) => datasets.push({
         type: 'line',
-        label: 'SMA 20',
-        data: seriesFromIndicator(visibleIndicators.sma20),
-        borderColor: CHART_COLORS.sma20,
-        borderWidth: 1.5,
+        label,
+        data: seriesFromIndicator(values),
+        borderColor: color,
+        borderWidth: width,
         pointRadius: 0,
         tension: 0.1,
         yAxisID: 'y',
-      })
-      if (visibleIndicators?.sma50) {
-        datasets.push({
-          type: 'line',
-          label: 'SMA 50',
-          data: seriesFromIndicator(visibleIndicators.sma50),
-          borderColor: 'rgba(234, 179, 8, 0.95)',
-          borderWidth: 1.2,
-          pointRadius: 0,
-          tension: 0.1,
-          yAxisID: 'y',
-        })
-      }
-      if (visibleIndicators?.sma200) {
-        datasets.push({
-          type: 'line',
-          label: 'SMA 200',
-          data: seriesFromIndicator(visibleIndicators.sma200),
-          borderColor: 'rgba(99, 102, 241, 0.92)',
-          borderWidth: 1.2,
-          pointRadius: 0,
-          tension: 0.1,
-          yAxisID: 'y',
-        })
-      }
+      }))
     }
 
     if (showEMA && visibleIndicators?.ema50) {
+      if (visibleIndicators?.ema9) {
+        datasets.push({
+          type: 'line', label: 'EMA 9', data: seriesFromIndicator(visibleIndicators.ema9),
+          borderColor: OVERLAY_COLORS.ema9, borderWidth: 1, pointRadius: 0, tension: 0.1, yAxisID: 'y',
+        })
+      }
+      if (visibleIndicators?.ema10) {
+        datasets.push({
+          type: 'line', label: 'EMA 10', data: seriesFromIndicator(visibleIndicators.ema10),
+          borderColor: OVERLAY_COLORS.ema10, borderWidth: 1, pointRadius: 0, tension: 0.1, yAxisID: 'y',
+        })
+      }
       if (visibleIndicators?.ema20) {
         datasets.push({
           type: 'line',
           label: 'EMA 20',
           data: seriesFromIndicator(visibleIndicators.ema20),
-          borderColor: 'rgba(56, 189, 248, 0.92)',
+          borderColor: OVERLAY_COLORS.ema20,
           borderWidth: 1.2,
           pointRadius: 0,
           tension: 0.1,
@@ -1118,7 +1160,7 @@ export default function PriceChart({
         type: 'line',
         label: 'EMA 50',
         data: seriesFromIndicator(visibleIndicators.ema50),
-        borderColor: CHART_COLORS.ema50,
+        borderColor: OVERLAY_COLORS.ema50,
         borderWidth: 1.5,
         pointRadius: 0,
         tension: 0.1,
@@ -1129,7 +1171,7 @@ export default function PriceChart({
           type: 'line',
           label: 'EMA 200',
           data: seriesFromIndicator(visibleIndicators.ema200),
-          borderColor: 'rgba(167, 139, 250, 0.92)',
+          borderColor: OVERLAY_COLORS.ema200,
           borderWidth: 1.2,
           pointRadius: 0,
           tension: 0.1,
@@ -1143,7 +1185,7 @@ export default function PriceChart({
         type: 'line',
         label: 'WMA 20',
         data: seriesFromIndicator(visibleIndicators.wma20),
-        borderColor: 'rgba(251, 191, 36, 0.86)',
+        borderColor: OVERLAY_COLORS.wma20,
         borderWidth: 1.2,
         pointRadius: 0,
         tension: 0.12,
@@ -1154,7 +1196,7 @@ export default function PriceChart({
           type: 'line',
           label: 'WMA 50',
           data: seriesFromIndicator(visibleIndicators.wma50),
-          borderColor: 'rgba(245, 158, 11, 0.72)',
+          borderColor: OVERLAY_COLORS.wma50,
           borderWidth: 1,
           pointRadius: 0,
           tension: 0.12,
@@ -1168,19 +1210,29 @@ export default function PriceChart({
         type: 'line',
         label: 'BB Upper',
         data: seriesFromIndicator(visibleIndicators.bb20.upper),
-        borderColor: CHART_COLORS.bbUpper,
+        borderColor: OVERLAY_COLORS.bbUpper,
         borderWidth: 1,
         pointRadius: 0,
         tension: 0.1,
         yAxisID: 'y',
-        fill: '+1',
+        fill: '+2',
         backgroundColor: CHART_COLORS.bbFill,
+      })
+      datasets.push({
+        type: 'line',
+        label: 'BB Middle',
+        data: seriesFromIndicator(visibleIndicators.bb20.middle),
+        borderColor: OVERLAY_COLORS.bbMiddle,
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.1,
+        yAxisID: 'y',
       })
       datasets.push({
         type: 'line',
         label: 'BB Lower',
         data: seriesFromIndicator(visibleIndicators.bb20.lower),
-        borderColor: CHART_COLORS.bbLower,
+        borderColor: OVERLAY_COLORS.bbLower,
         borderWidth: 1,
         pointRadius: 0,
         tension: 0.1,
@@ -1193,7 +1245,17 @@ export default function PriceChart({
         type: 'line',
         label: 'Keltner Upper',
         data: seriesFromIndicator(visibleIndicators.keltner.upper),
-        borderColor: 'rgba(251, 113, 133, 0.72)',
+        borderColor: OVERLAY_COLORS.keltnerUpper,
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.1,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Keltner Middle',
+        data: seriesFromIndicator(visibleIndicators.keltner.middle),
+        borderColor: OVERLAY_COLORS.keltnerMiddle,
         borderWidth: 1,
         pointRadius: 0,
         tension: 0.1,
@@ -1203,7 +1265,7 @@ export default function PriceChart({
         type: 'line',
         label: 'Keltner Lower',
         data: seriesFromIndicator(visibleIndicators.keltner.lower),
-        borderColor: 'rgba(251, 113, 133, 0.72)',
+        borderColor: OVERLAY_COLORS.keltnerLower,
         borderWidth: 1,
         pointRadius: 0,
         tension: 0.1,
@@ -1216,8 +1278,19 @@ export default function PriceChart({
         type: 'line',
         label: 'Donchian High',
         data: seriesFromIndicator(visibleIndicators.donchian.upper),
-        borderColor: 'rgba(34, 211, 238, 0.68)',
+        borderColor: OVERLAY_COLORS.donchianUpper,
         borderDash: [7, 5],
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Donchian Middle',
+        data: seriesFromIndicator(visibleIndicators.donchian.middle),
+        borderColor: OVERLAY_COLORS.donchianMiddle,
+        borderDash: [3, 4],
         borderWidth: 1,
         pointRadius: 0,
         tension: 0,
@@ -1227,7 +1300,7 @@ export default function PriceChart({
         type: 'line',
         label: 'Donchian Low',
         data: seriesFromIndicator(visibleIndicators.donchian.lower),
-        borderColor: 'rgba(34, 211, 238, 0.68)',
+        borderColor: OVERLAY_COLORS.donchianLower,
         borderDash: [7, 5],
         borderWidth: 1,
         pointRadius: 0,
@@ -1241,18 +1314,19 @@ export default function PriceChart({
         type: 'line',
         label: 'Ichimoku Span A',
         data: seriesFromIndicator(visibleIndicators.ichimoku.spanA),
-        borderColor: 'rgba(16, 185, 129, 0.68)',
-        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+        borderColor: OVERLAY_COLORS.ichimokuSpanA,
+        backgroundColor: 'rgba(16, 185, 129, 0.10)',
         borderWidth: 1,
         pointRadius: 0,
         tension: 0.08,
+        fill: '+1',
         yAxisID: 'y',
       })
       datasets.push({
         type: 'line',
         label: 'Ichimoku Span B',
         data: seriesFromIndicator(visibleIndicators.ichimoku.spanB),
-        borderColor: 'rgba(248, 113, 113, 0.68)',
+        borderColor: OVERLAY_COLORS.ichimokuSpanB,
         borderWidth: 1,
         pointRadius: 0,
         tension: 0.08,
@@ -1260,9 +1334,29 @@ export default function PriceChart({
       })
       datasets.push({
         type: 'line',
-        label: 'Tenkan / Kijun',
+        label: 'Tenkan',
         data: seriesFromIndicator(visibleIndicators.ichimoku.conversion),
-        borderColor: 'rgba(96, 165, 250, 0.68)',
+        borderColor: OVERLAY_COLORS.ichimokuTenkan,
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.08,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Kijun',
+        data: seriesFromIndicator(visibleIndicators.ichimoku.base),
+        borderColor: OVERLAY_COLORS.ichimokuKijun,
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.08,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Chikou',
+        data: seriesFromIndicator(visibleIndicators.ichimoku.laggingSpan),
+        borderColor: OVERLAY_COLORS.ichimokuChikou,
         borderWidth: 1,
         pointRadius: 0,
         tension: 0.08,
@@ -1275,7 +1369,7 @@ export default function PriceChart({
         type: 'line',
         label: 'VWAP',
         data: seriesFromIndicator(visibleIndicators.vwap),
-        borderColor: 'rgba(45, 212, 191, 0.95)',
+        borderColor: OVERLAY_COLORS.vwap,
         borderWidth: 1.3,
         pointRadius: 0,
         tension: 0.1,
@@ -1284,11 +1378,27 @@ export default function PriceChart({
     }
 
     if (showSupertrend && visibleIndicators?.supertrend?.line) {
+      const bullishValues = visibleIndicators.supertrend.line.map((value, index) => (
+        visibleIndicators.supertrend.direction?.[index] === 'bullish' ? value : null
+      ))
+      const bearishValues = visibleIndicators.supertrend.line.map((value, index) => (
+        visibleIndicators.supertrend.direction?.[index] === 'bearish' ? value : null
+      ))
       datasets.push({
         type: 'line',
-        label: 'Supertrend',
-        data: seriesFromIndicator(visibleIndicators.supertrend.line),
-        borderColor: 'rgba(52, 211, 153, 0.95)',
+        label: 'Supertrend bullish',
+        data: seriesFromIndicator(bullishValues),
+        borderColor: OVERLAY_COLORS.supertrendUp,
+        borderWidth: 1.6,
+        pointRadius: 0,
+        tension: 0,
+        yAxisID: 'y',
+      })
+      datasets.push({
+        type: 'line',
+        label: 'Supertrend bearish',
+        data: seriesFromIndicator(bearishValues),
+        borderColor: OVERLAY_COLORS.supertrendDown,
         borderWidth: 1.6,
         pointRadius: 0,
         tension: 0,
@@ -1544,7 +1654,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showLevels, ticker, decision, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, theme, isMobileViewport])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showTargets, showLevels, ticker, decision, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

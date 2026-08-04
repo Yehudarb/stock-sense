@@ -778,6 +778,9 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
   const keyResistance = aggregateLevels(analyzedFrames, 'resistance', lastDailyPrice)
   const nearestResistance = keyResistance[0]
   const nearestSupport = keySupport[0]
+  const range52Bars = dailyBars.slice(-252)
+  const high52Week = range52Bars.length ? normalizePrice(Math.max(...range52Bars.map(bar => bar.h))) : null
+  const low52Week = range52Bars.length ? normalizePrice(Math.min(...range52Bars.map(bar => bar.l))) : null
   const risk = computeRisk(dailyBars, dailyIndicators, {
     nearestSupport,
     nearestResistance,
@@ -900,6 +903,8 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
       stopLossDangerZones: dailyLevels.stopLossDangerZones,
       pivotPoints: dailyLevels.pivotPoints,
       previousHighLow: dailyLevels.previousHighLow,
+      high52Week,
+      low52Week,
     },
     riskAssessment: {
       riskLevel,

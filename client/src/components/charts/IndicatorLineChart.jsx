@@ -15,6 +15,7 @@ export default function IndicatorLineChart({
   datasets,
   yMin,
   yMax,
+  referenceLines = [],
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
@@ -28,6 +29,9 @@ export default function IndicatorLineChart({
     const { start, end } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const visibleOhlcv = ohlcv.slice(start, end)
     const labels = labelsFromBars(visibleOhlcv, interval)
+    const referenceValues = referenceLines.map(line => line.value).filter(Number.isFinite)
+    const suggestedMin = referenceValues.length ? Math.min(...referenceValues) : undefined
+    const suggestedMax = referenceValues.length ? Math.max(...referenceValues) : undefined
 
     chartRef.current = new Chart(canvasRef.current, {
       type: 'line',
@@ -80,10 +84,42 @@ export default function IndicatorLineChart({
         },
         scales: {
           x: categoryXAxis(8, theme),
-          y: rightYAxis({ min: yMin, max: yMax }, theme),
+          y: rightYAxis({
+            min: yMin,
+            max: yMax,
+            ...(yMin == null && suggestedMin != null ? { suggestedMin } : {}),
+            ...(yMax == null && suggestedMax != null ? { suggestedMax } : {}),
+          }, theme),
         },
       },
-      plugins: [indicatorCrosshairPlugin],
+      plugins: [
+        indicatorCrosshairPlugin,
+        {
+          id: 'indicatorReferenceLines',
+          afterDatasetsDraw(chart) {
+            const { ctx, chartArea, scales } = chart
+            ctx.save()
+            referenceLines.forEach(line => {
+              const y = scales.y.getPixelForValue(line.value)
+              if (!Number.isFinite(y) || y < chartArea.top || y > chartArea.bottom) return
+              ctx.beginPath()
+              ctx.moveTo(chartArea.left, y)
+              ctx.lineTo(chartArea.right, y)
+              ctx.strokeStyle = line.color ?? 'rgba(148, 163, 184, 0.35)'
+              ctx.lineWidth = 1
+              ctx.setLineDash(line.dash ?? [5, 4])
+              ctx.stroke()
+              ctx.setLineDash([])
+              if (line.label) {
+                ctx.fillStyle = line.color ?? 'rgba(148, 163, 184, 0.72)'
+                ctx.font = '10px sans-serif'
+                ctx.fillText(line.label, chartArea.left + 5, Math.max(chartArea.top + 10, y - 4))
+              }
+            })
+            ctx.restore()
+          },
+        },
+      ],
     })
 
     return () => {
@@ -92,7 +128,7 @@ export default function IndicatorLineChart({
         chartRef.current = null
       }
     }
-  }, [datasets, hoveredIndex, interval, ohlcv, onHoverIndexChange, theme, viewOffset, visibleBars, yMax, yMin])
+  }, [datasets, hoveredIndex, interval, ohlcv, onHoverIndexChange, referenceLines, theme, viewOffset, visibleBars, yMax, yMin])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }
