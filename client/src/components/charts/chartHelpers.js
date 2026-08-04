@@ -75,6 +75,73 @@ export function isTrendlinePattern(pattern) {
   return Boolean(pattern?.meta?.type)
 }
 
+function markerTime(ohlcv, index) {
+  const timestamp = ohlcv?.[index]?.t
+  if (!Number.isFinite(timestamp)) return null
+  const time = Math.floor(timestamp / 1000)
+  return time > 0 ? time : null
+}
+
+/**
+ * Converts detected structures and candlestick events into lightweight-charts
+ * markers. Marker candidates are capped by recency, then sorted by time as the
+ * library requires.
+ */
+export function buildPatternMarkers(ohlcv, patternResult, maxMarkers = 12) {
+  const candidates = [...(patternResult?.patterns ?? []), ...(patternResult?.markers ?? [])]
+  const unique = new Map()
+
+  candidates.forEach(pattern => {
+    if (!pattern || isTrendlinePattern(pattern)) return
+    const index = pattern.visual?.endIndex ?? pattern.visual?.points?.at(-1)?.index
+    if (!Number.isInteger(index) || markerTime(ohlcv, index) == null) return
+    unique.set(`${pattern.key ?? pattern.label}:${index}`, { pattern, index })
+  })
+
+  return [...unique.values()]
+    .sort((a, b) => b.index - a.index || Math.abs(b.pattern.weight ?? 0) - Math.abs(a.pattern.weight ?? 0))
+    .slice(0, Math.max(0, maxMarkers))
+    .sort((a, b) => a.index - b.index || Math.abs(b.pattern.weight ?? 0) - Math.abs(a.pattern.weight ?? 0))
+    .map(({ pattern, index }) => {
+      const direction = pattern.direction ?? pattern.bias ?? 'neutral'
+      const bullish = direction === 'bullish'
+      const bearish = direction === 'bearish'
+      const label = pattern.label ?? pattern.key ?? 'Pattern'
+      return {
+        time: markerTime(ohlcv, index),
+        position: bullish ? 'belowBar' : 'aboveBar',
+        shape: bullish ? 'arrowUp' : bearish ? 'arrowDown' : 'circle',
+        color: bullish ? '#10b981' : bearish ? '#ef4444' : '#f59e0b',
+        text: label.length > 24 ? `${label.slice(0, 23)}…` : label,
+        size: pattern.category === 'Candlestick' ? 0.8 : 1,
+        id: `pattern:${pattern.key ?? label}:${index}`,
+      }
+    })
+}
+
+/** Returns visible gap labels so even a one-bar gap has a rendered artifact. */
+export function buildGapMarkers(ohlcv, gapResult, startIndex = 0, endIndex = ohlcv?.length - 1, maxMarkers = 8) {
+  return (gapResult?.gaps ?? [])
+    .filter(gap => Number.isInteger(gap?.index) && gap.index >= startIndex && gap.index <= endIndex)
+    .sort((a, b) => b.index - a.index)
+    .slice(0, Math.max(0, maxMarkers))
+    .sort((a, b) => a.index - b.index)
+    .map(gap => {
+      const upward = gap.direction === 'up'
+      const status = gap.status === 'closed' ? 'closed' : gap.status === 'partial' ? 'partial' : 'open'
+      return {
+        time: markerTime(ohlcv, gap.index),
+        position: upward ? 'belowBar' : 'aboveBar',
+        shape: upward ? 'arrowUp' : 'arrowDown',
+        color: status === 'closed' ? '#64748b' : status === 'partial' ? '#f59e0b' : upward ? '#10b981' : '#ef4444',
+        text: `Gap ${upward ? '↑' : '↓'} ${status}`,
+        size: 0.8,
+        id: `gap:${gap.id ?? gap.index}`,
+      }
+    })
+    .filter(marker => marker.time != null)
+}
+
 // Anchors the retracement on the extreme high/low of the supplied bars. Which
 // bars those are is the caller's choice. Both chart engines pass the selected
 // visible window so the levels describe the candles the user is inspecting.

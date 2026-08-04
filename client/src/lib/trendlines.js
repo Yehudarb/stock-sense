@@ -1,4 +1,4 @@
-import { findPivotsExt, fitLineExt, priceAtExt } from './advancedTrends'
+import { findPivotsExt, fitLineExt, priceAtExt } from './advancedTrends.js'
 
 // Trendline break detection.
 //

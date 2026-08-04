@@ -137,6 +137,18 @@ test('intraday pivots and previous high-low use the prior session, not the prior
   assert.equal(indicators.priceLevels.low52Week, null)
 })
 
+test('intraday pivots remain unavailable until a prior session exists', () => {
+  const bars = intradayFixture().slice(0, 30).map((item, index) => ({
+    ...item,
+    t: Date.parse(`2026-08-04T${String(13 + Math.floor((30 + index * 5) / 60)).padStart(2, '0')}:${String((30 + index * 5) % 60).padStart(2, '0')}:00Z`),
+  }))
+  const indicators = computeAll(bars, '5m')
+
+  assert.equal(indicators.pivotPoints, null)
+  assert.equal(indicators.priceLevels.previousHigh, null)
+  assert.equal(indicators.priceLevels.previousLow, null)
+})
+
 test('Ichimoku leading spans are displaced forward and Chikou is displaced backward', () => {
   const bars = dailyFixture(140)
   const indicators = computeAll(bars, '1d')

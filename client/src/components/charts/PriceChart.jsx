@@ -522,12 +522,18 @@ const candlestickPlugin = {
 const patternOverlayPlugin = {
   id: 'patternOverlay',
   afterDatasetsDraw(chart, _args, options) {
-    const patterns = (options?.patterns ?? [])
-      .filter(pattern => pattern?.visual)
+    const allPatterns = (options?.patterns ?? []).filter(pattern => pattern?.visual)
+    const patterns = allPatterns
+      .filter(pattern => pattern.category !== 'Candlestick')
       .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
       .slice(0, 3)
+    const candleMarkers = allPatterns
+      .filter(pattern => pattern.category === 'Candlestick')
+      .sort((a, b) => (b.visual?.endIndex ?? 0) - (a.visual?.endIndex ?? 0))
+      .slice(0, 10)
+      .sort((a, b) => (a.visual?.endIndex ?? 0) - (b.visual?.endIndex ?? 0))
 
-    if (!patterns.length) return
+    if (!patterns.length && !candleMarkers.length) return
 
     const { ctx, chartArea, scales } = chart
     const xScale = scales.x
@@ -596,6 +602,45 @@ const patternOverlayPlugin = {
         }
       }
 
+      ctx.restore()
+    })
+
+    candleMarkers.forEach((pattern, index) => {
+      const visual = pattern.visual
+      const x = pixelForIndex(xScale, visual.endIndex)
+      const bullish = pattern.direction === 'bullish'
+      const bearish = pattern.direction === 'bearish'
+      const color = bullish ? '#10b981' : bearish ? '#ef4444' : '#f59e0b'
+      const edgePrice = bullish ? visual.low : visual.high
+      const edgeY = yScale.getPixelForValue(edgePrice)
+      if (!Number.isFinite(x) || !Number.isFinite(edgeY)) return
+
+      const y = clamp(edgeY + (bullish ? 14 : -14), chartArea.top + 12, chartArea.bottom - 12)
+      ctx.save()
+      ctx.fillStyle = color
+      ctx.strokeStyle = '#020617'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      if (bullish) {
+        ctx.moveTo(x, y - 6)
+        ctx.lineTo(x - 5, y + 4)
+        ctx.lineTo(x + 5, y + 4)
+      } else if (bearish) {
+        ctx.moveTo(x, y + 6)
+        ctx.lineTo(x - 5, y - 4)
+        ctx.lineTo(x + 5, y - 4)
+      } else {
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      // Alternate labels around adjacent markers so several signals on nearby
+      // candles remain readable instead of painting over one another.
+      const labelX = clamp(x - 56, chartArea.left + 4, chartArea.right - 124)
+      const labelY = clamp(y + (bullish ? 9 : -29) + (index % 2) * (bullish ? 16 : -16), chartArea.top + 3, chartArea.bottom - 23)
+      drawLabel(ctx, pattern.label ?? pattern.key, labelX, labelY, color)
       ctx.restore()
     })
   },
@@ -910,6 +955,7 @@ export default function PriceChart({
   onHoverIndexChange,
   onPanBars,
   onPanPrice,
+  resetToken = 0,
 }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
@@ -920,16 +966,22 @@ export default function PriceChart({
 
   useEffect(() => {
     if (!canvasRef.current || !ohlcv?.length) return
-    measurementRef.current = { active: false, start: null, end: null }
+    if (!measurementEnabled) measurementRef.current = { active: false, start: null, end: null }
     const palette = getChartPalette(theme)
 
     const { start: viewStart, end: viewSliceEnd } = getWindowBounds(ohlcv.length, visibleBars ?? ohlcv.length, viewOffset)
     const viewEnd = viewSliceEnd - 1
     const visibleOhlcv = ohlcv.slice(viewStart, viewSliceEnd)
     const visibleIndicators = sliceIndicatorTree(indicators, viewStart, viewSliceEnd)
-    const patternSource = patterns?.patterns?.filter(pattern => (
-      (showPatterns && !isTrendlinePattern(pattern)) || (showTriangles && isTrendlinePattern(pattern))
-    )) ?? []
+    const patternCandidates = [
+      ...(patterns?.patterns ?? []),
+      ...(showPatterns ? patterns?.markers ?? [] : []),
+    ]
+    const patternSource = [...new Map(patternCandidates
+      .filter(pattern => (
+        (showPatterns && !isTrendlinePattern(pattern)) || (showTriangles && isTrendlinePattern(pattern))
+      ))
+      .map(pattern => [`${pattern.key}:${pattern.visual?.endIndex}`, pattern])).values()]
     const filteredPatternResult = { ...patterns, patterns: patternSource }
     const visiblePatterns = patternSource.length ? normalizePatternsForView(filteredPatternResult, viewStart, viewEnd) : { patterns: [], score: 0, best: null }
     const targetPatterns = showTargets ? patternsForTargets(patterns) : []
@@ -1424,7 +1476,7 @@ export default function PriceChart({
         },
         interaction: { mode: 'index', intersect: false },
         onHover: (event, _elements, activeChart) => {
-          if (!onHoverIndexChange) return
+          if (!onHoverIndexChange || measurementEnabled) return
           const elements = activeChart.getElementsAtEventForMode(event, 'index', { intersect: false }, false)
           onHoverIndexChange(elements[0]?.index ?? null)
         },
@@ -1654,7 +1706,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showTargets, showLevels, ticker, decision, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, theme, isMobileViewport])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showTargets, showLevels, ticker, decision, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, resetToken, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

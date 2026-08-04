@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createChart, CandlestickSeries, LineSeries, HistogramSeries, AreaSeries,
-  CrosshairMode, LineStyle,
+  createSeriesMarkers, CrosshairMode, LineStyle,
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
-import { computeFibonacci, isTrendlinePattern, measuredMoveTargets, patternBreakoutLevel, OVERLAY_COLORS } from './chartHelpers'
+import {
+  buildGapMarkers,
+  buildPatternMarkers,
+  computeFibonacci,
+  isTrendlinePattern,
+  measuredMoveTargets,
+  OVERLAY_COLORS,
+  patternBreakoutLevel,
+} from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 // TradingView-quality chart (lightweight-charts, MIT). Rendering + navigation
@@ -285,15 +293,19 @@ export default function TradingViewChart({
   interval = null,
   chartType = 'candlestick',
   measurementEnabled = false,
+  resetToken = 0,
 }) {
   const containerRef  = useRef(null)
   const chartRef      = useRef(null)
   const seriesRef     = useRef({})       // { candle, volume, sma20, ... }
   const priceLinesRef = useRef([])       // horizontal lines (pivots, hi/lo)
+  const markersRef    = useRef(null)
   const theme         = useStore(s => s.theme) || 'dark'
   const currentTicker = useStore(s => s.currentTicker)
+  const language      = useStore(s => s.language) || 'he'
   const [hovered, setHovered] = useState(null)
   const [measurement, setMeasurement] = useState(null)
+  const [logicalWindow, setLogicalWindow] = useState(null)
   // Bumped every time the chart instance is rebuilt (theme / chart-type change).
   // The overlay effects below depend on it, otherwise they keep their old deps,
   // never re-run, and every indicator silently disappears with the old chart.
@@ -367,6 +379,7 @@ export default function TradingViewChart({
           priceLineVisible: true, lastValueVisible: true,
           })
     seriesRef.current.price = priceSeries
+    markersRef.current = createSeriesMarkers(priceSeries, [], { autoScale: true, zOrder: 'aboveSeries' })
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#94a3b8',
@@ -387,10 +400,24 @@ export default function TradingViewChart({
         : { close: bar.value })
     })
 
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (!range || !Number.isFinite(range.from) || !Number.isFinite(range.to)) return
+      const next = { startIndex: Math.floor(range.from), endIndex: Math.ceil(range.to) }
+      setLogicalWindow(current => (
+        current?.startIndex === next.startIndex && current?.endIndex === next.endIndex ? current : next
+      ))
+    })
+
     // Tell the overlay effects the series registry is empty and must be refilled.
     setChartEpoch(epoch => epoch + 1)
 
-    return () => { chart.remove(); chartRef.current = null; seriesRef.current = {}; priceLinesRef.current = [] }
+    return () => {
+      chart.remove()
+      chartRef.current = null
+      seriesRef.current = {}
+      priceLinesRef.current = []
+      markersRef.current = null
+    }
   // Rebuild when the palette (theme) or the chart type changes.
   // `palette` itself, not three of its eight fields. It is a useMemo on
   // [theme], so every field changes together and depending on the object is
@@ -436,7 +463,24 @@ export default function TradingViewChart({
       to: candles[endIndex - 1].time,
     })
     chart._fittedOnce = true
-  }, [candles, chartEpoch, currentTicker, interval, viewOffset, visibleBars])
+  }, [candles, chartEpoch, currentTicker, interval, resetToken, viewOffset, visibleBars])
+
+  const selectedEndIndex = Math.max(0, candles.length - 1 - viewOffset)
+  const selectedStartIndex = visibleBars ? Math.max(0, selectedEndIndex - visibleBars + 1) : 0
+  const visibleStartIndex = clamp(logicalWindow?.startIndex ?? selectedStartIndex, 0, Math.max(0, candles.length - 1))
+  const visibleEndIndex = clamp(
+    logicalWindow?.endIndex ?? selectedEndIndex,
+    visibleStartIndex,
+    Math.max(visibleStartIndex, candles.length - 1),
+  )
+  const patternMarkerData = useMemo(
+    () => showPatterns ? buildPatternMarkers(ohlcv, patterns) : [],
+    [ohlcv, patterns, showPatterns],
+  )
+  const gapMarkerData = useMemo(
+    () => showGaps ? buildGapMarkers(ohlcv, gaps, visibleStartIndex, visibleEndIndex) : [],
+    [gaps, ohlcv, showGaps, visibleEndIndex, visibleStartIndex],
+  )
 
   // ── Overlay wiring ───────────────────────────────────────────────
   // Each overlay is created lazily and torn down when its toggle turns off so
@@ -556,9 +600,7 @@ export default function TradingViewChart({
 
   useEffect(() => {
     const chart = chartRef.current
-    const container = containerRef.current
-    const priceSeries = seriesRef.current.price
-    if (!chart || !container || !priceSeries) return undefined
+    if (!chart) return
 
     chart.applyOptions({
       handleScroll: measurementEnabled
@@ -569,63 +611,16 @@ export default function TradingViewChart({
         : { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
     })
 
-    if (!measurementEnabled) {
-      setMeasurement(null)
-      container.style.cursor = ''
-      return undefined
-    }
+    if (!measurementEnabled) setMeasurement(null)
+  }, [chartEpoch, measurementEnabled, resetToken])
 
-    container.style.cursor = 'crosshair'
-    const pointFromEvent = event => {
-      const rect = container.getBoundingClientRect()
-      const x = clamp(event.clientX - rect.left, 0, rect.width)
-      const y = clamp(event.clientY - rect.top, 0, rect.height)
-      return {
-        x,
-        y,
-        price: priceSeries.coordinateToPrice(y),
-        logical: chart.timeScale().coordinateToLogical(x),
-      }
-    }
-    const stopNativeInteraction = event => {
-      event.preventDefault()
-      event.stopPropagation()
-    }
-    const handlePointerDown = event => {
-      if (event.button !== 0) return
-      stopNativeInteraction(event)
-      const point = pointFromEvent(event)
-      container.setPointerCapture?.(event.pointerId)
-      setMeasurement({ active: true, start: point, end: point })
-    }
-    const handlePointerMove = event => {
-      stopNativeInteraction(event)
-      setMeasurement(current => {
-        if (!current?.active) return current
-        return { ...current, end: pointFromEvent(event) }
-      })
-    }
-    const handlePointerUp = event => {
-      stopNativeInteraction(event)
-      setMeasurement(current => {
-        if (!current?.active) return current
-        return { ...current, active: false, end: pointFromEvent(event) }
-      })
-      container.releasePointerCapture?.(event.pointerId)
-    }
-
-    container.addEventListener('pointerdown', handlePointerDown, true)
-    container.addEventListener('pointermove', handlePointerMove, true)
-    container.addEventListener('pointerup', handlePointerUp, true)
-    container.addEventListener('pointercancel', handlePointerUp, true)
-    return () => {
-      container.style.cursor = ''
-      container.removeEventListener('pointerdown', handlePointerDown, true)
-      container.removeEventListener('pointermove', handlePointerMove, true)
-      container.removeEventListener('pointerup', handlePointerUp, true)
-      container.removeEventListener('pointercancel', handlePointerUp, true)
-    }
-  }, [chartEpoch, measurementEnabled])
+  useEffect(() => {
+    const markerApi = markersRef.current
+    if (!markerApi) return
+    markerApi.setMarkers([...patternMarkerData, ...gapMarkerData].sort((a, b) => (
+      a.time - b.time || String(a.id).localeCompare(String(b.id))
+    )))
+  }, [chartEpoch, gapMarkerData, patternMarkerData])
 
   // ── Chart-pattern, triangle and gap geometry ─────────────────────
   // These are shapes spanning a bar range rather than a value per bar, so each
@@ -700,15 +695,17 @@ export default function TradingViewChart({
       // gap counts as visible if any part of its span is — an old gap still
       // unfilled reaches into view even though its index is low, and that is
       // exactly the one worth seeing.
-      const windowEnd = Math.max(0, ohlcv.length - 1 - viewOffset)
-      const windowStart = visibleBars ? Math.max(0, windowEnd - visibleBars + 1) : 0
       const recentGaps = (gaps?.gaps ?? [])
-        .filter(gap => (gap.endIndex ?? windowEnd) >= windowStart && gap.index <= windowEnd)
+        .filter(gap => (gap.endIndex ?? visibleEndIndex) >= visibleStartIndex && gap.index <= visibleEndIndex)
         .sort((a, b) => b.index - a.index)
         .slice(0, 10)
       recentGaps.forEach(gap => {
-        const from = timeAtIndex(ohlcv, gap.index)
-        const to = timeAtIndex(ohlcv, Math.min(gap.endIndex ?? windowEnd, windowEnd))
+        const gapEndIndex = Math.min(gap.endIndex ?? visibleEndIndex, visibleEndIndex)
+        const lineStartIndex = gapEndIndex === gap.index
+          ? Math.max(visibleStartIndex, gap.index - 1)
+          : gap.index
+        const from = timeAtIndex(ohlcv, lineStartIndex)
+        const to = timeAtIndex(ohlcv, gapEndIndex)
         if (from == null || to == null || from === to) return
         if (!Number.isFinite(gap.zoneLow) || !Number.isFinite(gap.zoneHigh)) return
         // Most gaps are only 1-4 bars wide, and a 1px dotted hairline over that
@@ -725,13 +722,37 @@ export default function TradingViewChart({
       })
     }
 
+    if (showFibonacci || showFibExtension) {
+      const fib = computeFibonacci(ohlcv.slice(visibleStartIndex, visibleEndIndex + 1), showFibExtension)
+      if (fib) {
+        const firstIndex = visibleStartIndex + fib.anchorA.index
+        const secondIndex = visibleStartIndex + fib.anchorB.index
+        const firstTime = timeAtIndex(ohlcv, firstIndex)
+        const secondTime = timeAtIndex(ohlcv, secondIndex)
+        if (firstTime != null && secondTime != null && firstTime !== secondTime) {
+          const points = [
+            { time: firstTime, value: fib.anchorA.price },
+            { time: secondTime, value: fib.anchorB.price },
+          ].sort((a, b) => a.time - b.time)
+          draw('fib:anchor', points, 'rgba(234, 179, 8, 0.9)', {
+            width: 2,
+            style: LineStyle.Dashed,
+          })
+        }
+      }
+    }
+
     for (const key of Object.keys(seriesRef.current)) {
-      if ((key.startsWith('pat:') || key.startsWith('gap:')) && !drawn.has(key)) {
+      if ((key.startsWith('pat:') || key.startsWith('gap:') || key.startsWith('fib:')) && !drawn.has(key)) {
         try { chart.removeSeries(seriesRef.current[key]) } catch { /* already gone */ }
         delete seriesRef.current[key]
       }
     }
-  }, [chartEpoch, ohlcv, patterns, gaps, showPatterns, showTriangles, showGaps, extendTrendlines, viewOffset, visibleBars])
+  }, [
+    chartEpoch, ohlcv, patterns, gaps,
+    showPatterns, showTriangles, showGaps, showFibonacci, showFibExtension,
+    extendTrendlines, visibleEndIndex, visibleStartIndex,
+  ])
 
   // ── Horizontal price lines (pivots, prev high/low, 52-week hi/lo) ──
   // These are per-level and don't need per-bar data, so createPriceLine on
@@ -862,38 +883,79 @@ export default function TradingViewChart({
     // Anchor to the selected visible range. Using the full warm-up history can
     // put every retracement outside the candles the user is inspecting.
     if (showFibonacci || showFibExtension) {
-      const endIndex = Math.max(1, ohlcv.length - viewOffset)
-      const startIndex = visibleBars ? Math.max(0, endIndex - visibleBars) : 0
-      const fib = computeFibonacci(ohlcv.slice(startIndex, endIndex), showFibExtension)
+      const fib = computeFibonacci(ohlcv.slice(visibleStartIndex, visibleEndIndex + 1), showFibExtension)
       fib?.levels?.forEach(level => addLine({
         value: level.price,
         color: level.ratio === 0 || level.ratio === 1 ? 'rgba(148, 163, 184, 0.9)' : 'rgba(234, 179, 8, 0.75)',
         title: `FIB ${level.label}`,
         style: LineStyle.Dotted,
-        axisLabel: false,
+        axisLabel: [0, 0.5, 0.618, 1].includes(level.ratio),
       }))
     }
   }, [
     chartEpoch, ohlcv, indicators,
     showPivotPoints, showPrevHighLow, showHighLow52,
     showLevels, showFibonacci, showFibExtension, showTargets,
-    decision, technicalAnalysis, patterns, viewOffset, visibleBars,
+    decision, technicalAnalysis, patterns, visibleEndIndex, visibleStartIndex,
   ])
 
-  // ── Zoom presets (kept — they're chart-native, not indicator toggles) ──
-  const zoomLast = (barCount) => {
-    if (!chartRef.current || !candles.length) return
-    const to = candles[candles.length - 1].time
-    const from = candles[Math.max(0, candles.length - barCount)].time
-    chartRef.current.timeScale().setVisibleRange({ from, to })
+  const measurementPoint = event => {
+    const chart = chartRef.current
+    const priceSeries = seriesRef.current.price
+    if (!chart || !priceSeries) return null
+    const rect = event.currentTarget.getBoundingClientRect()
+    const plotWidth = Math.max(1, chart.timeScale().width() - 1)
+    const x = clamp(event.clientX - rect.left, 0, plotWidth)
+    const y = clamp(event.clientY - rect.top, 0, Math.max(1, rect.height - 28))
+    const price = priceSeries.coordinateToPrice(y)
+    const logical = chart.timeScale().coordinateToLogical(x)
+    if (!Number.isFinite(price)) return null
+    return { x, y, price, logical }
   }
-  const fitAll = () => chartRef.current?.timeScale().fitContent()
-  const measurementLabel = measurement?.start?.price != null && measurement?.end?.price != null
+
+  const handleMeasurementPointerDown = event => {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    const point = measurementPoint(event)
+    if (!point) return
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    setMeasurement({ active: true, start: point, end: point })
+  }
+
+  const handleMeasurementPointerMove = event => {
+    const point = measurementPoint(event)
+    if (!point) return
+    setMeasurement(current => {
+      if (!current?.active) return current
+      return { ...current, end: point }
+    })
+  }
+
+  const handleMeasurementPointerUp = event => {
+    event.preventDefault()
+    event.stopPropagation()
+    const point = measurementPoint(event)
+    setMeasurement(current => {
+      if (!current?.active) return current
+      return { ...current, active: false, end: point ?? current.end }
+    })
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }
+
+  const validMeasurement = Number.isFinite(measurement?.start?.price) &&
+    measurement.start.price > 0 && Number.isFinite(measurement?.end?.price)
+  const measurementLabel = validMeasurement
     ? `${measurement.end.price >= measurement.start.price ? '+' : ''}${(((measurement.end.price - measurement.start.price) / measurement.start.price) * 100).toFixed(2)}% | ${measurement.end.price - measurement.start.price >= 0 ? '+' : ''}${(measurement.end.price - measurement.start.price).toFixed(2)} | ${Math.round(Math.abs((measurement.end.logical ?? 0) - (measurement.start.logical ?? 0)))} bars`
     : null
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div
+      data-pattern-marker-count={patternMarkerData.length}
+      data-gap-marker-count={gapMarkerData.length}
+      data-measurement-active={measurementEnabled ? 'true' : 'false'}
+      style={{ position: 'relative' }}
+    >
       {/* Floating OHLC readout on crosshair hover */}
       {hovered && (
         <div style={{
@@ -915,41 +977,59 @@ export default function TradingViewChart({
         </div>
       )}
 
-      {/* Zoom presets — the header controls handle indicators. */}
-      <div style={{
-        position: 'absolute', top: 8, insetInlineEnd: 8, zIndex: 5,
-        display: 'flex', gap: 4,
-      }}>
-        {[
-          { label: '1M', bars: 22 },
-          { label: '3M', bars: 66 },
-          { label: '6M', bars: 130 },
-          { label: '1Y', bars: 252 },
-        ].map(({ label, bars }) => (
-          <button
-            key={label}
-            onClick={() => zoomLast(bars)}
-            style={{
-              padding: '3px 9px', fontSize: 11, fontWeight: 600,
-              background: 'rgba(11,15,25,0.6)', color: '#94a3b8',
-              border: '1px solid #334155', borderRadius: 6, cursor: 'pointer',
-            }}
-          >{label}</button>
-        ))}
-        <button
-          onClick={fitAll}
-          style={{
-            padding: '3px 9px', fontSize: 11, fontWeight: 600,
-            background: 'rgba(11,15,25,0.6)', color: '#94a3b8',
-            border: '1px solid #334155', borderRadius: 6, cursor: 'pointer',
-          }}
-        >All</button>
-      </div>
+      {(showPatterns || showGaps) && (
+        <div style={{
+          position: 'absolute', bottom: 8, insetInlineStart: 8, zIndex: 5,
+          display: 'flex', gap: 6, pointerEvents: 'none',
+        }}>
+          {showPatterns && (
+            <span style={{
+              border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 999,
+              background: 'rgba(2, 6, 23, 0.84)', color: '#a7f3d0',
+              padding: '3px 7px', fontSize: 10, fontWeight: 700,
+            }}>
+              {patternMarkerData.length} {language === 'he' ? 'סימוני תבנית' : 'pattern markers'}
+            </span>
+          )}
+          {showGaps && (
+            <span style={{
+              border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 999,
+              background: 'rgba(2, 6, 23, 0.84)', color: '#fde68a',
+              padding: '3px 7px', fontSize: 10, fontWeight: 700,
+            }}>
+              {gapMarkerData.length} Gaps
+            </span>
+          )}
+        </div>
+      )}
 
       <div ref={containerRef} style={{ height, width: '100%' }} />
-      {measurementEnabled && measurement?.start && measurement?.end && (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}>
-          <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+      {measurementEnabled && (
+        <div
+          role="application"
+          aria-label={language === 'he' ? 'סרגל מדידת מחיר ואחוזים' : 'Price and percentage ruler'}
+          onPointerDown={handleMeasurementPointerDown}
+          onPointerMove={handleMeasurementPointerMove}
+          onPointerUp={handleMeasurementPointerUp}
+          onPointerCancel={handleMeasurementPointerUp}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 7, cursor: 'crosshair',
+            touchAction: 'none', userSelect: 'none',
+          }}
+        >
+          {!measurement?.start && (
+            <div style={{
+              position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+              border: '1px solid rgba(34, 211, 238, 0.5)', borderRadius: 8,
+              background: 'rgba(2, 6, 23, 0.92)', color: '#cffafe',
+              padding: '7px 11px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+            }}>
+              {language === 'he' ? 'גרור בין שתי נקודות על הגרף למדידת שינוי' : 'Drag between two chart points to measure the move'}
+            </div>
+          )}
+          {measurement?.start && measurement?.end && (
+            <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
             <line
               x1={measurement.start.x}
               y1={measurement.start.y}
@@ -961,7 +1041,8 @@ export default function TradingViewChart({
             />
             <circle cx={measurement.start.x} cy={measurement.start.y} r="4" fill="#22d3ee" />
             <circle cx={measurement.end.x} cy={measurement.end.y} r="4" fill="#22d3ee" />
-          </svg>
+            </svg>
+          )}
           {measurementLabel && (
             <div style={{
               position: 'absolute',
@@ -979,6 +1060,21 @@ export default function TradingViewChart({
             }}>
               {measurementLabel}
             </div>
+          )}
+          {measurement?.start && (
+            <button
+              type="button"
+              onPointerDown={event => event.stopPropagation()}
+              onClick={event => { event.stopPropagation(); setMeasurement(null) }}
+              style={{
+                position: 'absolute', top: 10, insetInlineEnd: 10,
+                border: '1px solid rgba(148, 163, 184, 0.45)', borderRadius: 6,
+                background: 'rgba(2, 6, 23, 0.9)', color: '#e2e8f0',
+                padding: '5px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              {language === 'he' ? 'נקה מדידה' : 'Clear measure'}
+            </button>
           )}
         </div>
       )}

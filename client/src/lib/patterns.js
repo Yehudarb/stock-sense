@@ -1,5 +1,5 @@
-import { detectPivotTriangles } from './advancedTrends'
-import { detectTrendlineBreaks } from './trendlines'
+import { detectPivotTriangles } from './advancedTrends.js'
+import { detectTrendlineBreaks } from './trendlines.js'
 
 const PATTERN_DEFS = {
   BULLISH_FLAG: { label: 'Bull Flag', category: 'Continuation', weight: 75, direction: 'bullish', targetFactor: 1.0 },
@@ -699,9 +699,34 @@ function detectCandlesticks(found, ohlcv) {
   if (last3.length === 3 && last3.every(bar => bar.c < bar.o) && last3[2].c < last3[1].c && last3[1].c < last3[0].c) addPattern(found, 'THREE_BLACK_CROWS', ohlcv, 1, 'confirmed', visual)
 }
 
+/**
+ * Detects candlestick patterns on recent closed bars for chart markers.
+ * The primary detector describes the latest setup; a marker layer must also
+ * retain earlier signals or the chart appears empty as soon as a new bar opens.
+ */
+export function detectRecentCandlestickPatterns(ohlcv, lookback = 80) {
+  if (!Array.isArray(ohlcv) || ohlcv.length < 3) return []
+
+  const detected = new Map()
+  const firstEndIndex = Math.max(2, ohlcv.length - Math.max(1, lookback))
+
+  for (let endIndex = firstEndIndex; endIndex < ohlcv.length; endIndex += 1) {
+    const found = []
+    detectCandlesticks(found, ohlcv.slice(0, endIndex + 1))
+    found
+      .filter(pattern => pattern.category === 'Candlestick')
+      .forEach(pattern => detected.set(`${pattern.key}:${endIndex}`, pattern))
+  }
+
+  return [...detected.values()].sort((a, b) => (
+    (a.visual?.endIndex ?? 0) - (b.visual?.endIndex ?? 0) ||
+    Math.abs(b.weight ?? 0) - Math.abs(a.weight ?? 0)
+  ))
+}
+
 export function detectPatterns(ohlcv) {
   const patterns = []
-  if (!ohlcv || ohlcv.length < 25) return { patterns, score: 0, best: null }
+  if (!ohlcv || ohlcv.length < 25) return { patterns, markers: [], score: 0, best: null }
 
   detectFlagsPennants(patterns, ohlcv)
   detectDoubleTriple(patterns, ohlcv)
@@ -717,6 +742,7 @@ export function detectPatterns(ohlcv) {
 
   const score = patterns.reduce((sum, pattern) => sum + pattern.weight, 0)
   const best = [...patterns].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))[0] ?? null
+  const markers = detectRecentCandlestickPatterns(ohlcv)
 
-  return { patterns, score, best }
+  return { patterns, markers, score, best }
 }

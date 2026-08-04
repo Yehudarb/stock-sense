@@ -186,9 +186,11 @@ function supertrend(ohlcv, atrValues, multiplier = 3) {
   return { upper, lower, line, direction, flipped }
 }
 
-function pivotPoints(ohlcv) {
+function pivotPoints(ohlcv, intraday) {
   const sessions = aggregateSessions(ohlcv)
-  const previous = sessions[sessions.length - 2] ?? sessions[sessions.length - 1]
+  const previous = intraday
+    ? sessions[sessions.length - 2]
+    : ohlcv[ohlcv.length - 2]
   if (!previous) return null
 
   const pivot = (previous.h + previous.l + previous.c) / 3
@@ -355,7 +357,7 @@ export function computeAll(ohlcv, interval = null) {
     supertrend: supertrendResult,
     vwap,
     vwapMode: intraday ? 'session' : 'rolling-20',
-    pivotPoints: pivotPoints(ohlcv),
+    pivotPoints: pivotPoints(ohlcv, intraday),
     priceLevels: priceLevels(ohlcv, intraday),
     avgVol,
     avgVol50,

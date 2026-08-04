@@ -233,9 +233,9 @@ function ChartControls({
   advancedIndicatorGroups,
   chartCopy,
   showTriangles,
-  setShowTriangles,
+  toggleTrendlines,
   extendTrendlines,
-  setExtendTrendlines,
+  toggleTrendlineExtension,
   showLevels,
   setShowLevels,
   showFibonacci,
@@ -256,8 +256,7 @@ function ChartControls({
   handleClearDrawings,
   changeVisibleBars,
   canZoom,
-  canPan,
-  setViewOffset,
+  handleFitLatest,
 }) {
   return (
     <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
@@ -299,8 +298,8 @@ function ChartControls({
       </Group>
 
       <Group label={chartCopy.analysisTools}>
-        <PanelToggle label={<LabelWithIcon icon="📏" label={chartCopy.trendline} />} value={showTriangles} onToggle={() => setShowTriangles(value => !value)} />
-        <PanelToggle label={<LabelWithIcon icon="➡️" label={chartCopy.extendTrendlines} />} value={extendTrendlines} onToggle={() => setExtendTrendlines(value => !value)} />
+        <PanelToggle label={<LabelWithIcon icon="📏" label={chartCopy.trendline} />} value={showTriangles} onToggle={toggleTrendlines} />
+        <PanelToggle label={<LabelWithIcon icon="➡️" label={chartCopy.extendTrendlines} />} value={extendTrendlines} onToggle={toggleTrendlineExtension} />
         <PanelToggle label={<LabelWithIcon icon="📍" label={chartCopy.horizontalLine} />} value={showLevels} onToggle={() => setShowLevels(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="🌀" label={chartCopy.fibonacci} />} value={showFibonacci} onToggle={() => setShowFibonacci(value => !value)} />
         <PanelToggle label={<LabelWithIcon icon="🧭" label={chartCopy.fibExtension} />} value={showFibExtension} onToggle={() => setShowFibExtension(value => !value)} />
@@ -318,7 +317,7 @@ function ChartControls({
         <button type="button" className={controlClass(false)} onClick={handleClearDrawings}><LabelWithIcon icon="🧹" label={chartCopy.clearDrawings} /></button>
         <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(0.65)} disabled={!canZoom}><LabelWithIcon icon="＋" label={chartCopy.zoomIn} /></button>
         <button type="button" className={controlClass(false)} onClick={() => changeVisibleBars(1.55)} disabled={!canZoom}><LabelWithIcon icon="－" label={chartCopy.zoomOut} /></button>
-        <button type="button" className={controlClass(false)} onClick={() => setViewOffset(0)} disabled={!canPan}><LabelWithIcon icon="🎯" label={chartCopy.fitLatest} /></button>
+        <button type="button" className={controlClass(false)} onClick={handleFitLatest}><LabelWithIcon icon="🎯" label={chartCopy.fitLatest} /></button>
       </Group>
     </div>
   )
@@ -552,6 +551,7 @@ export default function ChartWorkspace({
   const viewMode = useStore(s => s.viewMode)
   const [isNarrowViewport, setIsNarrowViewport] = useState(false)
   const isMobileLayout = viewMode === 'mobile' || (viewMode === 'auto' && isNarrowViewport)
+  const decision = signal?.decision
   const n = ohlcv.length  const rsiLast = indicators?.rsi14?.[n - 1]
   const macdLine = indicators?.macd?.line?.[n - 1]
   const macdSignal = indicators?.macd?.signal?.[n - 1]
@@ -588,7 +588,7 @@ export default function ChartWorkspace({
   const [showTriangles, setShowTriangles] = useState(false)
   // Projection is what makes a trendline tradable rather than decorative, so
   // it is on by default; the toggle is for when the chart gets busy.
-  const [extendTrendlines, setExtendTrendlines] = useState(true)
+  const [extendTrendlines, setExtendTrendlines] = useState(false)
   // Entry / target / stop for actionable patterns. On by default: a detected
   // setup without its levels is a shape you cannot trade.
   const [showTargets, setShowTargets] = useState(true)
@@ -610,6 +610,7 @@ export default function ChartWorkspace({
   const [priceOffsetPct, setPriceOffsetPct] = useState(0)
   const [layoutHydrated, setLayoutHydrated] = useState(false)
   const [resizeState, setResizeState] = useState(null)
+  const [chartResetToken, setChartResetToken] = useState(0)
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -736,6 +737,7 @@ export default function ChartWorkspace({
   }, [n, resizeState])
 
   function handleSelectPreset(preset) {
+    setChartResetToken(token => token + 1)
     setSelectedPresetId(preset.id)
     setViewOffset(0)
     setHoveredIndex(null)
@@ -820,6 +822,7 @@ export default function ChartWorkspace({
         setViewOffset(0)
         setPriceScale(1)
         setPriceOffsetPct(0)
+        setChartResetToken(token => token + 1)
       }
     }
 
@@ -861,6 +864,7 @@ export default function ChartWorkspace({
     setShowMACD(true)
     setShowPatterns(true)
     setShowTriangles(true)
+    setExtendTrendlines(true)
     setShowTargets(true)
     setShowFibonacci(false)
     setShowFibExtension(false)
@@ -879,6 +883,7 @@ export default function ChartWorkspace({
   function handleClearDrawings() {
     setShowPatterns(false)
     setShowTriangles(false)
+    setExtendTrendlines(false)
     setShowTargets(false)
     setShowFibonacci(false)
     setShowFibExtension(false)
@@ -888,6 +893,28 @@ export default function ChartWorkspace({
     setShowPrevHighLow(false)
     setShowHighLow52(false)
     setMeasureMode(false)
+  }
+
+  function handleFitLatest() {
+    setViewOffset(0)
+    setHoveredIndex(null)
+    setChartResetToken(token => token + 1)
+  }
+
+  function toggleTrendlines() {
+    setShowTriangles(current => {
+      const next = !current
+      setExtendTrendlines(next)
+      return next
+    })
+  }
+
+  function toggleTrendlineExtension() {
+    setExtendTrendlines(current => {
+      const next = !current
+      if (next) setShowTriangles(true)
+      return next
+    })
   }
 
   function startResize(type, event) {
@@ -1189,7 +1216,8 @@ export default function ChartWorkspace({
   const viewEndIndex = Math.max(0, n - 1 - viewOffset)
   const viewStartIndex = Math.max(0, viewEndIndex - activeVisibleBars + 1)
   const detectedPatterns = signal?.patterns?.patterns ?? []
-  const patternsInView = detectedPatterns.filter(pattern => {
+  const allPatternMarkers = [...detectedPatterns, ...(signal?.patterns?.markers ?? [])]
+  const patternsInView = allPatternMarkers.filter(pattern => {
     const start = pattern?.visual?.startIndex
     const end = pattern?.visual?.endIndex
     if (!Number.isFinite(start) || !Number.isFinite(end)) return true
@@ -1212,6 +1240,21 @@ export default function ChartWorkspace({
       Number.isFinite(pattern.meta?.invalidationLevel)
     )
   })
+  const hasStructuralLevels = [
+    decision?.support,
+    decision?.resistance,
+    decision?.invalidation,
+    decision?.stopLoss,
+    decision?.takeProfit,
+    ...(technicalAnalysis?.keyLevels?.support ?? []),
+    ...(technicalAnalysis?.keyLevels?.resistance ?? []),
+  ].some(Number.isFinite)
+  const hasPreviousSession = Number.isFinite(indicators?.priceLevels?.previousHigh) &&
+    Number.isFinite(indicators?.priceLevels?.previousLow)
+  const has52WeekRange = [
+    technicalAnalysis?.keyLevels?.high52Week ?? indicators?.priceLevels?.high52Week,
+    technicalAnalysis?.keyLevels?.low52Week ?? indicators?.priceLevels?.low52Week,
+  ].every(Number.isFinite)
 
   const chartToolNotices = isLoading
     ? []
@@ -1220,6 +1263,10 @@ export default function ChartWorkspace({
         showPatterns && !patternsInView.some(pattern => !isTrendlinePattern(pattern)) ? 'patterns' : null,
         showGaps && gapsInView.length === 0 ? 'gaps' : null,
         showTargets && !hasTargetablePattern ? 'targets' : null,
+        showLevels && !hasStructuralLevels ? 'levels' : null,
+        showPivotPoints && !indicators?.pivotPoints ? 'pivots' : null,
+        showPrevHighLow && !hasPreviousSession ? 'previousSession' : null,
+        showHighLow52 && !has52WeekRange ? 'yearRange' : null,
       ].filter(Boolean)
 
   const lowerPanelLinks = [
@@ -1229,7 +1276,7 @@ export default function ChartWorkspace({
     ...secondaryPanels.map(panel => ({ key: panel.key, label: panel.title })),
   ].filter(Boolean)
 
-  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolume}-${showVolumeMA}-${showRSI}-${showMACD}-${showStoch}-${showStochRsi}-${showATR}-${showADX}-${showOBV}-${showCCI}-${showMomentum}-${showWilliamsR}-${showMFI}-${showCMF}-${showADL}-${showPatterns}-${showTriangles}-${showTargets}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}-${measureMode}`
+  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolume}-${showVolumeMA}-${showRSI}-${showMACD}-${showStoch}-${showStochRsi}-${showATR}-${showADX}-${showOBV}-${showCCI}-${showMomentum}-${showWilliamsR}-${showMFI}-${showCMF}-${showADL}-${showPatterns}-${showTriangles}-${showTargets}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}-${measureMode}-${chartResetToken}`
   const patternSummary = technicalAnalysis?.patterns ?? []
   const signalCount = technicalAnalysis?.indicatorInterpretations?.length ?? 0
   const chartCopy = language === 'he'
@@ -1296,6 +1343,10 @@ export default function ChartWorkspace({
           patterns: 'לא זוהתה תבנית גרפית תקפה בטווח המוצג.',
           gaps: 'לא נמצא אזור Gap בטווח המוצג.',
           targets: 'אין כרגע תבנית עם טריגר או יעד תקפים להצגה.',
+          levels: 'אין כרגע רמות תמיכה, התנגדות או ביטול תקפות להצגה.',
+          pivots: 'אין מספיק נתונים מסשן קודם לחישוב Pivot Points.',
+          previousSession: 'אין מספיק נתונים להצגת הגבוה והנמוך של הסשן הקודם.',
+          yearRange: 'טווח 52 השבועות עדיין לא זמין ממקור הנתונים היומי.',
         },
       }
     : {
@@ -1361,6 +1412,10 @@ export default function ChartWorkspace({
           patterns: 'No valid chart pattern was detected in the visible range.',
           gaps: 'No gap zone was found in the visible range.',
           targets: 'No pattern currently has a valid trigger or target to display.',
+          levels: 'No valid support, resistance, or invalidation levels are available.',
+          pivots: 'There is not enough prior-session data to calculate pivot points.',
+          previousSession: 'Prior-session high and low are not available for this range.',
+          yearRange: 'The 52-week range is not yet available from the daily data source.',
         },
       }
 
@@ -1403,9 +1458,9 @@ export default function ChartWorkspace({
               advancedIndicatorGroups={advancedIndicatorGroups}
               chartCopy={chartCopy}
               showTriangles={showTriangles}
-              setShowTriangles={setShowTriangles}
+              toggleTrendlines={toggleTrendlines}
               extendTrendlines={extendTrendlines}
-              setExtendTrendlines={setExtendTrendlines}
+              toggleTrendlineExtension={toggleTrendlineExtension}
               showLevels={showLevels}
               setShowLevels={setShowLevels}
               showFibonacci={showFibonacci}
@@ -1426,8 +1481,7 @@ export default function ChartWorkspace({
               handleClearDrawings={handleClearDrawings}
               changeVisibleBars={changeVisibleBars}
               canZoom={canZoom}
-              canPan={canPan}
-              setViewOffset={setViewOffset}
+              handleFitLatest={handleFitLatest}
             />
 
             <PresetControls
@@ -1464,13 +1518,14 @@ export default function ChartWorkspace({
                 { key: 'volume', icon: '📦', label: 'Volume', value: showVolume, onToggle: toggleVolume },
                 { key: 'rsi', icon: '⚡', label: 'RSI', value: showRSI, onToggle: () => setShowRSI(v => !v) },
                 { key: 'macd', icon: '〰️', label: 'MACD', value: showMACD, onToggle: () => setShowMACD(v => !v) },
-                { key: 'trend', icon: '📏', label: chartCopy.trendline, value: showTriangles, onToggle: () => setShowTriangles(v => !v) },
-                { key: 'extend', icon: '➡️', label: chartCopy.extendTrendlines, value: extendTrendlines, onToggle: () => setExtendTrendlines(v => !v) },
+                { key: 'trend', icon: '📏', label: chartCopy.trendline, value: showTriangles, onToggle: toggleTrendlines },
+                { key: 'extend', icon: '➡️', label: chartCopy.extendTrendlines, value: extendTrendlines, onToggle: toggleTrendlineExtension },
                 { key: 'levels', icon: '📍', label: chartCopy.horizontalLine, value: showLevels, onToggle: () => setShowLevels(v => !v) },
                 { key: 'gaps', icon: '🧱', label: chartCopy.zone, value: showGaps, onToggle: () => setShowGaps(v => !v) },
                 { key: 'fib', icon: '🌀', label: chartCopy.fibonacci, value: showFibonacci, onToggle: () => setShowFibonacci(v => !v) },
                 { key: 'targets', icon: '🎯', label: chartCopy.priceTargets, value: showTargets, onToggle: () => setShowTargets(v => !v) },
                 { key: 'patterns', icon: '🏷️', label: chartCopy.patternMarkers, value: showPatterns, onToggle: () => setShowPatterns(v => !v) },
+                { key: 'ruler', icon: '📐', label: chartCopy.ruler, value: measureMode, onToggle: () => setMeasureMode(v => !v) },
               ]}
             />
           )}
@@ -1552,6 +1607,7 @@ export default function ChartWorkspace({
                 viewOffset={viewOffset}
                 interval={interval}
                 measurementEnabled={measureMode}
+                resetToken={chartResetToken}
               />
             ) : (
             <PriceChart
@@ -1594,6 +1650,7 @@ export default function ChartWorkspace({
               onHoverIndexChange={setHoveredIndex}
               onPanBars={panBy}
               onPanPrice={panPrice}
+              resetToken={chartResetToken}
             />
             )}
           </SafeChart>
@@ -1637,9 +1694,9 @@ export default function ChartWorkspace({
             advancedIndicatorGroups={advancedIndicatorGroups}
             chartCopy={chartCopy}
             showTriangles={showTriangles}
-            setShowTriangles={setShowTriangles}
+            toggleTrendlines={toggleTrendlines}
             extendTrendlines={extendTrendlines}
-            setExtendTrendlines={setExtendTrendlines}
+            toggleTrendlineExtension={toggleTrendlineExtension}
             showLevels={showLevels}
             setShowLevels={setShowLevels}
             showFibonacci={showFibonacci}
@@ -1660,8 +1717,7 @@ export default function ChartWorkspace({
             handleClearDrawings={handleClearDrawings}
             changeVisibleBars={changeVisibleBars}
             canZoom={canZoom}
-            canPan={canPan}
-            setViewOffset={setViewOffset}
+            handleFitLatest={handleFitLatest}
           />
 
           <PresetControls
