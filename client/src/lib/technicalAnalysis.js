@@ -128,13 +128,15 @@ function clusterLevels(levels, tolerancePct = 0.012) {
 function deriveSupportResistance(ohlcv, indicators) {
   const price = ohlcv.at(-1)?.c
   const supports = clusterLevels(findLocalLevels(ohlcv, 'l', (value, other) => value <= other))
-    .filter(level => level.price <= price * 1.01)
-    .sort((a, b) => (b.hits - a.hits) || (b.index - a.index))
+    .filter(level => level.price <= price)
+    .filter(level => level.hits >= 2 || level.index >= ohlcv.length - 60)
+    .sort((a, b) => b.price - a.price || b.hits - a.hits || b.index - a.index)
     .slice(0, 4)
     .map(level => normalizePrice(level.price))
   const resistances = clusterLevels(findLocalLevels(ohlcv, 'h', (value, other) => value >= other))
-    .filter(level => level.price >= price * 0.99)
-    .sort((a, b) => (b.hits - a.hits) || (b.index - a.index))
+    .filter(level => level.price >= price)
+    .filter(level => level.hits >= 2 || level.index >= ohlcv.length - 60)
+    .sort((a, b) => (a.price - price) - (b.price - price) || b.hits - a.hits || b.index - a.index)
     .slice(0, 4)
     .map(level => normalizePrice(level.price))
 
@@ -154,7 +156,8 @@ function deriveSupportResistance(ohlcv, indicators) {
     indicators.pivotPoints?.pivot,
   ])
 
-  const recent = ohlcv.slice(-25)
+  // The current signal bar must not define the level it is trying to break.
+  const recent = ohlcv.slice(Math.max(0, ohlcv.length - 26), -1)
   const breakoutLevel = recent.length ? Math.max(...recent.map(bar => bar.h)) : null
   const breakdownLevel = recent.length ? Math.min(...recent.map(bar => bar.l)) : null
   const stopLossZone = supports[0] != null ? normalizePrice(supports[0] * 0.985) : breakdownLevel != null ? normalizePrice(breakdownLevel * 0.99) : null
@@ -398,7 +401,7 @@ function summarizePattern(pattern, bars, levels, timeframe = '1D', volumeAnalysi
   const zoneLow = pattern.visual?.low ?? Math.min(...bars.slice(-12).map(bar => bar.l))
   const zoneHigh = pattern.visual?.high ?? Math.max(...bars.slice(-12).map(bar => bar.h))
   const direction = pattern.weight > 0 ? 'Bullish' : pattern.weight < 0 ? 'Bearish' : 'Neutral'
-  const baseConfidence = clamp(55 + Math.abs(pattern.weight) * 0.4 + (pattern.status === 'confirmed' ? 12 : 0), 40, 96)
+  const qualityScore = clamp(55 + Math.abs(pattern.weight) * 0.4 + (pattern.status === 'confirmed' ? 12 : 0), 40, 96)
   const breakoutLevel = pattern.meta?.breakoutLevel
     ?? (direction === 'Bullish' ? levels.resistance?.[0] : direction === 'Bearish' ? levels.support?.[0] : null)
   const invalidationLevel = pattern.meta?.invalidationLevel
@@ -425,7 +428,7 @@ function summarizePattern(pattern, bars, levels, timeframe = '1D', volumeAnalysi
     name: PATTERN_NAMES[pattern.key] ?? pattern.label,
     category: pattern.category ?? 'Pattern',
     direction,
-    confidence: Math.round(baseConfidence),
+    qualityScore: Math.round(qualityScore),
     timeframe,
     priceZone: `${formatDollar(zoneLow)} - ${formatDollar(zoneHigh)}`,
     breakoutLevel: breakoutLevel != null ? normalizePrice(breakoutLevel) : null,
@@ -456,7 +459,7 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     patterns.push({
       name: 'Channel Up',
       direction: 'Bullish',
-      confidence: 68,
+      qualityScore: 68,
       priceZone: `${normalizePrice(Math.min(...recent.map(bar => bar.l)))}-${normalizePrice(Math.max(...recent.map(bar => bar.h)))}`,
       explanation: 'Highs and lows are advancing together inside a rising channel.',
       invalidatedBelow: levels.support?.[0] ?? normalizePrice(price * 0.97),
@@ -467,7 +470,7 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     patterns.push({
       name: 'Channel Down',
       direction: 'Bearish',
-      confidence: 68,
+      qualityScore: 68,
       priceZone: `${normalizePrice(Math.min(...recent.map(bar => bar.l)))}-${normalizePrice(Math.max(...recent.map(bar => bar.h)))}`,
       explanation: 'Highs and lows are declining together inside a downward channel.',
       invalidatedAbove: levels.resistance?.[0] ?? normalizePrice(price * 1.03),
@@ -478,7 +481,7 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     patterns.push({
       name: 'Breakout',
       direction: 'Bullish',
-      confidence: volumeAnalysis.breakoutWithHighVolume ? 84 : 66,
+      qualityScore: volumeAnalysis.breakoutWithHighVolume ? 84 : 66,
       priceZone: `${levels.breakoutZones[0]}`,
       explanation: volumeAnalysis.breakoutWithHighVolume
         ? 'Price is trading above a recent breakout level with strong volume confirmation.'
@@ -491,7 +494,7 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     patterns.push({
       name: 'Breakdown',
       direction: 'Bearish',
-      confidence: volumeAnalysis.breakdownWithHighVolume ? 84 : 66,
+      qualityScore: volumeAnalysis.breakdownWithHighVolume ? 84 : 66,
       priceZone: `${levels.breakdownZones[0]}`,
       explanation: volumeAnalysis.breakdownWithHighVolume
         ? 'Price is trading below a recent support shelf with heavy volume.'
@@ -500,14 +503,14 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     })
   }
 
-  for (let index = 1; index < ohlcv.length; index += 1) {
+  for (let index = ohlcv.length - 1; index >= 1; index -= 1) {
     const prev = ohlcv[index - 1]
     const bar = ohlcv[index]
     if (bar.l > prev.h * 1.002) {
       patterns.push({
         name: 'Gap Up',
         direction: 'Bullish',
-        confidence: 72,
+        qualityScore: 72,
         priceZone: `${normalizePrice(prev.h)}-${normalizePrice(bar.l)}`,
         explanation: 'A bullish price gap opened above the prior session range.',
         invalidatedBelow: normalizePrice(prev.h),
@@ -518,7 +521,7 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
       patterns.push({
         name: 'Gap Down',
         direction: 'Bearish',
-        confidence: 72,
+        qualityScore: 72,
         priceZone: `${normalizePrice(bar.h)}-${normalizePrice(prev.l)}`,
         explanation: 'A bearish gap opened below the prior session range.',
         invalidatedAbove: normalizePrice(prev.l),
@@ -531,7 +534,7 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     patterns.push({
       name: 'Bull Flag',
       direction: 'Bullish',
-      confidence: 67,
+      qualityScore: 67,
       priceZone: `${normalizePrice(Math.min(...recent.map(bar => bar.l)))}-${normalizePrice(Math.max(...recent.map(bar => bar.h)))}`,
       explanation: 'Price is consolidating in a tight upward-sloping flag with healthy participation.',
       invalidatedBelow: levels.support?.[0] ?? normalizePrice(price * 0.97),
@@ -542,7 +545,7 @@ function deriveAdditionalPatterns(ohlcv, indicators, levels, volumeAnalysis) {
     patterns.push({
       name: 'Bear Flag',
       direction: 'Bearish',
-      confidence: 67,
+      qualityScore: 67,
       priceZone: `${normalizePrice(Math.min(...recent.map(bar => bar.l)))}-${normalizePrice(Math.max(...recent.map(bar => bar.h)))}`,
       explanation: 'Price is consolidating in a tight downward-sloping flag after a weak move.',
       invalidatedAbove: levels.resistance?.[0] ?? normalizePrice(price * 1.03),
@@ -587,13 +590,13 @@ function scoreTimeframe(bars, indicators, levels, volumeAnalysis) {
   const obvSlope = computeSlope(indicators.obv ?? [], 10)
 
   let trendScore = 50
-  if (price > sma50) trendScore += 8
-  if (price > sma200) trendScore += 14
-  if (sma50 != null && sma200 != null && sma50 > sma200) trendScore += 12
-  if (price > ema20) trendScore += 6
-  if (price > ema50) trendScore += 5
-  if (price > ema200) trendScore += 5
-  if (vwap != null && price > vwap) trendScore += 4
+  if (sma50 != null) trendScore += price > sma50 ? 8 : -8
+  if (sma200 != null) trendScore += price > sma200 ? 14 : -14
+  if (sma50 != null && sma200 != null) trendScore += sma50 > sma200 ? 12 : -12
+  if (ema20 != null) trendScore += price > ema20 ? 6 : -6
+  if (ema50 != null) trendScore += price > ema50 ? 5 : -5
+  if (ema200 != null) trendScore += price > ema200 ? 5 : -5
+  if (vwap != null) trendScore += price > vwap ? 4 : -4
   trendScore = clamp(trendScore, 10, 95)
 
   let momentumScore = 50
@@ -624,8 +627,12 @@ function scoreTimeframe(bars, indicators, levels, volumeAnalysis) {
   }
 }
 
-function aggregateLevels(timeframes, side) {
-  return uniqueRounded(Object.values(timeframes).flatMap(frame => frame?.[side] ?? [])).slice(0, 6)
+function aggregateLevels(timeframes, side, price) {
+  const levels = uniqueRounded(Object.values(timeframes).flatMap(frame => frame?.[side] ?? []))
+  return levels
+    .filter(level => side === 'support' ? level <= price : level >= price)
+    .sort((a, b) => side === 'support' ? b - a : a - b)
+    .slice(0, 6)
 }
 
 function determineBiasFromFrames(timeframes) {
@@ -725,7 +732,7 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
   ))
   const patternScore = Math.round(clamp(
     patterns.length
-      ? patterns.reduce((sum, pattern) => sum + (pattern.confidence ?? 60), 0) / patterns.length
+      ? patterns.reduce((sum, pattern) => sum + (pattern.qualityScore ?? 60), 0) / patterns.length
       : 50,
     30,
     95,
@@ -767,8 +774,8 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
     95,
   ))
 
-  const keySupport = aggregateLevels(analyzedFrames, 'support')
-  const keyResistance = aggregateLevels(analyzedFrames, 'resistance')
+  const keySupport = aggregateLevels(analyzedFrames, 'support', lastDailyPrice)
+  const keyResistance = aggregateLevels(analyzedFrames, 'resistance', lastDailyPrice)
   const nearestResistance = keyResistance[0]
   const nearestSupport = keySupport[0]
   const risk = computeRisk(dailyBars, dailyIndicators, {
@@ -788,7 +795,11 @@ export function computeTechnicalAnalysis(ticker, timeframeBars) {
   const macdSignal = latest(dailyIndicators.macd.line, primaryIndex) > latest(dailyIndicators.macd.signal, primaryIndex) ? 'Bullish' : 'Bearish'
   const priceVsSma200 = dailyBars.at(-1)?.c > latest(dailyIndicators.sma200, primaryIndex) ? 'Above' : 'Below'
 
-  const riskLevel = technicalScore >= 75 && riskRewardScore >= 70 ? 'Low' : technicalScore >= 55 ? 'Medium' : 'High'
+  const riskLevel = overallTechnicalBias === 'Bearish'
+    ? 'High'
+    : technicalScore >= 75 && riskRewardScore >= 70
+      ? 'Low'
+      : technicalScore >= 55 ? 'Medium' : 'High'
   const mainRisk = nearestResistance && dailyBars.at(-1)?.c >= nearestResistance * 0.985
     ? `Price is pressing into resistance near ${nearestResistance}, so failed breakout risk is elevated.`
     : rsi14 != null && rsi14 > 68

@@ -34,7 +34,7 @@ export default function useSimpleSignal(signal) {
       action: decision.action === 'BUY' || decision.action === 'STRONG_BUY'
         ? (meetsRiskReward ? 'BUY' : 'WAIT')
         : (ACTION_MAP[decision.action] ?? 'WAIT'),
-      confidence: confidenceBand(decision.confidence),
+      confidence: confidenceBand(decision.signalStrength),
       decision,
     }
   }, [signal])

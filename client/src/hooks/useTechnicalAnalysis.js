@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { computeTechnicalAnalysis } from '../lib/technicalAnalysis'
+import { getClosedAnalysisBars } from '../lib/analysisBars'
 
 function aggregateBarsByMonth(bars) {
   if (!bars?.length) return []
@@ -35,16 +36,22 @@ export default function useTechnicalAnalysis(ticker) {
       setState({ data: null, isLoading: true, error: null })
 
       try {
-        const [dailyRes, weeklyRes, h4Res] = await Promise.all([
+        const [dailyResult, weeklyResult, h4Result] = await Promise.allSettled([
           axios.get(`/api/market/bars/${ticker}?interval=1d&limit=240`, { timeout: 20000 }),
           axios.get(`/api/market/bars/${ticker}?interval=5y&limit=260`, { timeout: 20000 }),
           axios.get(`/api/market/bars/${ticker}?interval=4h&limit=220`, { timeout: 20000 }),
         ])
 
-        const daily = dailyRes.data?.bars ?? []
-        const weekly = weeklyRes.data?.bars ?? []
-        const h4 = h4Res.data?.bars ?? []
-        const monthly = aggregateBarsByMonth(weekly)
+        if (dailyResult.status !== 'fulfilled') throw dailyResult.reason
+        const daily = getClosedAnalysisBars(dailyResult.value.data?.bars ?? [], '1d').bars
+        const weeklyBars = weeklyResult.status === 'fulfilled' ? weeklyResult.value.data?.bars ?? [] : []
+        const h4Bars = h4Result.status === 'fulfilled' ? h4Result.value.data?.bars ?? [] : []
+        const weekly = getClosedAnalysisBars(weeklyBars, '5y').bars
+        const h4 = getClosedAnalysisBars(h4Bars, '4h').bars
+        const monthlyRaw = aggregateBarsByMonth(weekly)
+        const currentMonth = new Date().toISOString().slice(0, 7)
+        const lastMonth = monthlyRaw.at(-1)?.t ? new Date(monthlyRaw.at(-1).t).toISOString().slice(0, 7) : null
+        const monthly = lastMonth === currentMonth ? monthlyRaw.slice(0, -1) : monthlyRaw
         const analysis = computeTechnicalAnalysis(ticker, { daily, weekly, monthly, h4 })
 
         if (!cancelled) {

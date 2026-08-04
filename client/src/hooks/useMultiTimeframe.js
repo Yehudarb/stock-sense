@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { INTERVAL_BAR_LIMITS } from '../../../shared/constants'
 import { computeAll } from '../lib/indicators'
+import { getClosedAnalysisBars } from '../lib/analysisBars'
 
 const TIMEFRAMES = [
   { interval: '5y', label: '5 שנים', weight: 3 },
@@ -216,7 +217,8 @@ export default function useMultiTimeframe(ticker) {
             try {
               const limit = INTERVAL_BAR_LIMITS[config.interval] ?? 220
               const response = await axios.get(`/api/market/bars/${ticker}?interval=${config.interval}&limit=${limit}`)
-              return scoreTimeframe(config, response.data?.bars ?? [])
+              const closedBars = getClosedAnalysisBars(response.data?.bars ?? [], config.interval).bars
+              return scoreTimeframe(config, closedBars)
             } catch {
               return {
                 ...config,

@@ -71,7 +71,7 @@ function PatternCard({ pattern }) {
           <div className="text-sm font-bold text-white">{pattern.name}</div>
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge sentiment={pattern.direction}>{pattern.direction}</Badge>
-            <Badge tone="balanced">{pattern.confidence}% confidence</Badge>
+            <Badge tone="balanced">Quality {pattern.qualityScore}/100</Badge>
             <Badge tone="default">{pattern.category ?? 'Pattern'}</Badge>
           </div>
         </div>

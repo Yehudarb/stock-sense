@@ -48,7 +48,7 @@ export default function TradeActionCard({ decision, language = 'he' }) {
 
   const copy = {
     title: isEnglish ? 'Trade action' : 'פעולת מסחר',
-    confidence: isEnglish ? 'Confidence' : 'ביטחון',
+    confidence: isEnglish ? 'Signal strength' : 'עוצמת האות',
     currentPrice: isEnglish ? 'Current price' : 'מחיר נוכחי',
     entryZone: isEnglish ? 'Entry zone' : 'אזור כניסה',
     ratio: isEnglish ? 'R/R' : 'יחס סיכון/תשואה',
@@ -78,7 +78,7 @@ export default function TradeActionCard({ decision, language = 'he' }) {
         </div>
         <div className="rounded-2xl bg-slate-950/70 px-4 py-3 text-left sm:text-right">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{copy.confidence}</div>
-          <div className={`mt-1 text-2xl font-black tracking-tight ${theme.accent}`}>{decision.confidence}%</div>
+          <div className={`mt-1 text-2xl font-black tracking-tight ${theme.accent}`}>{decision.signalStrength}/100</div>
         </div>
       </div>
 

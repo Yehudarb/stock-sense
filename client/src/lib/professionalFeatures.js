@@ -59,7 +59,10 @@ function supportResistance(ohlcv) {
   const resistance = clusterLevels(findLocalLevels(ohlcv, 'h', (value, other) => value >= other))
     .filter(level => level >= price)
     .sort((a, b) => a - b)
-  const recent = ohlcv.slice(-20)
+  // Compare the latest close with an already-established range. Including the
+  // latest candle makes an upside breakout mathematically impossible because
+  // a close cannot exceed its own high.
+  const recent = ohlcv.slice(Math.max(0, ohlcv.length - 21), -1)
   const recentHigh = Math.max(...recent.map(bar => bar.h))
   const recentLow = Math.min(...recent.map(bar => bar.l))
 
@@ -157,14 +160,23 @@ function marketRegime(ohlcv, indicators) {
   const rsi = last(indicators.rsi14, index)
   const atr = last(indicators.atr14, index)
   const price = ohlcv[index]?.c
+  const adx = last(indicators.adx?.adx, index)
+  const ema20 = last(indicators.ema20, index)
+  const ema50 = last(indicators.ema50, index)
   const volatilityPct = price && atr ? (atr / price) * 100 : null
   let regime = 'TRANSITIONAL'
   let strength = 'MEDIUM'
+  let direction = 'NEUTRAL'
 
-  if (rsi < 30 || rsi > 70) {
+  if (price != null && ema20 != null && ema50 != null) {
+    if (price > ema20 && ema20 > ema50) direction = 'BULLISH'
+    else if (price < ema20 && ema20 < ema50) direction = 'BEARISH'
+  }
+
+  if (adx != null && adx >= 25 && direction !== 'NEUTRAL') {
     regime = 'TRENDING'
-    strength = 'STRONG'
-  } else if (rsi > 40 && rsi < 60) {
+    strength = adx >= 35 ? 'STRONG' : 'MEDIUM'
+  } else if (adx != null && adx < 18) {
     regime = 'RANGING'
     strength = 'NEUTRAL'
   }
@@ -173,7 +185,7 @@ function marketRegime(ohlcv, indicators) {
     ? 'HIGH'
     : regime === 'RANGING' && volatilityPct < 0.5 ? 'LOW' : 'MEDIUM'
 
-  return { regime, strength, riskLevel, volatilityPct: round(volatilityPct), rsi: round(rsi) }
+  return { regime, strength, direction, riskLevel, volatilityPct: round(volatilityPct), rsi: round(rsi), adx: round(adx) }
 }
 
 function gapAnalysis(ohlcv) {

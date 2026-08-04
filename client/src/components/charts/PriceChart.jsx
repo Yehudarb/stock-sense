@@ -543,8 +543,8 @@ const patternOverlayPlugin = {
 
       const labelX = Math.min(chartArea.right - 170, left + 6)
       const labelY = Math.max(chartArea.top + 4, top + 6 + index * 20)
-      const confidence = Math.min(96, Math.max(40, Math.round(55 + Math.abs(pattern.weight ?? 0) * 0.4 + (pattern.status === 'confirmed' ? 12 : 0))))
-      drawLabel(ctx, `${pattern.label} ${confidence}%`, labelX, labelY, color.stroke)
+      const statusLabel = pattern.status === 'confirmed' ? 'confirmed' : 'developing'
+      drawLabel(ctx, `${pattern.label} · ${statusLabel}`, labelX, labelY, color.stroke)
 
       if (pattern.targetPrice != null) {
         const targetY = yScale.getPixelForValue(pattern.targetPrice)

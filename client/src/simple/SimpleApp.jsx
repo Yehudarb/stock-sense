@@ -17,7 +17,7 @@ import PositionTrackerScreen from './screens/PositionTrackerScreen'
 const TICKER = 'TSLL'
 
 export default function SimpleApp() {
-  const { currentTicker, ohlcv, snapshot, language, setCurrentTicker } = useStore()
+  const { currentTicker, ohlcv, snapshot, language, interval, setCurrentTicker } = useStore()
   const [screen, setScreen] = useState('dashboard')
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function SimpleApp() {
 
   useTicker()
   const indicators = useIndicators(ohlcv)
-  const signal = useSignal(ohlcv, indicators, language)
+  const signal = useSignal(ohlcv, indicators, language, null, interval)
   const { isConnected } = useSocket()
   const paperTrading = usePaperTrading(`${TICKER}-${snapshot?.price ?? 'na'}`)
   const simpleSignal = useSimpleSignal(signal)

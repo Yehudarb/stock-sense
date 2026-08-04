@@ -16,11 +16,11 @@ function pct(from, to) {
   return ((to - from) / from) * 100
 }
 
-function normalizeProbability(score) {
+function normalizeBullishScore(score) {
   return clamp(0.5 + score / 10, 0.05, 0.95)
 }
 
-function confidenceFromVotes(buyVotes, totalModels) {
+function agreementFromVotes(buyVotes, totalModels) {
   if (!totalModels) return 'LOW'
   if (buyVotes === totalModels || buyVotes === 0) return 'MAXIMUM'
   if (buyVotes >= totalModels * 0.8 || buyVotes <= totalModels * 0.2) return 'HIGH'
@@ -28,13 +28,13 @@ function confidenceFromVotes(buyVotes, totalModels) {
   return 'LOW'
 }
 
-function modelResult({ key, label, probability, factors, weight }) {
-  const prob = clamp(probability, 0.05, 0.95)
+function modelResult({ key, label, bullishScore, factors, weight }) {
+  const normalizedScore = clamp(bullishScore, 0.05, 0.95)
   return {
     key,
     label,
-    probability: round(prob, 3),
-    vote: prob >= 0.5 ? 'BUY' : 'SELL',
+    bullishScore: round(normalizedScore, 3),
+    vote: normalizedScore >= 0.5 ? 'BUY' : 'SELL',
     weight,
     factors: factors.filter(Boolean).slice(0, 3),
   }
@@ -78,7 +78,7 @@ function trendModel(ohlcv, indicators) {
   return modelResult({
     key: 'trend_boost',
     label: 'Trend Boost',
-    probability: normalizeProbability(score),
+    bullishScore: normalizeBullishScore(score),
     factors,
     weight: 0.28,
   })
@@ -136,7 +136,7 @@ function momentumModel(ohlcv, indicators) {
   return modelResult({
     key: 'momentum',
     label: 'Momentum',
-    probability: normalizeProbability(score),
+    bullishScore: normalizeBullishScore(score),
     factors,
     weight: 0.22,
   })
@@ -185,7 +185,7 @@ function meanReversionModel(ohlcv, indicators) {
   return modelResult({
     key: 'mean_reversion',
     label: 'Mean Reversion',
-    probability: normalizeProbability(score),
+    bullishScore: normalizeBullishScore(score),
     factors,
     weight: 0.16,
   })
@@ -231,7 +231,7 @@ function volumeInstitutionalModel(ohlcv, indicators, signal) {
   return modelResult({
     key: 'volume_institutional',
     label: 'Volume / Institutions',
-    probability: normalizeProbability(score),
+    bullishScore: normalizeBullishScore(score),
     factors,
     weight: 0.18,
   })
@@ -282,7 +282,7 @@ function structurePatternModel(signal) {
   return modelResult({
     key: 'structure_patterns',
     label: 'Structure / Patterns',
-    probability: normalizeProbability(score),
+    bullishScore: normalizeBullishScore(score),
     factors,
     weight: 0.16,
   })
@@ -300,33 +300,33 @@ export function computeEnsembleConsensus(ohlcv, indicators, signal) {
   ]
 
   const totalWeight = models.reduce((sum, model) => sum + model.weight, 0)
-  const probability = models.reduce((sum, model) => sum + model.probability * model.weight, 0) / totalWeight
+  const bullishStrength = models.reduce((sum, model) => sum + model.bullishScore * model.weight, 0) / totalWeight
   const buyVotes = models.filter(model => model.vote === 'BUY').length
   const sellVotes = models.length - buyVotes
   const agreementPct = Math.round((Math.max(buyVotes, sellVotes) / models.length) * 100)
-  const confidence = confidenceFromVotes(buyVotes, models.length)
-  const bias = probability >= 0.58 && buyVotes >= 3
+  const agreementLevel = agreementFromVotes(buyVotes, models.length)
+  const bias = bullishStrength >= 0.58 && buyVotes >= 3
     ? 'bullish'
-    : probability <= 0.42 && sellVotes >= 3
+    : bullishStrength <= 0.42 && sellVotes >= 3
       ? 'bearish'
       : 'neutral'
 
-  const score = round((probability - 0.5) * 10, 2)
+  const score = round((bullishStrength - 0.5) * 10, 2)
   const action = bias === 'bullish'
-    ? buyVotes >= 4 && probability >= 0.65 ? 'STRONG_BUY' : 'BUY'
+    ? buyVotes >= 4 && bullishStrength >= 0.65 ? 'STRONG_BUY' : 'BUY'
     : bias === 'bearish'
-      ? sellVotes >= 4 && probability <= 0.35 ? 'STRONG_SELL' : 'SELL'
+      ? sellVotes >= 4 && bullishStrength <= 0.35 ? 'STRONG_SELL' : 'SELL'
       : 'HOLD'
 
   return {
     version: 'v3 ensemble-style',
-    probability: round(probability, 3),
-    probabilityPct: Math.round(probability * 100),
+    bullishStrength: round(bullishStrength, 3),
+    directionalScore: Math.round(bullishStrength * 100),
     buyVotes,
     sellVotes,
     totalModels: models.length,
     agreementPct,
-    confidence,
+    agreementLevel,
     bias,
     action,
     score,

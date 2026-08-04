@@ -11,8 +11,8 @@ const ITEMS = [
     body: 'Trend structure, moving averages, RSI, MACD, price patterns, support and resistance, earnings timing, multi-timeframe alignment, and broad market context.',
   },
   {
-    title: 'How to read confidence',
-    body: 'Confidence reflects how strongly the bullish and bearish evidence align. A higher score means the signal stack is more internally consistent, not that the trade is guaranteed.',
+    title: 'How to read analysis strength',
+    body: 'Analysis strength measures how consistently the rule-based evidence aligns. It is a score, not an outcome probability or a guarantee.',
   },
   {
     title: 'How to read sentiment',

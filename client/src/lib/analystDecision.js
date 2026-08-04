@@ -13,12 +13,14 @@ function latestValue(values, index) {
 }
 
 function recentHigh(ohlcv, periods = 20) {
-  const bars = ohlcv.slice(-periods)
+  const bars = ohlcv.slice(Math.max(0, ohlcv.length - periods - 1), -1)
+  if (!bars.length) return ohlcv.at(-1)?.h ?? null
   return Math.max(...bars.map(bar => bar.h))
 }
 
 function recentLow(ohlcv, periods = 20) {
-  const bars = ohlcv.slice(-periods)
+  const bars = ohlcv.slice(Math.max(0, ohlcv.length - periods - 1), -1)
+  if (!bars.length) return ohlcv.at(-1)?.l ?? null
   return Math.min(...bars.map(bar => bar.l))
 }
 
@@ -87,7 +89,7 @@ function buildReasons({ signal, trend, rsi, macdLine, macdSig, price, sma20, sma
   if (signal?.ensemble) {
     const ensemble = signal.ensemble
     const direction = ensemble.bias === 'bullish' ? 'בוליש' : ensemble.bias === 'bearish' ? 'בריש' : 'מעורב'
-    reasons.push(`Ensemble v3 ${direction}: ${ensemble.buyVotes}/${ensemble.totalModels} מודלים בעד קנייה, הסתברות ${ensemble.probabilityPct}%, הסכמה ${ensemble.agreementPct}%.`)
+    reasons.push(`Ensemble v3 ${direction}: ${ensemble.buyVotes}/${ensemble.totalModels} מודלים בעד קנייה, ציון כיווני ${ensemble.directionalScore}/100, הסכמה ${ensemble.agreementPct}%.`)
   }
 
   if (rsi != null && rsi < 35) reasons.push('RSI נמוך ומרמז על מכירת יתר אפשרית.')
@@ -121,12 +123,13 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
   const volumeRatio = latestValue(indicators.volRatio, last)
   const high20 = recentHigh(ohlcv)
   const low20 = recentLow(ohlcv)
-  const copy = actionCopy(signal.action)
+  const requestedAction = signal.action
   const pro = signal.pro
   const bestPattern = signal.patterns?.best
   const nearestGap = pro?.gaps?.nearestOpen ?? null
   const nearestSupport = pro?.supportResistance?.nearestSupport ?? null
   const nearestResistance = pro?.supportResistance?.nearestResistance ?? null
+  const breakoutConfirmed = Boolean(pro?.supportResistance?.breakoutUp && (volumeRatio ?? 0) >= 1.2)
 
   const stopLoss = risk?.stopLoss ?? roundPrice(price - atr * 1.5)
   const takeProfit = risk?.takeProfit ?? roundPrice(price + atr * 2)
@@ -138,7 +141,7 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
   let entryHigh = roundPrice(price + atr * 0.2)
   let holdUntil = takeProfit
   let invalidation = stopLoss
-  let primaryAction = copy.label
+  let primaryAction = actionCopy(requestedAction).label
 
   if (signal.action === 'STRONG_BUY') {
     entryLow = roundPrice(Math.min(price, sma20 ?? price) - atr * 0.25)
@@ -166,8 +169,10 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
     invalidation = roundPrice(Math.min(invalidation, nearestSupport - atr * 0.35))
   }
 
-  if (nearestResistance != null) {
-    holdUntil = roundPrice(Math.max(holdUntil, nearestResistance))
+  if (nearestResistance != null && nearestResistance > price) {
+    holdUntil = breakoutConfirmed
+      ? roundPrice(Math.max(holdUntil, nearestResistance))
+      : roundPrice(Math.min(holdUntil, nearestResistance))
   }
 
   if (pro?.professional?.confluencePct >= 80 && signal.action !== 'SELL' && signal.action !== 'STRONG_SELL') {
@@ -186,6 +191,13 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
     }
   }
 
+  // A projected pattern target does not cancel real overhead supply. Until a
+  // closed candle breaks resistance on volume, the first target is capped at
+  // that resistance and the trade must pass the resulting R:R check.
+  if (!breakoutConfirmed && nearestResistance != null && nearestResistance > price) {
+    holdUntil = roundPrice(Math.min(holdUntil, nearestResistance))
+  }
+
   // Final sanity clamp. Every adjustment above can independently push
   // entry/invalidation/holdUntil further out (stale support/resistance
   // from anywhere in history, a 20-bar high/low from before a sharp move,
@@ -199,8 +211,8 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
   // regardless of which branch/adjustment produced them, with the target
   // ceiling roughly 2.5x the entry/stop ceiling to keep a plausible
   // risk/reward shape.
-  const MAX_STOP_DISTANCE_PCT = 0.12
-  const MAX_TARGET_DISTANCE_PCT = 0.30
+  const MAX_STOP_DISTANCE_PCT = 0.08
+  const MAX_TARGET_DISTANCE_PCT = 0.12
 
   if (invalidation != null) {
     invalidation = invalidation < price
@@ -244,6 +256,33 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
   if (invalidation != null && entryLow != null && invalidation >= entryLow) {
     invalidation = roundPrice(Math.max(entryLow * 0.95, price * (1 - MAX_STOP_DISTANCE_PCT * 1.5)))
   }
+  if (!breakoutConfirmed && nearestResistance != null && nearestResistance > price) {
+    holdUntil = roundPrice(Math.min(holdUntil, nearestResistance))
+  }
+
+  const entryReference = entryLow != null && entryHigh != null
+    ? (entryLow + entryHigh) / 2
+    : null
+  const plannedRisk = entryReference != null && invalidation != null ? entryReference - invalidation : null
+  const plannedReward = entryReference != null && holdUntil != null ? holdUntil - entryReference : null
+  const plannedRiskReward = plannedRisk > 0 && plannedReward > 0
+    ? Number((plannedReward / plannedRisk).toFixed(2))
+    : null
+  const targetPct = entryReference != null && holdUntil != null ? pct(entryReference, holdUntil) : null
+  const isLongRequest = requestedAction === 'BUY' || requestedAction === 'STRONG_BUY'
+  const entryApproved = !isLongRequest || (
+    risk?.tradeValid !== false &&
+    plannedRiskReward != null && plannedRiskReward >= 1.5 &&
+    targetPct != null && targetPct >= 5 && targetPct <= 12 &&
+    invalidation < entryLow
+  )
+  const finalAction = isLongRequest && !entryApproved ? 'HOLD' : requestedAction
+  const copy = actionCopy(finalAction)
+  if (isLongRequest && !entryApproved) {
+    primaryAction = 'להמתין - יחס סיכון/סיכוי או יעד אינם תקינים'
+    entryLow = null
+    entryHigh = null
+  }
 
   const reasons = buildReasons({
     signal,
@@ -257,25 +296,33 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
     sma200,
     volumeRatio,
   })
+  if (isLongRequest && !entryApproved) {
+    reasons.unshift(`הכניסה נחסמה: נדרש יעד של 5%-12% ויחס סיכון/סיכוי של לפחות 1:1.5; כרגע ${plannedRiskReward ?? '-'} ויעד ${targetPct ?? '-'}%.`)
+  }
 
   return {
-    action: signal.action,
+    action: finalAction,
+    requestedAction,
     tone: copy.tone,
     label: copy.label,
     primaryAction,
     headline: copy.headline,
-    confidence: signal.confidence,
+    signalStrength: signal.confidence,
     currentPrice: roundPrice(price),
     entryLow,
     entryHigh,
     buyAbove,
     holdUntil: roundPrice(holdUntil),
-    takeProfit: roundPrice(takeProfit),
-    stopLoss: roundPrice(stopLoss),
+    takeProfit: roundPrice(holdUntil),
+    stopLoss: roundPrice(invalidation),
+    atrStop: roundPrice(stopLoss),
     trailingStop: roundPrice(trailingStop),
     invalidation: roundPrice(invalidation),
     stopContext: risk?.stopContext ?? null,
-    riskReward: risk?.rrRatio ?? null,
+    riskReward: plannedRiskReward,
+    entryApproved,
+    targetPct,
+    breakoutConfirmed,
     proConfluence: pro?.professional?.confluencePct ?? null,
     support: nearestSupport,
     resistance: nearestResistance,

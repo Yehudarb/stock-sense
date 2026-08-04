@@ -416,7 +416,7 @@ function PresetControls({
 }
 
 function PatternSummaryCard({ patterns = [], copy }) {
-  const topPatterns = [...patterns].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)).slice(0, 3)
+  const topPatterns = [...patterns].sort((a, b) => (b.qualityScore ?? 0) - (a.qualityScore ?? 0)).slice(0, 3)
   const strongest = topPatterns[0]
 
   return (
@@ -442,7 +442,7 @@ function PatternSummaryCard({ patterns = [], copy }) {
                   <div className="mt-1 text-base font-semibold text-white">{strongest.name}</div>
                 </div>
                 <Badge tone={strongest.direction === 'Bullish' ? 'positive' : strongest.direction === 'Bearish' ? 'danger' : 'balanced'}>
-                  {strongest.confidence}%
+                  {strongest.qualityScore}/100
                 </Badge>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
@@ -462,7 +462,7 @@ function PatternSummaryCard({ patterns = [], copy }) {
                 </Badge>
               </div>
               <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-300">
-                <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{copy.confidence} {pattern.confidence}%</span>
+                <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{copy.confidence} {pattern.qualityScore}/100</span>
                 <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{pattern.category ?? copy.pattern}</span>
                 <span className="rounded-full border border-white/8 bg-slate-950/70 px-2.5 py-1">{pattern.priceZone}</span>
               </div>
@@ -1117,7 +1117,7 @@ export default function ChartWorkspace({
         confirmed: 'מאושר',
         mixed: 'מעורב',
         developing: 'מתפתח',
-        confidence: 'ביטחון',
+        confidence: 'איכות מבנית',
         pattern: 'תבנית',
         technicalScore: 'ציון טכני',
         indicatorReadout: 'קריאת אינדיקטורים ותבניות',
@@ -1159,7 +1159,7 @@ export default function ChartWorkspace({
         volumeSubtitle: 'אישור מהמחזור עם עמודות צבועות וממוצע מחזור',
         rsiPanel: 'פאנל RSI',
         macdPanel: 'פאנל MACD',
-        disclaimerFoot: 'השתמש בהסתברות ובניהול סיכון, לא בוודאות.',
+        disclaimerFoot: 'הציונים מתארים התאמה לכללים, לא הסתברות לתוצאה. פעל רק עם ניהול סיכון.',
         risk: 'סיכון',
       }
     : {
@@ -1174,7 +1174,7 @@ export default function ChartWorkspace({
         confirmed: 'Confirmed',
         mixed: 'Mixed',
         developing: 'Developing',
-        confidence: 'Confidence',
+        confidence: 'Structure quality',
         pattern: 'Pattern',
         technicalScore: 'Technical score',
         indicatorReadout: 'Indicator and pattern readout',
@@ -1216,7 +1216,7 @@ export default function ChartWorkspace({
         volumeSubtitle: 'Confirmation panel with color-coded bars and average volume',
         rsiPanel: 'RSI panel',
         macdPanel: 'MACD panel',
-        disclaimerFoot: 'Use probability and risk, not certainty.',
+        disclaimerFoot: 'Scores describe rule alignment, not outcome probability.',
         risk: 'Risk',
       }
 

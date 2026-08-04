@@ -54,7 +54,7 @@ export default function AnalysisResultCard({
     title: isHebrew ? 'פלט AI מובנה' : 'Structured AI outlook',
     tldr: isHebrew ? 'TL;DR' : 'TL;DR',
     overallSentiment: isHebrew ? 'סנטימנט כללי' : 'Overall sentiment',
-    confidence: isHebrew ? 'רמת ביטחון' : 'Confidence score',
+    confidence: isHebrew ? 'עוצמת הניתוח' : 'Analysis strength',
     risk: isHebrew ? 'רמת סיכון' : 'Risk level',
     bullCase: isHebrew ? 'התרחיש השורי' : 'Bull case',
     bearCase: isHebrew ? 'התרחיש הדובי' : 'Bear case',
@@ -90,7 +90,7 @@ export default function AnalysisResultCard({
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4 backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{labels.confidence}</div>
-              <div className="text-xl font-black text-white">{confidenceScore}%</div>
+              <div className="text-xl font-black text-white">{confidenceScore}/100</div>
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/45 p-4 backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{labels.risk}</div>

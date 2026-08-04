@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { buildStockAnalysisPro } from '../lib/stockAnalysisPro'
+import { computeAll } from '../lib/indicators'
+import { getClosedAnalysisBars } from '../lib/analysisBars'
 
 /**
  * Feeds the Stock Analysis Pro engine. Everything the engine needs except the
@@ -50,11 +52,17 @@ export default function useStockAnalysisPro({
 
   const report = useMemo(() => {
     if (!enabled) return null
+    const barContext = getClosedAnalysisBars(ohlcv, interval)
+    const analysisBars = barContext.bars
+    const analysisIndicators = barContext.excludedLiveBar
+      ? computeAll(analysisBars)
+      : indicators
+
     return buildStockAnalysisPro({
       ticker,
       interval,
-      ohlcv,
-      indicators,
+      ohlcv: analysisBars,
+      indicators: analysisIndicators,
       signal,
       snapshot,
       earnings,

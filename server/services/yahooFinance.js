@@ -94,21 +94,49 @@ function daysUntil(dateIso) {
   return Math.ceil((target - start) / 86400000)
 }
 
-function aggregateBars(bars, groupSize) {
-  const aggregated = []
-  for (let index = 0; index < bars.length; index += groupSize) {
-    const group = bars.slice(index, index + groupSize)
-    if (!group.length) continue
+function easternSessionKey(timestamp) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(timestamp))
+  const value = type => parts.find(part => part.type === type)?.value
+  return `${value('year')}-${value('month')}-${value('day')}`
+}
 
-    aggregated.push({
-      t: group[group.length - 1].t,
-      o: group[0].o,
-      h: Math.max(...group.map(bar => bar.h)),
-      l: Math.min(...group.map(bar => bar.l)),
-      c: group[group.length - 1].c,
-      v: group.reduce((sum, bar) => sum + (bar.v ?? 0), 0),
-    })
+export function aggregateBarsBySession(bars, groupSize) {
+  const aggregated = []
+  let sessionBars = []
+  let currentSession = null
+
+  const appendSession = () => {
+    for (let index = 0; index < sessionBars.length; index += groupSize) {
+      const group = sessionBars.slice(index, index + groupSize)
+      if (!group.length) continue
+
+      aggregated.push({
+        t: group[group.length - 1].t,
+        o: group[0].o,
+        h: Math.max(...group.map(bar => bar.h)),
+        l: Math.min(...group.map(bar => bar.l)),
+        c: group[group.length - 1].c,
+        v: group.reduce((sum, bar) => sum + (bar.v ?? 0), 0),
+      })
+    }
   }
+
+  for (const bar of bars) {
+    const session = easternSessionKey(bar.t)
+    if (currentSession != null && session !== currentSession) {
+      appendSession()
+      sessionBars = []
+    }
+    currentSession = session
+    sessionBars.push(bar)
+  }
+  appendSession()
+
   return aggregated
 }
 
@@ -132,7 +160,7 @@ export async function getBars(ticker, interval, limit = 200) {
     v: q.volume?.[i] ?? 0,
   })).filter(b => b.o != null && b.c != null)
 
-  const normalizedBars = interval === '4h' ? aggregateBars(bars, 4) : bars
+  const normalizedBars = interval === '4h' ? aggregateBarsBySession(bars, 4) : bars
   return normalizedBars.slice(-limit)
 }
 

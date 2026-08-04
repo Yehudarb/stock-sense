@@ -386,15 +386,15 @@ function scoreEnsembleLayer(signal, drivers, risks) {
   const ensemble = signal?.ensemble
   if (!ensemble) return { bullish, bearish }
 
-  const strength = clamp(Math.abs(ensemble.probability - 0.5) * 5, 0.25, 1.8)
+  const strength = clamp(Math.abs(ensemble.bullishStrength - 0.5) * 5, 0.25, 1.8)
   const agreementBoost = ensemble.agreementPct >= 80 ? 0.55 : ensemble.agreementPct >= 60 ? 0.25 : 0
 
   if (ensemble.bias === 'bullish') {
     bullish += strength + agreementBoost
-    addDriver(drivers, `Ensemble v3: ${ensemble.buyVotes}/${ensemble.totalModels} מודלים מצביעים קנייה (${ensemble.probabilityPct}%).`)
+    addDriver(drivers, `Ensemble v3: ${ensemble.buyVotes}/${ensemble.totalModels} מודלים מצביעים קנייה (ציון ${ensemble.directionalScore}/100).`)
   } else if (ensemble.bias === 'bearish') {
     bearish += strength + agreementBoost
-    addRisk(risks, `Ensemble v3: ${ensemble.sellVotes}/${ensemble.totalModels} מודלים מצביעים מכירה (${100 - ensemble.probabilityPct}% לחץ מכירה).`)
+    addRisk(risks, `Ensemble v3: ${ensemble.sellVotes}/${ensemble.totalModels} מודלים מצביעים מכירה (ציון שורי ${ensemble.directionalScore}/100).`)
   } else {
     addRisk(risks, `Ensemble v3 מעורב: ${ensemble.buyVotes} קנייה מול ${ensemble.sellVotes} מכירה.`)
   }

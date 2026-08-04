@@ -163,7 +163,7 @@ export default function AdvancedApp() {
   // can factor higher-timeframe bias into its final decision (block bullish
   // reads against a weekly downtrend, etc).
   const { data: multiTimeframe, isLoading: isMultiTimeframeLoading } = useMultiTimeframe(currentTicker)
-  const signal = useSignal(ohlcv, indicators, language, multiTimeframe)
+  const signal = useSignal(ohlcv, indicators, language, multiTimeframe, interval)
   const { isConnected } = useSocket()
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
   const { data: technicalAnalysis, isLoading: isTechnicalAnalysisLoading, error: technicalAnalysisError } = useTechnicalAnalysis(currentTicker)

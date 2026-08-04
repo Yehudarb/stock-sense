@@ -1,6 +1,11 @@
 const RISK_MULTIPLIER     = 1.5
 const REWARD_MULTIPLIER   = 2.0
 const TRAILING_MULTIPLIER = 1.2
+const MIN_STOP_PCT = 0.025
+const MAX_STOP_PCT = 0.08
+const MIN_TARGET_PCT = 0.05
+const MAX_TARGET_PCT = 0.12
+const MIN_RISK_REWARD = 1.5
 
 function roundPrice(value) {
   if (value == null || Number.isNaN(value) || !Number.isFinite(value)) return null
@@ -35,7 +40,7 @@ function buildStopContext(price, atr, indicators, context = {}) {
   const patternInvalidation = context.patternInvalidation ?? null
 
   const candidates = [
-    stopCandidate(price, price - RISK_MULTIPLIER * atr, 'ATR', 'Uses 1.5x ATR below price to reflect current volatility.'),
+    stopCandidate(price, price - Math.max(RISK_MULTIPLIER * atr, price * MIN_STOP_PCT), 'ATR', 'Uses the larger of 1.5x ATR or 2.5% below price.'),
     nearestSupport != null
       ? stopCandidate(price, nearestSupport - atr * 0.35, 'Below support', 'Sits below the nearest support shelf to protect against a support failure.')
       : null,
@@ -45,7 +50,7 @@ function buildStopContext(price, atr, indicators, context = {}) {
     patternInvalidation != null
       ? stopCandidate(price, patternInvalidation, 'Pattern invalidation', 'Uses the invalidation level from the leading chart pattern.')
       : null,
-  ].filter(Boolean)
+  ].filter(candidate => candidate && candidate.riskPct >= MIN_STOP_PCT * 100 && candidate.riskPct <= MAX_STOP_PCT * 100)
 
   if (!candidates.length) return null
 
@@ -87,8 +92,10 @@ export function computeRisk(ohlcv, indicators, context = {}) {
 
   if (!atr || atr <= 0) return null
 
-  const stopLoss   = price - RISK_MULTIPLIER * atr
-  const takeProfit = price + REWARD_MULTIPLIER * atr
+  const stopLoss   = price - Math.max(RISK_MULTIPLIER * atr, price * MIN_STOP_PCT)
+  const rawTargetPct = (REWARD_MULTIPLIER * atr) / price
+  const targetPct = Math.max(MIN_TARGET_PCT, Math.min(MAX_TARGET_PCT, rawTargetPct))
+  const takeProfit = price * (1 + targetPct)
   const trailingStop = price - TRAILING_MULTIPLIER * atr
   const riskPct    = ((price - stopLoss) / price) * 100
   const rewardPct  = ((takeProfit - price) / price) * 100
@@ -97,6 +104,9 @@ export function computeRisk(ohlcv, indicators, context = {}) {
   const recommendedStop = stopContext?.recommended?.price ?? parseFloat(stopLoss.toFixed(2))
   const recommendedRiskPct = stopContext?.recommended?.riskPct ?? parseFloat(riskPct.toFixed(2))
   const recommendedRrRatio = recommendedRiskPct > 0 ? rewardPct / recommendedRiskPct : rrRatio
+  const rejectionReasons = []
+  if (recommendedRiskPct > MAX_STOP_PCT * 100) rejectionReasons.push('STOP_TOO_WIDE')
+  if (recommendedRrRatio < MIN_RISK_REWARD) rejectionReasons.push('POOR_RISK_REWARD')
 
   return {
     atr:           parseFloat(atr.toFixed(2)),
@@ -106,6 +116,8 @@ export function computeRisk(ohlcv, indicators, context = {}) {
     riskPct:       recommendedRiskPct,
     rewardPct:     parseFloat(rewardPct.toFixed(2)),
     rrRatio:       parseFloat(recommendedRrRatio.toFixed(2)),
+    tradeValid:    rejectionReasons.length === 0,
+    rejectionReasons,
     stopContext,
   }
 }

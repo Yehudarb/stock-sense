@@ -23,15 +23,15 @@ export function buildPlainVerdict({ decision, checklist, language = 'he' }) {
   const isHebrew = language === 'he'
   const note = checklistNote(checklist, language)
   const entryLow = fmt(decision.entryLow)
-  const entryHigh = fmt(decision.entryHigh)
+  const entryHigh = fmt(decision.entryHigh ?? decision.buyAbove)
   const target = fmt(decision.holdUntil)
   const stop = fmt(decision.invalidation)
-  const confidence = decision.confidence
+  const signalStrength = decision.signalStrength
 
   if (decision.action === 'BUY' || decision.action === 'STRONG_BUY') {
     return isHebrew
-      ? `כדאי לשקול כניסה עכשיו${note}. הכיוון חיובי עם רמת ביטחון ${confidence}%. אזור כניסה סביר: ${entryLow}–${entryHigh}. שימו סטופ הגנה סביב ${stop} ואל תזיזו אותו כלפי מטה, עם יעד עבודה ראשון סביב ${target}. אם המחיר יורד מתחת ל-${stop} — צאו מהעסקה, התכנית לא עבדה הפעם.`
-      : `Worth considering an entry now${note}. Direction is positive with ${confidence}% confidence. A reasonable entry zone is ${entryLow}–${entryHigh}. Set a protective stop around ${stop} and never move it lower, with a first working target near ${target}. If price drops below ${stop}, exit - the setup didn't work this time.`
+      ? `כדאי לשקול כניסה עכשיו${note}. הכיוון חיובי עם עוצמת אות ${signalStrength}/100, שאינה הסתברות. אזור כניסה סביר: ${entryLow}–${entryHigh}. שימו סטופ הגנה סביב ${stop} ואל תזיזו אותו כלפי מטה, עם יעד עבודה ראשון סביב ${target}. אם המחיר יורד מתחת ל-${stop} — צאו מהעסקה, התכנית לא עבדה הפעם.`
+      : `Worth considering an entry now${note}. Direction is positive with a signal strength of ${signalStrength}/100; this is not a probability. A reasonable entry zone is ${entryLow}–${entryHigh}. Set a protective stop around ${stop} and never move it lower, with a first working target near ${target}. If price drops below ${stop}, exit - the setup didn't work this time.`
   }
 
   if (decision.action === 'HOLD') {

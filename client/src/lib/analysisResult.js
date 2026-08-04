@@ -14,7 +14,8 @@ function sentimentLabel(bias) {
 function riskLevel({ forecast, signal, earnings, marketContext }) {
   let score = 0
 
-  if (forecast?.confidence >= 75) score -= 1
+  if (forecast?.confidence >= 75 && forecast?.bias === 'bullish') score -= 1
+  if (forecast?.confidence >= 75 && forecast?.bias === 'bearish') score += 1
   if (signal?.risk?.rrRatio < 1.5) score += 1
   if (marketContext?.shouldBlockBuy) score += 1
   if (['BEAR', 'PANIC'].includes(marketContext?.condition)) score += 1

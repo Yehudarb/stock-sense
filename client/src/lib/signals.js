@@ -15,7 +15,7 @@ function buyGradient(value, oversold, overbought) {
 
 // Linear gradient: 1.0 at overbought, 0.0 at oversold (for sell side)
 
-// Sigmoid calibration → probability 0-100
+// Signal strength is a rule-alignment score, not a calibrated probability.
 
 // ── Gate 1: Trend / Regime ────────────────────────────────────────────────
 // Market STRUCTURE (HH/HL vs LH/LL sequence) is the primary trend signal —

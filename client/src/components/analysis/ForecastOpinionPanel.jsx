@@ -57,7 +57,7 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
     loadingBuild: isHebrew ? 'בונה דעה לפי כמה טווחי זמן...' : 'Building multi-timeframe outlook...',
     loadingForecast: isHebrew ? 'טוען צפי אנליסט...' : 'Loading forecast...',
     title: isHebrew ? 'דעה וצפי אוטומטי' : 'Automated outlook',
-    confidence: isHebrew ? 'ביטחון' : 'Confidence',
+    confidence: isHebrew ? 'עוצמת הניתוח' : 'Analysis strength',
     bullishScore: isHebrew ? 'Score בוליש' : 'Bullish score',
     bearishScore: isHebrew ? 'Score בריש' : 'Bearish score',
     currentPrice: isHebrew ? 'מחיר נוכחי' : 'Current price',
@@ -105,7 +105,7 @@ export default function ForecastOpinionPanel({ forecast, isLoading, language = '
         </div>
         <div className="shrink-0 rounded-xl border border-white/5 bg-slate-950/60 px-3 py-2 text-center">
           <div className="text-[11px] text-slate-500">{copy.confidence}</div>
-          <div className={`text-lg font-black ${tone.text}`}>{forecast.confidence}%</div>
+          <div className={`text-lg font-black ${tone.text}`}>{forecast.confidence}/100</div>
         </div>
       </div>
 

@@ -108,7 +108,7 @@ function AnalystDecisionCard({ decision, language }) {
     : isEnglish ? 'No new entry' : 'ללא כניסה חדשה'
   const labels = {
     title: isEnglish ? 'Analyst conclusion' : 'מסקנת אנליסט',
-    confidence: isEnglish ? 'Confidence' : 'ביטחון',
+    confidence: isEnglish ? 'Signal strength' : 'עוצמת האות',
     currentPrice: isEnglish ? 'Current price' : 'מחיר נוכחי',
     entryZone: isEnglish ? 'Entry zone' : 'אזור כניסה',
     holdUntil: isEnglish ? 'Hold until' : 'יעד עבודה',
@@ -131,7 +131,7 @@ function AnalystDecisionCard({ decision, language }) {
         </div>
         <div className="shrink-0 rounded-lg bg-slate-950 px-3 py-2 text-center">
           <div className="text-[11px] text-slate-500">{labels.confidence}</div>
-          <div className={`text-lg font-black ${toneText}`}>{decision.confidence}%</div>
+          <div className={`text-lg font-black ${toneText}`}>{decision.signalStrength}/100</div>
         </div>
       </div>
 
@@ -230,17 +230,17 @@ function EnsembleCard({ ensemble, language }) {
           <div className={`mt-1 text-lg font-black ${tone.color}`}>{tone.label}</div>
           <div className="mt-1 text-xs text-slate-400">
             {isEnglish
-              ? `${ensemble.buyVotes}/${ensemble.totalModels} models vote buy · agreement ${ensemble.agreementPct}% · ${ensemble.confidence}`
-              : `${ensemble.buyVotes}/${ensemble.totalModels} מודלים תומכים בקנייה · הסכמה ${ensemble.agreementPct}% · ${ensemble.confidence}`}
+              ? `${ensemble.buyVotes}/${ensemble.totalModels} models vote buy · agreement ${ensemble.agreementPct}% · ${ensemble.agreementLevel}`
+              : `${ensemble.buyVotes}/${ensemble.totalModels} מודלים תומכים בקנייה · הסכמה ${ensemble.agreementPct}% · ${ensemble.agreementLevel}`}
           </div>
         </div>
         <div className="rounded-lg bg-slate-950 px-3 py-2 text-center">
-          <div className="text-[11px] text-slate-500">Probability</div>
-          <div className={`text-lg font-black ${tone.color}`}>{ensemble.probabilityPct}%</div>
+          <div className="text-[11px] text-slate-500">Directional score</div>
+          <div className={`text-lg font-black ${tone.color}`}>{ensemble.directionalScore}/100</div>
         </div>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-950">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${ensemble.probabilityPct}%`, backgroundColor: tone.bar }} />
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${ensemble.directionalScore}%`, backgroundColor: tone.bar }} />
       </div>
       <div className="mt-3 grid grid-cols-1 gap-2">
         {ensemble.models.map(model => (
@@ -248,7 +248,7 @@ function EnsembleCard({ ensemble, language }) {
             <div className="flex items-center justify-between gap-2 text-xs">
               <span className="font-bold text-slate-200">{model.label}</span>
               <span className={model.vote === 'BUY' ? TRADER_TEXT.bullish : TRADER_TEXT.bearish}>
-                {isEnglish ? (model.vote === 'BUY' ? 'Buy' : 'Sell') : (model.vote === 'BUY' ? 'קנייה' : 'מכירה')} · {Math.round(model.probability * 100)}%
+                {isEnglish ? (model.vote === 'BUY' ? 'Buy' : 'Sell') : (model.vote === 'BUY' ? 'קנייה' : 'מכירה')} · {Math.round(model.bullishScore * 100)}/100
               </span>
             </div>
             {!isEnglish && model.factors?.length > 0 && <div className="mt-1 text-[11px] leading-relaxed text-slate-500">{model.factors.join(' · ')}</div>}
@@ -301,7 +301,7 @@ function DetailTab({ signal, gates, patterns, risk, copy, isEnglish, language })
         <div>
           <div className="mb-1 flex justify-between text-xs text-slate-400">
             <span>{copy.confidence}</span>
-            <span>{signal.confidence}%</span>
+            <span>{signal.confidence}/100</span>
           </div>
           <div className="h-1 w-full rounded-full bg-slate-700 sm:h-2 md:h-3">
             <div className="h-1 rounded-full transition-all duration-500 sm:h-2 md:h-3" style={{ width: `${signal.confidence}%`, backgroundColor: signal.score >= 0 ? TRADER_COLORS.bullish : TRADER_COLORS.bearish }} />
@@ -393,7 +393,7 @@ export default function SignalPanel({ signal, language = 'he' }) {
   const copy = {
     loading: isEnglish ? 'Loading analysis...' : 'טוען ניתוח...',
     signalTitle: isEnglish ? 'Trading signal' : 'אות מסחר',
-    confidence: isEnglish ? 'Confidence' : 'ביטחון',
+    confidence: isEnglish ? 'Signal strength' : 'עוצמת האות',
     buyScore: isEnglish ? 'Buy score' : 'ציון קנייה',
     sellScore: isEnglish ? 'Sell score' : 'ציון מכירה',
     pipeline: isEnglish ? 'Pipeline gates' : 'שערי Pipeline',
@@ -432,7 +432,13 @@ export default function SignalPanel({ signal, language = 'he' }) {
     return <div className="glass-panel rounded-xl p-4 text-center text-sm text-slate-500">{copy.loading}</div>
   }
 
-  const { gates, patterns, risk, decision, pro, ensemble } = signal
+  const { gates, patterns, risk, decision, pro, ensemble, barContext } = signal
+  const lastClosedText = barContext?.lastClosedAt
+    ? new Intl.DateTimeFormat(isEnglish ? 'en-US' : 'he-IL', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(barContext.lastClosedAt))
+    : '-'
 
   return (
     <div className="glass-panel rounded-2xl p-4" dir={isEnglish ? 'ltr' : 'rtl'}>
@@ -452,6 +458,18 @@ export default function SignalPanel({ signal, language = 'he' }) {
           </button>
         ))}
       </div>
+
+      {barContext && (
+        <div className={`mb-4 rounded-xl border px-3 py-2 text-xs ${barContext.excludedLiveBar ? 'border-amber-400/25 bg-amber-400/8 text-amber-100' : 'border-emerald-400/20 bg-emerald-400/8 text-emerald-100'}`}>
+          {barContext.excludedLiveBar
+            ? (isEnglish
+              ? `The live candle is still open and was excluded from the decision. Last confirmed candle: ${lastClosedText}.`
+              : `הנר החי עדיין פתוח ולכן לא השתתף בהחלטה. הנר המאושר האחרון: ${lastClosedText}.`)
+            : (isEnglish
+              ? `Decision calculated from a closed candle at ${lastClosedText}.`
+              : `ההחלטה חושבה מנר סגור בזמן ${lastClosedText}.`)}
+        </div>
+      )}
 
       {activeTab === 'Decision' && <AnalystDecisionCard decision={decision} language={language} />}
       {activeTab === 'Ensemble' && <EnsembleCard ensemble={ensemble} language={language} />}
