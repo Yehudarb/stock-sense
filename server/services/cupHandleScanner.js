@@ -11,7 +11,6 @@ import {
 
 const RESULT_TTL_MS = Math.max(5 * 60_000, Number.parseInt(process.env.SCANNER_RESULT_TTL_MS ?? `${30 * 60_000}`, 10))
 const VALIDATION_CONCURRENCY = Math.max(1, Number.parseInt(process.env.SCANNER_VALIDATION_CONCURRENCY ?? '5', 10))
-const MIN_VALIDATION_POOL = Math.max(40, Number.parseInt(process.env.SCANNER_MIN_VALIDATIONS ?? '120', 10))
 const JOB_HISTORY_LIMIT = 6
 
 const jobs = new Map()
@@ -175,14 +174,13 @@ async function executeScan(job, options) {
       (b.preCup.meta?.quality ?? 0) * 70 + b.asset.strength.score * 0.3 -
       ((a.preCup.meta?.quality ?? 0) * 70 + a.asset.strength.score * 0.3)
     ))
-    const validationMap = new Map(structural.map(item => [item.asset.symbol, item.asset]))
-    for (const asset of strengthResult.assets) {
-      if (validationMap.size >= Math.min(MIN_VALIDATION_POOL, strengthResult.assets.length)) break
-      validationMap.set(asset.symbol, asset)
-    }
-    const validationPool = [...validationMap.values()]
+    // The full OHLCV pass must cover every strong S&P 500 asset. Capping this
+    // pool can hide a valid breakout simply because it ranked below the first
+    // batch of pre-scan matches.
+    const validationPool = strengthResult.assets
     job.stats.preScanMatches = structural.length
     job.stats.validationPool = validationPool.length
+    job.stats.validationScope = 'all strong S&P 500 constituents'
     job.stats.validatedAssets = 0
     job.stats.validationFailed = 0
 
@@ -212,6 +210,10 @@ async function executeScan(job, options) {
 
     job.status = 'done'
     job.stats.matches = job.results.length
+    job.stats.stageCounts = job.results.reduce((counts, candidate) => {
+      counts[candidate.stage] = (counts[candidate.stage] ?? 0) + 1
+      return counts
+    }, {})
     job.completedAt = Date.now()
     latestCompletedJobId = job.id
     updateJob(job, 'done', validationPool.length, validationPool.length, `נמצאו ${job.results.length} תבניות מאומתות`)

@@ -497,12 +497,21 @@ function detectCupHandle(found, ohlcv) {
     const rim = Math.max(leftRim, rightRim)
     const handleHigh = rangeHigh(handleBars)
     const handleLow = rangeLow(handleBars)
+    // A breakout candle is part of the input handle window, but its high must
+    // not invalidate the handle before we classify that same candle as a
+    // confirmed breakout.
+    const breakoutCandle = current >= rim * 1.005
+    const setupHandleBars = breakoutCandle && handleBars.length > 1
+      ? handleBars.slice(0, -1)
+      : handleBars
+    const setupHandleHigh = rangeHigh(setupHandleBars)
+    const setupHandleLow = rangeLow(setupHandleBars)
 
     if (rim <= 0) continue
     const cupDepth = (rim - cupLow) / rim
     const rimAsym = Math.abs(leftRim - rightRim) / rim
-    const handlePullback = (rightRim - handleLow) / rightRim
-    const handleShallowerThanCup = (rightRim - handleLow) < (rightRim - cupLow) * 0.55
+    const handlePullback = (rightRim - setupHandleLow) / rightRim
+    const handleShallowerThanCup = (rightRim - setupHandleLow) < (rightRim - cupLow) * 0.55
     const rimRecovery = leftRimClose > 0 ? rightRimClose / leftRimClose : 0
     const cupVolume = avg(cupBars.map(bar => bar.v ?? 0))
     const handleVolume = avg(handleBars.map(bar => bar.v ?? 0))
@@ -522,7 +531,7 @@ function detectCupHandle(found, ohlcv) {
       handlePullback >= 0.005 && handlePullback <= 0.20 &&
       handleShallowerThanCup &&
       cupLowPosition >= 0.30 && cupLowPosition <= 0.75 &&
-      handleHigh <= rim * 1.005 &&
+      setupHandleHigh <= rim * 1.005 &&
       rimRecovery >= 0.92
 
     if (!ok) continue
@@ -539,7 +548,7 @@ function detectCupHandle(found, ohlcv) {
 
     best = {
       quality, offset, window, cupBars, handleBars,
-      leftRim, rightRim, cupLow, rim, handleHigh, handleLow,
+      leftRim, rightRim, cupLow, rim, handleHigh: setupHandleHigh, handleLow: setupHandleLow,
       cupDepth, rimAsym, handlePullback, handleLen, windowSize,
       rimRecovery, cupVolume, handleVolume, handleVolumeRatio,
     }

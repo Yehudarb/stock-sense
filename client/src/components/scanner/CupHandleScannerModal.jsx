@@ -157,6 +157,10 @@ export default function CupHandleScannerModal() {
   }, [scanRun, showScanner])
 
   const candidates = job?.results ?? []
+  const stageCounts = useMemo(() => candidates.reduce((counts, candidate) => {
+    counts[candidate.stage] = (counts[candidate.stage] ?? 0) + 1
+    return counts
+  }, {}), [candidates])
   const filtered = useMemo(() => candidates.filter(candidate => (
     candidate.indexMembership === 'S&P 500' &&
     stageFilter.has(candidate.stage) &&
@@ -253,6 +257,7 @@ export default function CupHandleScannerModal() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <StatCard label="חברי S&P 500 שנטענו" value={(stats.indexConstituents ?? 0).toLocaleString()} detail={`${stats.marketDataMatched ?? 0} הוצלבו עם Nasdaq`} />
             <StatCard label="מניות חזקות במדד" value={(stats.strongAssets ?? 0).toLocaleString()} detail={`Strength ${stats.strengthThreshold ?? 55}+`} tone="#67e8f9" />
+            <StatCard label="פרצו מאושר" value={(stageCounts.broken_out ?? 0).toLocaleString()} detail="סגירה מעל Pivot + נפח 1.2x" tone="#6ee7b7" />
             <StatCard label="מבני Cup ב־pre-scan" value={(stats.preScanMatches ?? 0).toLocaleString()} detail="סריקת close לכל היקום החזק" tone="#c4b5fd" />
             <StatCard label="אימות OHLCV" value={`${stats.validatedAssets ?? 0}/${stats.validationPool ?? 0}`} detail={`${stats.validationFailed ?? 0} כשלים ממקור הנתונים`} tone="#fbbf24" />
             <StatCard label="תבניות מאומתות" value={(stats.matches ?? candidates.length).toLocaleString()} detail={`${filtered.length} תואמות למסננים`} tone="#6ee7b7" />
@@ -277,6 +282,23 @@ export default function CupHandleScannerModal() {
             <input type="range" min="40" max="90" step="5" value={minStrength} onChange={event => setMinStrength(Number(event.target.value))} />
           </label>
         </div>
+
+        {!scanning && job?.status === 'done' && (
+          <div
+            role="status"
+            style={{
+              margin: '10px 18px 0', padding: '9px 12px', borderRadius: 9,
+              border: `1px solid ${(stageCounts.broken_out ?? 0) > 0 ? '#166534' : '#854d0e'}`,
+              background: (stageCounts.broken_out ?? 0) > 0 ? 'rgba(22,101,52,0.16)' : 'rgba(133,77,14,0.14)',
+              color: (stageCounts.broken_out ?? 0) > 0 ? '#bbf7d0' : '#fde68a',
+              fontSize: 11, lineHeight: 1.5,
+            }}
+          >
+            {(stageCounts.broken_out ?? 0) > 0
+              ? `נמצאו ${stageCounts.broken_out} מניות עם פריצה מאושרת.`
+              : `אין כרגע פריצה מאושרת בסריקה. נמצאו ${stageCounts.near_breakout ?? 0} קרובות לפריצה ו־${stageCounts.in_handle ?? 0} בהידית. אישור דורש סגירת נר יומי מעל ה־Pivot ב־0.5% לפחות ומחזור של 1.2x מממוצע 20 הימים.`}
+          </div>
+        )}
 
         {scanning && (
           <div style={{ padding: '11px 18px', borderBottom: '1px solid #233149' }}>

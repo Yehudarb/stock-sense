@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
+import { detectCupHandlePattern } from '../../client/src/lib/patterns.js'
 import { buildCupCandidate, scoreCupSetup } from '../services/cupHandleScanner.js'
 
 const cup = {
@@ -40,6 +41,34 @@ test('Cup setup score rewards a high-quality near-breakout pattern', () => {
   const score = scoreCupSetup(cup, 110)
   assert.ok(score >= 75)
   assert.ok(score <= 100)
+})
+
+test('Cup detector accepts a confirmed breakout candle after the handle', () => {
+  const bars = Array.from({ length: 80 }, (_, index) => {
+    let close
+    if (index < 11) close = 100
+    else if (index <= 30) close = 100 - ((index - 10) / 20) * 20
+    else if (index <= 57) close = 80 + ((index - 30) / 27) * 20
+    else if (index < 68) close = 100
+    else if (index < 71) close = 99 - (index - 68)
+    else if (index < 79) close = 98
+    else close = 103
+
+    return {
+      t: Date.UTC(2025, 0, index + 1),
+      o: close,
+      h: close + (index === 79 ? 1 : 0.2),
+      l: close - 0.2,
+      c: close,
+      v: index === 79 ? 200 : 100,
+    }
+  })
+
+  const detected = detectCupHandlePattern(bars)
+
+  assert.equal(detected?.meta?.stage, 'broken_out')
+  assert.equal(detected?.meta?.breakoutConfirmed, true)
+  assert.ok(detected.meta.breakoutVolumeRatio >= 1.2)
 })
 
 test('scanner candidate preserves size, strength and deterministic trade levels', () => {

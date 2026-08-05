@@ -66,7 +66,8 @@ deterministic stages:
 2. Batched two-year close history scores trend, 3/6/12-month momentum,
    proximity to the 52-week high, liquidity, and six-month strength versus SPY.
 3. Every strong asset receives a close-series Cup pre-scan.
-4. Structural candidates receive full daily OHLCV validation on closed bars.
+4. Every strong asset then receives full daily OHLCV validation on closed bars,
+   so a breakout cannot be dropped because of a result cap.
 5. Results are ranked by pattern quality, stage, volume confirmation, distance
    to the pivot, upside, and market-strength score.
 
