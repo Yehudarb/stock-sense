@@ -42,6 +42,7 @@ import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
 import useStockAnalysisPro from './hooks/useStockAnalysisPro'
 import useCupHandleCandidate from './hooks/useCupHandleCandidate'
 import { TRADER_TEXT } from './lib/traderColors'
+import TickerSearch from './components/watchlist/TickerSearch'
 
 const FG_COLOR = value => (
   value >= 75 ? TRADER_TEXT.bullish
@@ -503,13 +504,14 @@ export default function AdvancedApp() {
                   </div>
                 </div>
 
+                <div className="dashboard-command__search">
+                  <TickerSearch prominent />
+                </div>
+
                 <div className="dashboard-command__actions">
                   <Button variant="secondary" onClick={handleRetry} className="h-9 text-xs">{copy.refresh}</Button>
                   <Button variant="ghost" className="h-9 border border-white/10 text-xs" onClick={handleShareReport}>
                     {copiedReport ? copy.copied : copy.share}
-                  </Button>
-                  <Button variant="primary" onClick={() => setCurrentTicker('')} className="h-9 text-xs">
-                    {isHebrew ? 'חיפוש מניה' : 'Find stock'}
                   </Button>
                 </div>
               </div>

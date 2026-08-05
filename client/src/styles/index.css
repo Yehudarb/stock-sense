@@ -620,7 +620,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 /* Dashboard hierarchy */
 .dashboard-command {
   display: grid;
-  grid-template-columns: minmax(13rem, 1.2fr) auto auto auto;
+  grid-template-columns: minmax(13rem, 1.2fr) auto auto minmax(13rem, 1fr) auto;
   align-items: center;
   gap: 1.2rem;
   overflow: hidden;
@@ -643,6 +643,12 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 .dashboard-command__context { display: flex; align-items: center; gap: 1.2rem; }
 .dashboard-command__context strong { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.22rem; color: #d8e7f7; font-size: 0.68rem; font-style: normal; }
 .dashboard-command__context i { height: 0.38rem; width: 0.38rem; border-radius: 999px; background: currentColor; box-shadow: 0 0 8px currentColor; }
+.dashboard-command__search { min-width: 0; }
+.ticker-search--prominent { min-width: 13rem; }
+.ticker-search__label { display: block; margin-bottom: 0.25rem; color: #9bdcf3; font-size: 0.57rem; font-weight: 850; letter-spacing: 0.08em; }
+.ticker-search__input { border-color: rgba(56, 189, 248, 0.35); background: rgba(7, 24, 48, 0.78); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(8,145,178,0.06); }
+.ticker-search__input::placeholder { color: #7f9bb7; }
+.ticker-search__input:focus { border-color: rgba(45, 212, 191, 0.8); box-shadow: 0 0 0 3px rgba(20,184,166,0.12); }
 .dashboard-command__actions { display: flex; align-items: center; gap: 0.4rem; }
 
 .dashboard-overview { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(21rem, 0.7fr); align-items: start; gap: 0.9rem; }
@@ -842,6 +848,8 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   .header-action { width: 2.35rem; justify-content: center; padding: 0; }
   .dashboard-command { grid-template-columns: minmax(12rem, 1fr) auto auto; }
   .dashboard-command__context { display: none; }
+  .dashboard-command__search { grid-column: 1 / -1; }
+  .ticker-search--prominent { min-width: 0; }
   .dashboard-overview { grid-template-columns: 1fr; }
 }
 
