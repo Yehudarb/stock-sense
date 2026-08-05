@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import axios from 'axios'
 import useStore from '../../store/useStore'
-import TickerSearch from './TickerSearch'
 import StockLogo from '../ui/StockLogo'
 
 export default function WatchlistPanel() {
@@ -18,7 +17,6 @@ export default function WatchlistPanel() {
 
   return (
     <div className="flex flex-col gap-3 md:h-full">
-      <TickerSearch />
       <div className="-mx-1 overflow-x-auto px-1 md:mx-0 md:flex-1 md:overflow-y-auto md:px-0">
         <div className="flex min-w-max gap-2 md:min-w-0 md:flex-col md:gap-1">
           {watchlist.map(w => (

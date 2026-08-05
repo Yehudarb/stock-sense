@@ -616,6 +616,9 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 .app-sidebar__simple-card { margin: 1rem 0.75rem; border: 1px solid rgba(56,189,248,0.14); border-radius: 1rem; background: rgba(14,116,144,0.09); padding: 0.9rem; }
 .app-sidebar__simple-card strong { color: #e0f2fe; font-size: 0.76rem; }
 .app-sidebar__simple-card p { margin: 0.35rem 0 0; color: #7890ad; font-size: 0.65rem; line-height: 1.5; }
+.app-sidebar__stock-search { margin: 0.75rem 0.75rem 0.35rem; padding: 0.75rem; border: 1px solid rgba(45, 212, 191, 0.22); border-radius: 1rem; background: linear-gradient(145deg, rgba(8, 47, 73, 0.55), rgba(15, 35, 64, 0.82)); box-shadow: 0 8px 20px rgba(2, 8, 23, 0.15); }
+.app-sidebar__stock-search .ticker-search__label { color: #99f6e4; font-size: 0.62rem; }
+.app-sidebar__stock-search .ticker-search__input { min-height: 2.7rem; border-color: rgba(45, 212, 191, 0.42); background: rgba(7, 24, 48, 0.92); font-weight: 700; }
 
 /* Dashboard hierarchy */
 .dashboard-command {

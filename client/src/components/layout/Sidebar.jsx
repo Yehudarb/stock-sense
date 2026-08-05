@@ -1,4 +1,5 @@
 import WatchlistPanel from '../watchlist/WatchlistPanel'
+import TickerSearch from '../watchlist/TickerSearch'
 import useStore from '../../store/useStore'
 import { BadgeCheck, CandlestickChart, FileText, Gauge, ScanSearch, WalletCards } from 'lucide-react'
 
@@ -56,6 +57,10 @@ export default function Sidebar({ isConnected = false, activeTab, onTabChange })
           <span className="status-chip__dot" />
           {isConnected ? (isHebrew ? 'חי' : 'Live') : (isHebrew ? 'ממתין' : 'Waiting')}
         </span>
+      </div>
+
+      <div className="app-sidebar__stock-search">
+        <TickerSearch prominent />
       </div>
 
       {canNavigate ? (
