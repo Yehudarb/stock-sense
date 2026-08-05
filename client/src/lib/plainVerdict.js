@@ -34,7 +34,7 @@ export function buildPlainVerdict({ decision, checklist, language = 'he' }) {
   if (breakoutActive && decision.action !== 'BUY' && decision.action !== 'STRONG_BUY') {
     const pivot = fmt(cup?.pivot ?? decision.buyAbove ?? decision.entryHigh)
     const cupStop = fmt(cup?.stopLoss)
-    const patternName = cupBreakout ? 'Cup & Handle' : 'פריצת מחיר טכנית'
+    const patternName = cupBreakout ? 'פריצת Cup & Handle' : 'פריצת מחיר טכנית'
     const volumeText = Number.isFinite(cup?.breakoutVolumeRatio)
       ? `, עם נפח פריצה של ${Number(cup.breakoutVolumeRatio).toFixed(2)}x`
       : ''
