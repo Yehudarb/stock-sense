@@ -4,7 +4,7 @@ import Sidebar from './Sidebar'
 import useStore from '../../store/useStore'
 import LegalFooter from '../legal/LegalFooter'
 
-export default function Layout({ children, isConnected }) {
+export default function Layout({ children, isConnected, activeTab, onTabChange }) {
   const { language, theme, viewMode } = useStore()
   const isHebrew = language === 'he'
 
@@ -24,9 +24,13 @@ export default function Layout({ children, isConnected }) {
       data-view-mode={viewMode}
     >
       <Header isConnected={isConnected} />
-      <div className="flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
-        <Sidebar isConnected={isConnected} />
-        <main className="flex-1 overflow-y-auto p-4 md:min-h-0 md:p-6 lg:p-8">
+      <div className="app-shell__body flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
+        <Sidebar
+          isConnected={isConnected}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+        />
+        <main className="app-main flex-1 overflow-y-auto p-3 sm:p-4 md:min-h-0 md:p-5 xl:p-7">
           <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6">
             {children}
           </div>

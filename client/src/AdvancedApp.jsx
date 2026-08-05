@@ -38,7 +38,8 @@ import KpiCard from './components/ui/KpiCard'
 import LoadingState from './components/ui/LoadingState'
 import SectionTitle from './components/ui/SectionTitle'
 import TradeActionCard from './components/ui/TradeActionCard'
-import { fmtVolume, fmtPercent } from './lib/formatters'
+import StockLogo from './components/ui/StockLogo'
+import { fmtVolume, fmtPercent, fmtPrice } from './lib/formatters'
 import { computeForecastOpinion } from './lib/forecastOpinion'
 import { buildAnalysisResult } from './lib/analysisResult'
 import { buildTradeChecklist } from './lib/tradeChecklist'
@@ -108,7 +109,7 @@ function WorkspaceNav({ activeTab, onChange, language }) {
   ]
 
   return (
-    <nav className="workspace-nav" aria-label={isHebrew ? 'ניווט סביבת העבודה' : 'Workspace navigation'}>
+    <nav className="workspace-nav workspace-nav--mobile" aria-label={isHebrew ? 'ניווט סביבת העבודה' : 'Workspace navigation'}>
       <div className="workspace-nav__intro">
         <div className="workspace-nav__eyebrow">{isHebrew ? 'מסלול ניתוח' : 'Analysis flow'}</div>
         <div className="workspace-nav__hint">{isHebrew ? 'מתחילים בהחלטה ורק אז יורדים לפרטים.' : 'Start with the decision, then go deeper.'}</div>
@@ -440,7 +441,7 @@ export default function AdvancedApp() {
   const low20 = n ? Math.min(...ohlcv.slice(-20).map(bar => bar.l)).toFixed(2) : null
 
   return (
-    <Layout isConnected={isConnected}>
+    <Layout isConnected={isConnected} activeTab={activeMainTab} onTabChange={setActiveMainTab}>
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8">
         <DisclaimerBanner />
 
@@ -480,40 +481,75 @@ export default function AdvancedApp() {
         {snapshot && (
           <>
             <section className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-black text-primary">
-                    {currentTicker[0]}
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-black text-white">{currentTicker}</h1>
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                      {isHebrew ? 'ניתוח פעיל' : 'Active Analysis'} · {interval.toUpperCase()}
+              <div className="dashboard-command">
+                <div className="dashboard-command__asset">
+                  <StockLogo ticker={currentTicker} size="lg" />
+                  <div className="min-w-0">
+                    <div className="dashboard-command__eyebrow">{isHebrew ? 'ניתוח פעיל' : 'Active analysis'}</div>
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <h1>{currentTicker}</h1>
+                      {snapshot?.name && <span>{snapshot.name}</span>}
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                <div className="dashboard-command__quote">
+                  <span>{isHebrew ? 'מחיר נוכחי' : 'Current price'}</span>
+                  <div dir="ltr">
+                    <strong>{fmtPrice(snapshot.price)}</strong>
+                    <small className={snapshot.changePct >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                      {fmtPercent(snapshot.changePct)}
+                    </small>
+                  </div>
+                </div>
+
+                <div className="dashboard-command__context">
+                  <div>
+                    <span>{isHebrew ? 'טווח' : 'Range'}</span>
+                    <strong>{interval.toUpperCase()}</strong>
+                  </div>
+                  <div>
+                    <span>{isHebrew ? 'סטטוס נתונים' : 'Data status'}</span>
+                    <strong className={isConnected ? 'text-emerald-300' : 'text-amber-300'}>
+                      <i />
+                      {isConnected ? (isHebrew ? 'מחובר' : 'Connected') : (isHebrew ? 'נתונים מושהים' : 'Delayed')}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="dashboard-command__actions">
                   <Button variant="secondary" onClick={handleRetry} className="h-9 text-xs">{copy.refresh}</Button>
-                  <Button variant="ghost" className="h-9 text-xs border border-white/10" onClick={handleShareReport}>
+                  <Button variant="ghost" className="h-9 border border-white/10 text-xs" onClick={handleShareReport}>
                     {copiedReport ? copy.copied : copy.share}
                   </Button>
                   <Button variant="primary" onClick={() => setCurrentTicker('')} className="h-9 text-xs">
-                    {isHebrew ? 'חיפוש חדש' : 'New Search'}
+                    {isHebrew ? 'חיפוש מניה' : 'Find stock'}
                   </Button>
                 </div>
               </div>
 
               {/* Executive Summary Row */}
               <div className="relative">
-                <div className={`grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-4 transition-opacity duration-300 ${intervalRefreshing ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
-                  <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 flex flex-col justify-center">
-                    <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
-                      {isHebrew ? 'החלטה מיידית' : 'Immediate Action'}
+                <div className={`dashboard-overview transition-opacity duration-300 ${intervalRefreshing ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
+                  <div className="dashboard-overview__decision">
+                    <div className="dashboard-section-heading">
+                      <span className="dashboard-section-heading__index">01</span>
+                      <span>
+                        <strong>{isHebrew ? 'החלטת מסחר' : 'Trading decision'}</strong>
+                        <small>{isHebrew ? 'מה המנוע ממליץ לעשות עכשיו' : 'What the engine recommends now'}</small>
+                      </span>
                     </div>
                     <TradeActionCard decision={signal?.decision} language={language} />
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="dashboard-overview__metrics">
+                    <div className="dashboard-section-heading">
+                      <span className="dashboard-section-heading__index">02</span>
+                      <span>
+                        <strong>{isHebrew ? 'תמונת מצב' : 'Market snapshot'}</strong>
+                        <small>{isHebrew ? 'המדדים שחשוב לבדוק לפני פעולה' : 'Key readings before taking action'}</small>
+                      </span>
+                    </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
                       <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
@@ -538,9 +574,10 @@ export default function AdvancedApp() {
                       )}
                     </div>
                     
-                    <button 
+                    <button
+                      type="button"
                       onClick={() => setShowMoreKpis(!showMoreKpis)}
-                      className="w-full py-2 text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest border border-dashed border-white/5 rounded-xl bg-white/2"
+                      className="dashboard-metrics-toggle"
                     >
                       {showMoreKpis ? (isHebrew ? 'הצג פחות' : 'Show Less') : (isHebrew ? 'הצג עוד נתונים' : 'Show More Metrics')}
                     </button>
@@ -717,8 +754,8 @@ export default function AdvancedApp() {
               )}
             </section>
 
-            <div className="sticky bottom-4 z-40 mt-2 lg:hidden">
-              <div className="mx-auto flex max-w-md items-center justify-between rounded-full border border-white/10 bg-slate-950/92 p-1 shadow-[0_20px_60px_rgba(2,6,23,0.45)] backdrop-blur-md">
+            <div className="mobile-bottom-nav lg:hidden">
+              <div className="mobile-bottom-nav__inner">
                 {[ 
                   { id: 'intelligence', label: isHebrew ? 'החלטה' : 'Decision' },
                   { id: 'chart', label: isHebrew ? 'גרף' : 'Chart' },
@@ -731,10 +768,9 @@ export default function AdvancedApp() {
                     type="button"
                     aria-pressed={activeMainTab === tab.id}
                     onClick={() => setActiveMainTab(tab.id)}
-                    className={`flex-1 rounded-full py-2 text-xs font-bold transition-all ${
-                      activeMainTab === tab.id ? 'bg-primary text-slate-950' : 'text-slate-400'
-                    }`}
+                    className={`mobile-bottom-nav__item ${activeMainTab === tab.id ? 'mobile-bottom-nav__item--active' : ''}`}
                   >
+                    <span className="mobile-bottom-nav__dot" />
                     {tab.label}
                   </button>
                 ))}

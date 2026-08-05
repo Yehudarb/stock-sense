@@ -76,6 +76,8 @@ export default function Header({ isConnected }) {
     auto: isHebrew ? 'אוטומטי' : 'Auto',
     desktop: isHebrew ? 'מחשב' : 'Desktop',
     mobile: isHebrew ? 'פלאפון' : 'Mobile',
+    timeframe: isHebrew ? 'טווח ניתוח' : 'Analysis range',
+    marketData: isHebrew ? 'נתוני שוק' : 'Market data',
   }
 
   const changeColor = snapshot?.change >= 0 ? 'text-green-400' : 'text-red-400'
@@ -128,78 +130,70 @@ export default function Header({ isConnected }) {
   }
 
   return (
-    <div className="border-b border-white/5 bg-surface/80 px-3 py-3 backdrop-blur-md sm:px-4" dir={isHebrew ? 'rtl' : 'ltr'}>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between xl:justify-start xl:gap-4">
-          <div className="flex min-w-0 items-center gap-2">
-            {isConnected && <span className="live-dot shrink-0" />}
-            <StockLogo ticker={currentTicker} size="md" />
-            <span className="text-lg font-bold tracking-tight text-white sm:text-xl">{currentTicker}</span>
-            {snapshot?.name && (
-              <span className="truncate text-xs text-slate-400 sm:text-sm">{snapshot.name}</span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {snapshot && (
-              <>
-                <span className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                  {fmtPrice(snapshot.price)}
-                </span>
-                <span className={`text-sm font-medium ${changeColor}`}>
-                  {fmtChange(snapshot.change, snapshot.changePct)}
-                </span>
-              </>
-            )}
-            {isLoading && <span className="text-sm text-slate-500">{copy.loading}</span>}
-          </div>
+    <header className="app-header" dir={isHebrew ? 'rtl' : 'ltr'}>
+      <div className="app-header__primary">
+        <div className="app-header__mobile-brand" aria-label="Stock Sense">
+          <span className="brand-mark brand-mark--small" aria-hidden="true"><span /><span /><span /></span>
+          <strong>STOCK SENSE</strong>
         </div>
 
-        <div className="-mx-1 overflow-x-auto px-1">
-          <div className={`flex min-w-max flex-wrap items-center gap-2 pb-1 ${isHebrew ? 'flex-row-reverse' : ''}`}>
-            <button
-              type="button"
-              onClick={() => setSimpleMode(!simpleMode)}
-              className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
-            >
-              {simpleMode ? copy.simpleModeOn : copy.simpleModeOff}
-            </button>
+        <div className="header-quote">
+          <StockLogo ticker={currentTicker} size="md" />
+          <div className="header-quote__identity">
+            <div className="flex min-w-0 items-center gap-2">
+              <strong>{currentTicker || (isHebrew ? 'בחר מניה' : 'Choose ticker')}</strong>
+              {isConnected && <span className="live-dot shrink-0" title={copy.live} />}
+            </div>
+            {snapshot?.name && <span>{snapshot.name}</span>}
+          </div>
+          {snapshot && (
+            <div className="header-quote__price" dir="ltr">
+              <strong>{fmtPrice(snapshot.price)}</strong>
+              <span className={changeColor}>{fmtChange(snapshot.change, snapshot.changePct)}</span>
+            </div>
+          )}
+          {isLoading && <span className="header-quote__loading">{copy.loading}</span>}
+        </div>
 
-            <button
-              type="button"
-              onClick={() => setShowScanner(true)}
-              className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500/20"
-              title={isHebrew ? 'סורק תבניות Cup & Handle' : 'Cup & Handle scanner'}
-            >
-              {isHebrew ? 'סורק Cup & Handle' : 'C&H Scanner'}
-            </button>
+        <div className="app-header__actions">
+          <button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            className="header-action header-action--scanner md:hidden"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M7 10h10M9 15h6M11 20h2" /></svg>
+            <span>{isHebrew ? 'סורק' : 'Scanner'}</span>
+          </button>
 
+          <button
+            type="button"
+            onClick={() => setSimpleMode(!simpleMode)}
+            className="header-action header-action--mode"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 17h16M17 4v6M9 14v6" /></svg>
+            <span>{simpleMode ? copy.simpleModeOn : copy.simpleModeOff}</span>
+          </button>
+
+          {!simpleMode && (
             <button
               type="button"
               onClick={() => setProChart(!proChart)}
-              className={`rounded-full border px-3 py-1 text-xs font-bold transition-colors ${
-                proChart
-                  ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20'
-                  : 'border-white/10 bg-surface-muted/50 text-slate-300 hover:bg-surface-bright'
-              }`}
+              className={`header-action ${proChart ? 'header-action--active' : ''}`}
               title={isHebrew ? 'החלף בין גרף Pro לגרף קלאסי' : 'Toggle Pro / Classic chart'}
             >
-              {proChart
-                ? (isHebrew ? 'גרף Pro' : 'Pro chart')
-                : (isHebrew ? 'גרף קלאסי' : 'Classic chart')}
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9m5 9V5m5 13v-7m5 7V3" /></svg>
+              <span>{proChart ? (isHebrew ? 'גרף Pro' : 'Pro chart') : (isHebrew ? 'קלאסי' : 'Classic')}</span>
             </button>
+          )}
 
-            <label className="flex items-center gap-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2 py-1 text-xs font-bold text-slate-300">
-              <span className="hidden sm:inline">{copy.display}</span>
-              <select
-                value={viewMode}
-                onChange={event => setViewMode(event.target.value)}
-                aria-label={copy.display}
-                className="cursor-pointer bg-transparent text-xs font-bold text-cyan-200 outline-none"
-              >
-                <option value="auto" className="bg-slate-900">{copy.auto}</option>
-                <option value="desktop" className="bg-slate-900">{copy.desktop}</option>
-                <option value="mobile" className="bg-slate-900">{copy.mobile}</option>
+          <div className="header-utility">
+            <label className="header-utility__select">
+              <span className="sr-only">{copy.display}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v12H3zM8 21h8M12 17v4" /></svg>
+              <select value={viewMode} onChange={event => setViewMode(event.target.value)} aria-label={copy.display}>
+                <option value="auto">{copy.auto}</option>
+                <option value="desktop">{copy.desktop}</option>
+                <option value="mobile">{copy.mobile}</option>
               </select>
             </label>
 
@@ -207,12 +201,15 @@ export default function Header({ isConnected }) {
               <button
                 type="button"
                 onClick={() => setShowWatchlistDropdown(value => !value)}
-                className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-slate-300 transition-colors hover:bg-surface-bright"
+                className="header-icon-button"
+                aria-label={copy.watchlist}
+                title={copy.watchlist}
               >
-                {copy.watchlist} ▾
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16l-7-4-7 4z" /></svg>
               </button>
               {showWatchlistDropdown && (
-                <div className="absolute top-full z-50 mt-2 min-w-[200px] rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-md">
+                <div className="header-watchlist-menu">
+                  <div className="header-watchlist-menu__title">{copy.watchlist}</div>
                   <div className="max-h-64 overflow-y-auto">
                     {watchlistItems.map(item => {
                       const ticker = item?.ticker ?? item
@@ -224,73 +221,54 @@ export default function Header({ isConnected }) {
                             setCurrentTicker(ticker)
                             setShowWatchlistDropdown(false)
                           }}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors ${
-                            ticker === currentTicker
-                              ? 'bg-primary/20 text-white'
-                              : 'text-slate-300 hover:bg-white/5'
-                          }`}
+                          className={`header-watchlist-item ${ticker === currentTicker ? 'header-watchlist-item--active' : ''}`}
                         >
                           <span>{ticker}</span>
-                          {ticker === currentTicker && <span className="text-[11px] text-primary">{copy.live}</span>}
+                          {ticker === currentTicker && <small>{copy.live}</small>}
                         </button>
                       )
                     })}
-                    {!watchlistItems.length && (
-                      <div className="px-3 py-2 text-sm text-slate-500">{copy.noWatchlist}</div>
-                    )}
+                    {!watchlistItems.length && <div className="px-3 py-2 text-sm text-slate-500">{copy.noWatchlist}</div>}
                   </div>
                 </div>
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-slate-300 transition-colors hover:bg-surface-bright"
-              title={copy.switchTheme}
-              aria-label={copy.switchTheme}
-            >
-              {theme === 'dark' ? '☀' : '☾'}
+            <button type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="header-icon-button" title={copy.switchTheme} aria-label={copy.switchTheme}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d={theme === 'dark' ? 'M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8' : 'M19 15a7 7 0 0 1-10-10 8 8 0 1 0 10 10'} /></svg>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setLanguage(isHebrew ? 'en' : 'he')}
-              className="rounded-full border border-white/10 bg-surface-muted/50 px-3 py-1 text-xs font-bold text-slate-300 transition-colors hover:bg-surface-bright"
-              title={copy.switchLanguage}
-              aria-label={copy.switchLanguage}
-            >
-              {copy.language}
+            <button type="button" onClick={() => setLanguage(isHebrew ? 'en' : 'he')} className="header-language" title={copy.switchLanguage} aria-label={copy.switchLanguage}>
+              {isHebrew ? 'EN' : 'עב'}
             </button>
-
-            <span className="hidden text-xs font-bold uppercase tracking-wider text-slate-500 md:inline">{copy.range}</span>
-            {INTERVALS.map(iv => (
-              <button
-                key={iv}
-                type="button"
-                onClick={() => handleIntervalChange(iv)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all sm:text-sm ${
-                  interval === iv
-                    ? `bg-primary text-surface-muted shadow-[0_0_10px_rgba(34,211,238,0.3)] ${intervalRefreshing ? 'animate-pulse' : ''}`
-                    : 'text-slate-400 hover:bg-surface-bright/50 hover:text-white'
-                }`}
-              >
-                {INTERVAL_LABELS[language]?.[iv] ?? iv}
-              </button>
-            ))}
-
-            <div className="flex items-center gap-1 text-xs text-slate-500">
-              <span className="hidden sm:inline">{copy.lastUpdate}:</span>
-              <span className={isUpdateStale ? 'text-orange-400' : 'text-slate-400'}>{updateLabel}</span>
-              {isUpdateStale && <span className="text-orange-400">!</span>}
-            </div>
           </div>
-
-          {intervalRefreshing && (
-            <div className="mt-1 text-xs text-primary/90">{copy.refreshHint}</div>
-          )}
         </div>
       </div>
-    </div>
+
+      <div className="app-header__range">
+        <div className="app-header__range-label">
+          <span>{copy.timeframe}</span>
+          <small>{interval.toUpperCase()}</small>
+        </div>
+        <div className="timeframe-strip">
+          {INTERVALS.map(iv => (
+            <button
+              key={iv}
+              type="button"
+              onClick={() => handleIntervalChange(iv)}
+              className={`timeframe-button ${interval === iv ? 'timeframe-button--active' : ''} ${interval === iv && intervalRefreshing ? 'animate-pulse' : ''}`}
+            >
+              {INTERVAL_LABELS[language]?.[iv] ?? iv}
+            </button>
+          ))}
+        </div>
+        <div className={`app-header__freshness ${isUpdateStale ? 'app-header__freshness--stale' : ''}`}>
+          <span className="app-header__freshness-dot" />
+          <span className="hidden lg:inline">{copy.marketData} · </span>{updateLabel}
+        </div>
+      </div>
+
+      {intervalRefreshing && <div className="app-header__refreshing">{copy.refreshHint}</div>}
+    </header>
   )
 }
