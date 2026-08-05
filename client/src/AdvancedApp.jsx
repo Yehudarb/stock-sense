@@ -40,6 +40,7 @@ import usePaperTrading from './hooks/usePaperTrading'
 import useTradingBot from './hooks/useTradingBot'
 import useTechnicalAnalysis from './hooks/useTechnicalAnalysis'
 import useStockAnalysisPro from './hooks/useStockAnalysisPro'
+import useCupHandleCandidate from './hooks/useCupHandleCandidate'
 import { TRADER_TEXT } from './lib/traderColors'
 
 const FG_COLOR = value => (
@@ -134,7 +135,8 @@ export default function AdvancedApp() {
   // can factor higher-timeframe bias into its final decision (block bullish
   // reads against a weekly downtrend, etc).
   const { data: multiTimeframe, isLoading: isMultiTimeframeLoading } = useMultiTimeframe(currentTicker)
-  const signal = useSignal(ohlcv, indicators, language, multiTimeframe, interval)
+  const cupHandle = useCupHandleCandidate(currentTicker)
+  const signal = useSignal(ohlcv, indicators, language, multiTimeframe, interval, cupHandle)
   const { isConnected } = useSocket()
   const { data: marketContext, isLoading: isMarketContextLoading } = useMarketContext(currentTicker)
   const { data: technicalAnalysis, isLoading: isTechnicalAnalysisLoading, error: technicalAnalysisError } = useTechnicalAnalysis(currentTicker)

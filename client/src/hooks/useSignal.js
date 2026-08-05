@@ -10,7 +10,7 @@ import { analyzeAdvancedTrends } from '../lib/advancedTrends'
 import { computeAll } from '../lib/indicators'
 import { getClosedAnalysisBars } from '../lib/analysisBars'
 
-export default function useSignal(ohlcv, indicators, language = 'he', multiTimeframe = null, interval = '1d') {
+export default function useSignal(ohlcv, indicators, language = 'he', multiTimeframe = null, interval = '1d', cupHandle = null) {
   return useMemo(() => {
     if (!ohlcv?.length || !indicators) return null
     const barContext = getClosedAnalysisBars(ohlcv, interval)
@@ -35,8 +35,8 @@ export default function useSignal(ohlcv, indicators, language = 'he', multiTimef
       patternInvalidation: patternResult?.best?.invalidationLevel ?? null,
     })
     const ensemble = computeEnsembleConsensus(analysisBars, analysisIndicators, { ...signal, pro, patterns: patternResult })
-    const decision = computeAnalystDecision(analysisBars, analysisIndicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language)
+    const decision = computeAnalystDecision(analysisBars, analysisIndicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language, cupHandle)
     const trends   = analyzeAdvancedTrends(analysisBars, analysisIndicators)
     return { ...signal, analysis, patterns: patternResult, risk, decision, pro, ensemble, trends, barContext }
-  }, [ohlcv, indicators, language, multiTimeframe, interval])
+  }, [ohlcv, indicators, language, multiTimeframe, interval, cupHandle])
 }

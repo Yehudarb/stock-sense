@@ -108,7 +108,7 @@ function buildReasons({ signal, trend, rsi, macdLine, macdSig, price, sma20, sma
   return reasons.slice(0, 4)
 }
 
-export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
+export function computeAnalystDecision(ohlcv, indicators, signal, risk, _language = 'he', cupHandle = null) {
   if (!ohlcv?.length || !indicators || !signal) return null
 
   const last = ohlcv.length - 1
@@ -130,6 +130,13 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
   const nearestSupport = pro?.supportResistance?.nearestSupport ?? null
   const nearestResistance = pro?.supportResistance?.nearestResistance ?? null
   const breakoutConfirmed = Boolean(pro?.supportResistance?.breakoutUp && (volumeRatio ?? 0) >= 1.2)
+  const cupHandleBreakout = Boolean(
+    cupHandle?.stage === 'broken_out' &&
+    cupHandle.breakoutConfirmed === true &&
+    Number.isFinite(cupHandle.pivot) &&
+    price >= cupHandle.pivot &&
+    (!Number.isFinite(cupHandle.stopLoss) || price > cupHandle.stopLoss),
+  )
 
   const stopLoss = risk?.stopLoss ?? roundPrice(price - atr * 1.5)
   const takeProfit = risk?.takeProfit ?? roundPrice(price + atr * 2)
@@ -323,6 +330,11 @@ export function computeAnalystDecision(ohlcv, indicators, signal, risk) {
     entryApproved,
     targetPct,
     breakoutConfirmed,
+    cupHandle: cupHandle ? {
+      ...cupHandle,
+      activeBreakout: cupHandleBreakout,
+    } : null,
+    cupHandleBreakout,
     proConfluence: pro?.professional?.confluencePct ?? null,
     support: nearestSupport,
     resistance: nearestResistance,

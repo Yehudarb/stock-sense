@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { computeRisk } from '../../client/src/lib/riskManagement.js'
 import { computeAnalystDecision } from '../../client/src/lib/analystDecision.js'
 import { computeProfessionalFeatures } from '../../client/src/lib/professionalFeatures.js'
+import { buildPlainVerdict } from '../../client/src/lib/plainVerdict.js'
 
 function series(length, value) {
   return Array.from({ length }, () => value)
@@ -86,4 +87,27 @@ test('professional breakout compares the close with the prior range', () => {
   assert.equal(result.supportResistance.breakoutUp, true)
   assert.equal(result.marketRegime.regime, 'TRENDING')
   assert.equal(result.marketRegime.direction, 'BULLISH')
+})
+
+test('confirmed Cup & Handle breakout is not described as if no breakout exists', () => {
+  const decision = {
+    action: 'SELL',
+    tone: 'bearish',
+    signalStrength: 42,
+    invalidation: 368.79,
+    cupHandleBreakout: true,
+    cupHandle: {
+      stage: 'broken_out',
+      pivot: 389.99,
+      stopLoss: 367.67,
+      breakoutVolumeRatio: 2.31,
+    },
+  }
+
+  const verdict = buildPlainVerdict({ decision, checklist: { score: 7 }, language: 'he' })
+
+  assert.match(verdict, /פריצת Cup & Handle מאושרת/)
+  assert.match(verdict, /אינו מאשר כניסה חדשה/)
+  assert.match(verdict, /368\.79/)
+  assert.doesNotMatch(verdict, /הלחץ השלילי גובר על הסיכוי/)
 })
