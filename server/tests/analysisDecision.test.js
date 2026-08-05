@@ -111,3 +111,19 @@ test('confirmed Cup & Handle breakout is not described as if no breakout exists'
   assert.match(verdict, /368\.79/)
   assert.doesNotMatch(verdict, /הלחץ השלילי גובר על הסיכוי/)
 })
+
+test('local confirmed breakout also avoids the generic bearish verdict', () => {
+  const verdict = buildPlainVerdict({
+    decision: {
+      action: 'SELL',
+      invalidation: 368.79,
+      entryHigh: 393.86,
+      breakoutConfirmed: true,
+    },
+    checklist: { score: 7 },
+    language: 'he',
+  })
+
+  assert.match(verdict, /פריצת מחיר טכנית מאושרת/)
+  assert.doesNotMatch(verdict, /הלחץ השלילי גובר על הסיכוי/)
+})

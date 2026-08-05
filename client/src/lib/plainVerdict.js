@@ -29,13 +29,18 @@ export function buildPlainVerdict({ decision, checklist, language = 'he' }) {
   const signalStrength = decision.signalStrength
   const cup = decision.cupHandle
   const cupBreakout = decision.cupHandleBreakout === true
+  const breakoutActive = cupBreakout || decision.breakoutConfirmed === true
 
-  if (cupBreakout && decision.action !== 'BUY' && decision.action !== 'STRONG_BUY') {
-    const pivot = fmt(cup.pivot)
-    const cupStop = fmt(cup.stopLoss)
+  if (breakoutActive && decision.action !== 'BUY' && decision.action !== 'STRONG_BUY') {
+    const pivot = fmt(cup?.pivot ?? decision.buyAbove ?? decision.entryHigh)
+    const cupStop = fmt(cup?.stopLoss)
+    const patternName = cupBreakout ? 'Cup & Handle' : 'פריצת מחיר טכנית'
+    const volumeText = Number.isFinite(cup?.breakoutVolumeRatio)
+      ? `, עם נפח פריצה של ${Number(cup.breakoutVolumeRatio).toFixed(2)}x`
+      : ''
     return isHebrew
-      ? `זוהתה פריצת Cup & Handle מאושרת מעל ${pivot}, עם נפח פריצה של ${Number(cup.breakoutVolumeRatio).toFixed(2)}x. עם זאת, מנוע ההחלטה הראשי עדיין אינו מאשר כניסה חדשה בגלל חולשה במגמה או ביחס הסיכון־סיכוי. מי שכבר בפנים יכול להחזיק רק עם הגנה סביב ${stop ?? cupStop}; יציאה נדרשת אם המחיר יורד מתחת לסטופ או אם הפריצה מתבטלת. אין לרדוף אחרי המחיר.`
-      : `A confirmed Cup & Handle breakout was detected above ${pivot}, with breakout volume of ${Number(cup.breakoutVolumeRatio).toFixed(2)}x. However, the main decision engine does not approve a new entry because the trend or risk/reward gate is still weak. Existing holders should keep protection around ${stop ?? cupStop}; exit if price breaks the stop or the breakout is invalidated. Do not chase price.`
+      ? `זוהתה ${patternName} מאושרת מעל ${pivot}${volumeText}. עם זאת, מנוע ההחלטה הראשי עדיין אינו מאשר כניסה חדשה בגלל חולשה במגמה או ביחס הסיכון־סיכוי. מי שכבר בפנים יכול להחזיק רק עם הגנה סביב ${stop ?? cupStop}; יציאה נדרשת אם המחיר יורד מתחת לסטופ או אם הפריצה מתבטלת. אין לרדוף אחרי המחיר.`
+      : `A confirmed ${cupBreakout ? 'Cup & Handle' : 'technical price'} breakout was detected above ${pivot}${volumeText}. However, the main decision engine does not approve a new entry because the trend or risk/reward gate is still weak. Existing holders should keep protection around ${stop ?? cupStop}; exit if price breaks the stop or the breakout is invalidated. Do not chase price.`
   }
 
   if (decision.action === 'BUY' || decision.action === 'STRONG_BUY') {
