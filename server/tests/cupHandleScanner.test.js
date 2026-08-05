@@ -22,7 +22,9 @@ const cup = {
 }
 
 const asset = {
-  symbol: 'TEST', name: 'Test Corporation', assetType: 'stock', sector: 'Technology',
+  symbol: 'TEST', indexSymbol: 'TEST', name: 'Test Corporation', assetType: 'stock', sector: 'Technology',
+  indexMembership: 'S&P 500',
+  source: 'S&P 500 constituents + Nasdaq',
   sizeValue: 12_000_000_000, sizeMetric: 'marketCap', dollarVolume: 80_000_000,
   strength: {
     score: 78,
@@ -47,6 +49,7 @@ test('scanner candidate preserves size, strength and deterministic trade levels'
   const candidate = buildCupCandidate(asset, cup, bars)
 
   assert.equal(candidate.ticker, 'TEST')
+  assert.equal(candidate.indexMembership, 'S&P 500')
   assert.equal(candidate.sizeValue, 12_000_000_000)
   assert.equal(candidate.sizeMetric, 'marketCap')
   assert.equal(candidate.strengthScore, 78)
@@ -55,5 +58,12 @@ test('scanner candidate preserves size, strength and deterministic trade levels'
   assert.equal(candidate.stopLoss, 104)
   assert.equal(candidate.upsidePct, 16.36)
   assert.ok(candidate.opportunityScore > 0)
-  assert.equal(candidate.provider, 'Nasdaq + Yahoo Finance')
+  assert.equal(candidate.provider, 'S&P 500 constituents + Nasdaq + Yahoo Finance')
+})
+
+test('scanner refuses a pattern from an asset outside the S&P 500', () => {
+  const bars = [{ t: Date.UTC(2025, 0, 1), o: 100, h: 112, l: 98, c: 110, v: 1_000_000 }]
+  const candidate = buildCupCandidate({ ...asset, indexMembership: null }, cup, bars)
+
+  assert.equal(candidate, null)
 })

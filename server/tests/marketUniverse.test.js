@@ -4,8 +4,12 @@ import assert from 'node:assert/strict'
 import {
   calculateStrength,
   MIN_ASSET_SIZE_USD,
+  normalizeIndexSymbol,
   normalizeNasdaqStock,
-  normalizeYahooFund,
+  parseSp500ConstituentsCsv,
+  SP500_INDEX_NAME,
+  toYahooSymbol,
+  validateSp500Constituents,
 } from '../services/marketUniverse.js'
 
 function history(length, valueAt) {
@@ -38,16 +42,52 @@ test('warrants and units are excluded from the common-stock universe', () => {
   assert.equal(normalizeNasdaqStock(row), null)
 })
 
-test('ETF size is measured by net assets rather than market cap', () => {
-  const fund = normalizeYahooFund({
-    symbol: 'FUND', shortName: 'Large Fund ETF', netAssets: 3_500_000_000,
-    regularMarketPrice: 100, averageDailyVolume3Month: 600_000,
-  })
+test('S&P 500 CSV parser preserves membership metadata and quoted names', () => {
+  const csv = [
+    'Symbol,Security,GICS Sector,GICS Sub-Industry',
+    'AAPL,Apple Inc.,Information Technology,Technology Hardware',
+    'BRK.B,"Berkshire Hathaway, Inc.",Financials,Multi-Sector Holdings',
+  ].join('\n')
 
-  assert.equal(fund.assetType, 'etf')
-  assert.equal(fund.sizeMetric, 'netAssets')
-  assert.equal(fund.sizeValue, 3_500_000_000)
-  assert.equal(fund.dollarVolume, 60_000_000)
+  const constituents = parseSp500ConstituentsCsv(csv)
+
+  assert.equal(constituents.length, 2)
+  assert.deepEqual(constituents[1], {
+    indexSymbol: 'BRK.B',
+    symbol: 'BRK-B',
+    name: 'Berkshire Hathaway, Inc.',
+    sector: 'Financials',
+    industry: 'Multi-Sector Holdings',
+  })
+})
+
+test('S&P share-class symbols are normalized for membership and Yahoo history', () => {
+  assert.equal(normalizeIndexSymbol('BRK/B'), 'BRK.B')
+  assert.equal(normalizeIndexSymbol('brk-b'), 'BRK.B')
+  assert.equal(toYahooSymbol('BRK.B'), 'BRK-B')
+  assert.equal(SP500_INDEX_NAME, 'S&P 500')
+})
+
+test('S&P 500 membership validation fails closed on an incomplete list', () => {
+  assert.throws(
+    () => validateSp500Constituents([{ indexSymbol: 'AAPL', symbol: 'AAPL', name: 'Apple' }]),
+    /outside the safe range/,
+  )
+
+  const wrongUniverse = Array.from({ length: 503 }, (_, index) => ({
+    indexSymbol: `T${index}`,
+    symbol: `T${index}`,
+    name: `Wrong ${index}`,
+  }))
+  assert.throws(() => validateSp500Constituents(wrongUniverse), /missing required anchors/)
+
+  const anchors = ['AAPL', 'JPM', 'MSFT', 'SPGI', 'XOM']
+  const complete = Array.from({ length: 503 }, (_, index) => ({
+    indexSymbol: anchors[index] ?? `T${index}`,
+    symbol: anchors[index] ?? `T${index}`,
+    name: `Test ${index}`,
+  }))
+  assert.equal(validateSp500Constituents(complete), complete)
 })
 
 test('strength score rewards aligned long-term momentum and liquidity', () => {

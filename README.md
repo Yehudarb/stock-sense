@@ -54,14 +54,15 @@ Fallback and comparison: Yahoo Finance. Alpha Vantage and SEC EDGAR interfaces a
 
 Copy `.env.example` values into your environment before using paid data providers. API keys are never stored in code.
 
-## Market-wide Cup & Handle Scanner
+## S&P 500 Cup & Handle Scanner
 
 The scanner runs as a shared background server job instead of issuing one
-browser request per symbol. It discovers the Nasdaq stock universe and Yahoo's
-strong US ETF universe, then applies these deterministic stages:
+browser request per symbol. It first validates the current S&P 500 constituent
+list and never widens the universe to ETFs or non-members. It then applies these
+deterministic stages:
 
-1. Stocks require at least `$2B` market capitalization; ETFs require at least
-   `$2B` net assets (AUM).
+1. Load roughly 503 S&P 500 securities, normalize share-class symbols, and
+   enrich available market-cap metadata from Nasdaq.
 2. Batched two-year close history scores trend, 3/6/12-month momentum,
    proximity to the 52-week high, liquidity, and six-month strength versus SPY.
 3. Every strong asset receives a close-series Cup pre-scan.
@@ -77,9 +78,11 @@ GET /api/scanner/cup-handle/:jobId
 GET /api/scanner/cup-handle/latest
 ```
 
-The result cache is shared across users to avoid repeating a market-wide scan
-for every browser session. Yahoo and Nasdaq data may be delayed; scanner scores
-are rule scores, not probabilities or trading recommendations.
+The result cache is shared across users to avoid repeating the same index scan
+for every browser session. If membership cannot be validated, the scan fails
+closed instead of returning a broad market universe. Yahoo and Nasdaq data may
+be delayed; scanner scores are rule scores, not probabilities or trading
+recommendations.
 
 ## Tests
 

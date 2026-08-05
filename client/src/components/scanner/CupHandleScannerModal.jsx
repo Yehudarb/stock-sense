@@ -2,7 +2,6 @@ import axios from 'axios'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useStore from '../../store/useStore'
 
-const MINIMUM_SIZE = 2_000_000_000
 const POLL_INTERVAL_MS = 1_800
 
 const STAGE_LABEL = {
@@ -15,9 +14,9 @@ const STAGE_LABEL = {
 
 const PHASE_LABEL = {
   queued: 'מכין את הסריקה',
-  discovery: 'בונה יקום מניות וקרנות',
+  discovery: 'טוען ומאמת את חברות S&P 500',
   strength: 'מחשב חוזק יחסי ומגמה',
-  structure: 'מחפש מבנה Cup בכל הנכסים החזקים',
+  structure: 'מחפש מבנה Cup במניות המדד החזקות',
   validation: 'מאמת OHLCV, נפח, Pivot וידית',
   done: 'הסריקה הושלמה',
   error: 'הסריקה נעצרה',
@@ -68,7 +67,7 @@ function FilterChip({ active, color, children, onClick }) {
   )
 }
 
-/** Market-wide Cup & Handle scanner backed by a shared server-side scan job. */
+/** S&P 500 Cup & Handle scanner backed by a shared server-side scan job. */
 export default function CupHandleScannerModal() {
   const showScanner = useStore(state => state.showScanner)
   const setShowScanner = useStore(state => state.setShowScanner)
@@ -77,7 +76,6 @@ export default function CupHandleScannerModal() {
   const [error, setError] = useState(null)
   const [scanRun, setScanRun] = useState(0)
   const [stageFilter, setStageFilter] = useState(new Set(['near_breakout', 'broken_out', 'in_handle']))
-  const [assetFilter, setAssetFilter] = useState('all')
   const [minQuality, setMinQuality] = useState(0.25)
   const [minStrength, setMinStrength] = useState(55)
   const [resultLimit, setResultLimit] = useState(100)
@@ -136,7 +134,6 @@ export default function CupHandleScannerModal() {
       try {
         const response = await axios.post('/api/scanner/cup-handle', {
           force,
-          minimumSize: MINIMUM_SIZE,
           strengthThreshold: 55,
           minimumQuality: 0.2,
         }, {
@@ -161,16 +158,16 @@ export default function CupHandleScannerModal() {
 
   const candidates = job?.results ?? []
   const filtered = useMemo(() => candidates.filter(candidate => (
+    candidate.indexMembership === 'S&P 500' &&
     stageFilter.has(candidate.stage) &&
     candidate.quality >= minQuality &&
-    candidate.strengthScore >= minStrength &&
-    (assetFilter === 'all' || candidate.assetType === assetFilter)
-  )), [assetFilter, candidates, minQuality, minStrength, stageFilter])
+    candidate.strengthScore >= minStrength
+  )), [candidates, minQuality, minStrength, stageFilter])
   const visible = filtered.slice(0, resultLimit)
 
   useEffect(() => {
     setResultLimit(100)
-  }, [assetFilter, minQuality, minStrength, stageFilter])
+  }, [minQuality, minStrength, stageFilter])
 
   if (!showScanner) return null
 
@@ -207,7 +204,7 @@ export default function CupHandleScannerModal() {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="סורק Cup and Handle לכל השוק"
+        aria-label="סורק Cup and Handle למניות S&P 500"
         tabIndex={-1}
         onClick={event => event.stopPropagation()}
         style={{
@@ -221,14 +218,14 @@ export default function CupHandleScannerModal() {
         <header style={{ padding: '16px 18px', borderBottom: '1px solid #233149', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 360px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: 19, fontWeight: 850, margin: 0 }}>סורק Cup & Handle לכל השוק</h2>
+              <h2 style={{ fontSize: 19, fontWeight: 850, margin: 0 }}>סורק Cup & Handle למניות S&P 500</h2>
               <span style={{ border: '1px solid #0891b2', color: '#67e8f9', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800 }}>
-                מניות Market Cap $2B+ · קרנות ETF עם AUM $2B+
+                חברות המדד בלבד · ללא ETF וללא מניות מחוץ למדד
               </span>
               {job?.cached && <span style={{ color: '#94a3b8', fontSize: 10 }}>תוצאה שמורה מהסריקה האחרונה</span>}
             </div>
             <p style={{ margin: '5px 0 0', color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
-              סינון חוזק ונזילות על כל היקום, pre-scan של המבנה, ואז אימות יומי מלא של מחיר ונפח.
+              הרשימה מאומתת מול constituents עדכניים, לאחר מכן מחושבים חוזק יחסי, מבנה Cup ואימות OHLCV יומי מלא.
             </p>
           </div>
           <button
@@ -254,8 +251,8 @@ export default function CupHandleScannerModal() {
 
         <div style={{ padding: '12px 18px', borderBottom: '1px solid #233149' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <StatCard label="יקום שעמד בסף $2B+" value={(stats.eligibleTotal ?? 0).toLocaleString()} detail={`${stats.eligibleStocks ?? 0} מניות · ${stats.eligibleFunds ?? 0} ETF`} />
-            <StatCard label="נכסים חזקים" value={(stats.strongAssets ?? 0).toLocaleString()} detail={`Strength ${stats.strengthThreshold ?? 55}+`} tone="#67e8f9" />
+            <StatCard label="חברי S&P 500 שנטענו" value={(stats.indexConstituents ?? 0).toLocaleString()} detail={`${stats.marketDataMatched ?? 0} הוצלבו עם Nasdaq`} />
+            <StatCard label="מניות חזקות במדד" value={(stats.strongAssets ?? 0).toLocaleString()} detail={`Strength ${stats.strengthThreshold ?? 55}+`} tone="#67e8f9" />
             <StatCard label="מבני Cup ב־pre-scan" value={(stats.preScanMatches ?? 0).toLocaleString()} detail="סריקת close לכל היקום החזק" tone="#c4b5fd" />
             <StatCard label="אימות OHLCV" value={`${stats.validatedAssets ?? 0}/${stats.validationPool ?? 0}`} detail={`${stats.validationFailed ?? 0} כשלים ממקור הנתונים`} tone="#fbbf24" />
             <StatCard label="תבניות מאומתות" value={(stats.matches ?? candidates.length).toLocaleString()} detail={`${filtered.length} תואמות למסננים`} tone="#6ee7b7" />
@@ -263,12 +260,6 @@ export default function CupHandleScannerModal() {
         </div>
 
         <div style={{ padding: '11px 18px', borderBottom: '1px solid #233149', display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ color: '#7f8da3', fontSize: 11 }}>סוג נכס</span>
-            {[['all', 'הכול'], ['stock', 'מניות'], ['etf', 'ETF']].map(([value, label]) => (
-              <FilterChip key={value} active={assetFilter === value} color="#22d3ee" onClick={() => setAssetFilter(value)}>{label}</FilterChip>
-            ))}
-          </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ color: '#7f8da3', fontSize: 11 }}>שלב</span>
             {['near_breakout', 'broken_out', 'in_handle', 'cup_forming'].map(stage => (
@@ -318,7 +309,7 @@ export default function CupHandleScannerModal() {
                 <table className="cup-scanner-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#080f1c', color: '#8290a5', fontSize: 10, position: 'sticky', top: 0, zIndex: 1 }}>
-                      <th style={cellHead}>נכס</th><th style={cellHead}>סוג / גודל</th><th style={cellHead}>שלב</th>
+                      <th style={cellHead}>מניה</th><th style={cellHead}>מדד / שווי שוק</th><th style={cellHead}>שלב</th>
                       <th style={cellHead}>מחיר</th><th style={cellHead}>Pivot</th><th style={cellHead}>יעד</th>
                       <th style={cellHead}>Stop</th><th style={cellHead}>Upside</th><th style={cellHead}>חוזק</th>
                       <th style={cellHead}>איכות</th><th style={cellHead}>Score</th>
@@ -338,8 +329,8 @@ export default function CupHandleScannerModal() {
                           onMouseEnter={event => { event.currentTarget.style.background = '#111d30' }}
                           onMouseLeave={event => { event.currentTarget.style.background = 'transparent' }}
                         >
-                          <td style={cellBody}><strong style={{ color: '#f8fafc', fontSize: 13 }}>{candidate.ticker}</strong><div style={subText}>{candidate.name}</div></td>
-                          <td style={cellBody}>{candidate.assetType === 'etf' ? 'ETF' : 'מניה'}<div style={subText}>{fmtSize(candidate.sizeValue)}</div></td>
+                          <td style={cellBody}><strong style={{ color: '#f8fafc', fontSize: 13 }}>{candidate.indexSymbol ?? candidate.ticker}</strong><div style={subText}>{candidate.name}</div></td>
+                          <td style={cellBody}>S&P 500<div style={subText}>Market Cap {fmtSize(candidate.sizeValue)}</div></td>
                           <td style={cellBody}><span style={{ color: stage.color, background: `${stage.color}1f`, borderRadius: 999, padding: '3px 7px', whiteSpace: 'nowrap' }}>{stage.text}</span></td>
                           <td style={cellBody}>${fmtPrice(candidate.currentPrice)}</td>
                           <td style={cellBody}>${fmtPrice(candidate.pivot)}</td>
@@ -361,8 +352,8 @@ export default function CupHandleScannerModal() {
                   const stage = STAGE_LABEL[candidate.stage] ?? STAGE_LABEL.developing
                   return (
                     <button key={`card-${candidate.ticker}`} type="button" onClick={() => jumpTo(candidate.ticker)} className="cup-scanner-card">
-                      <div className="cup-scanner-card__top"><strong>{candidate.ticker}</strong><span style={{ color: stage.color }}>{stage.text}</span></div>
-                      <div style={{ color: '#7f8da3', fontSize: 10, textAlign: 'start' }}>{candidate.assetType === 'etf' ? 'ETF · AUM' : 'מניה · Market Cap'} {fmtSize(candidate.sizeValue)}</div>
+                      <div className="cup-scanner-card__top"><strong>{candidate.indexSymbol ?? candidate.ticker}</strong><span style={{ color: stage.color }}>{stage.text}</span></div>
+                      <div style={{ color: '#7f8da3', fontSize: 10, textAlign: 'start' }}>S&P 500 · Market Cap {fmtSize(candidate.sizeValue)}</div>
                       <div className="cup-scanner-card__price">${fmtPrice(candidate.currentPrice)}</div>
                       <div className="cup-scanner-card__grid">
                         <span>Pivot <b>${fmtPrice(candidate.pivot)}</b></span><span>Target <b>${fmtPrice(candidate.target)}</b></span>
@@ -392,7 +383,7 @@ export default function CupHandleScannerModal() {
         </div>
 
         <footer style={{ padding: '10px 18px', borderTop: '1px solid #233149', color: '#6f7e94', fontSize: 10, lineHeight: 1.5 }}>
-          מקורות: Nasdaq ליקום המניות ושווי שוק; Yahoo Finance לנכסי ETF, חוזק והיסטוריית מחיר. חוזק הוא ציון כללים 0–100 ואינו הסתברות. ETF מסוננים לפי נכסים נטו (AUM), לא לפי Market Cap. הנתונים היסטוריים ועשויים להיות מושהים.
+          מקורות: רשימת constituents מתעדכנת של S&P 500 לקביעת החברות במדד; Nasdaq למטא־דאטה ושווי שוק; Yahoo Finance לחוזק ולהיסטוריית מחיר. אם הרשימה אינה ניתנת לאימות, הסריקה נעצרת ואינה עוברת ליקום רחב. ציון החוזק 0–100 אינו הסתברות.
         </footer>
       </section>
     </div>

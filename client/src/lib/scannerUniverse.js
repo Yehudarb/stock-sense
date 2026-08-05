@@ -1,8 +1,7 @@
 // Lightweight validation universe used by the client-side backtest panel.
-// The market-wide Cup & Handle scanner no longer relies on this list: its
-// server job discovers the live Nasdaq/Yahoo universe, applies the $2B size
-// threshold and scans batched history. Keep this compact list for fast local
-// validation and for merging a user's watchlist without a full market scan.
+// The server-side Cup & Handle scanner no longer relies on this list: it loads
+// and validates the current S&P 500 constituents before scanning. Keep this
+// separate compact list only for fast local validation and watchlist checks.
 //
 // Curation criteria:
 //   • US-listed common stock or major ETF (excludes ADRs whose OHLCV Yahoo

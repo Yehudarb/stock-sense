@@ -2,12 +2,16 @@ import { cacheGet, cacheSet } from './cache.js'
 
 export const MIN_ASSET_SIZE_USD = 2_000_000_000
 export const DEFAULT_STRENGTH_THRESHOLD = 55
+export const SP500_INDEX_NAME = 'S&P 500'
 
 const NASDAQ_STOCKS_URL = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=5000&offset=0&download=true'
-const YAHOO_ETF_URL = 'https://query2.finance.yahoo.com/v1/finance/screener/predefined/saved'
+const SP500_CONSTITUENTS_URL = process.env.SP500_CONSTITUENTS_URL ?? 'https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv'
 const YAHOO_SPARK_URL = 'https://query1.finance.yahoo.com/v7/finance/spark'
-const UNIVERSE_CACHE_KEY = 'scanner:market-universe:2b'
-const UNIVERSE_TTL_SECONDS = 6 * 60 * 60
+const UNIVERSE_CACHE_KEY = 'scanner:sp500-universe:v1'
+const UNIVERSE_TTL_SECONDS = 12 * 60 * 60
+const MIN_EXPECTED_CONSTITUENTS = 490
+const MAX_EXPECTED_CONSTITUENTS = 520
+const REQUIRED_INDEX_ANCHORS = ['AAPL', 'JPM', 'MSFT', 'SPGI', 'XOM']
 const SPARK_BATCH_SIZE = 20
 const SPARK_CONCURRENCY = Math.max(1, Number.parseInt(process.env.SCANNER_SPARK_CONCURRENCY ?? '4', 10))
 const FETCH_TIMEOUT_MS = Math.max(5_000, Number.parseInt(process.env.SCANNER_FETCH_TIMEOUT_MS ?? '15000', 10))
@@ -66,6 +70,114 @@ async function fetchJson(url, headers, retries = 3) {
   throw lastError ?? new Error('Market universe request failed')
 }
 
+async function fetchText(url, headers, retries = 3) {
+  let lastError = null
+
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      })
+      if (response.ok) return response.text()
+
+      const error = Object.assign(new Error(`S&P 500 constituents HTTP ${response.status}`), { status: response.status })
+      if (response.status !== 429 && response.status < 500) throw error
+      lastError = error
+    } catch (error) {
+      lastError = error
+      if (attempt === retries - 1) break
+    }
+
+    await sleep(500 * (2 ** attempt) + Math.floor(Math.random() * 250))
+  }
+
+  throw lastError ?? new Error('S&P 500 constituents request failed')
+}
+
+function parseCsvLine(line) {
+  const values = []
+  let value = ''
+  let quoted = false
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index]
+    if (character === '"') {
+      if (quoted && line[index + 1] === '"') {
+        value += '"'
+        index += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if (character === ',' && !quoted) {
+      values.push(value)
+      value = ''
+    } else {
+      value += character
+    }
+  }
+  values.push(value)
+  return values
+}
+
+/** Normalize provider-specific share-class separators into the index symbol. */
+export function normalizeIndexSymbol(value) {
+  return String(value ?? '').trim().toUpperCase().replace(/[/-]/g, '.')
+}
+
+/** Convert an S&P share-class symbol to the form accepted by Yahoo Finance. */
+export function toYahooSymbol(value) {
+  return normalizeIndexSymbol(value).replace(/\./g, '-')
+}
+
+/** Parse the maintained S&P 500 constituent CSV into normalized index records. */
+export function parseSp500ConstituentsCsv(csv) {
+  const lines = String(csv ?? '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim())
+  if (lines.length < 2) throw new Error('S&P 500 constituent CSV is empty')
+
+  const headers = parseCsvLine(lines[0])
+  const column = name => headers.indexOf(name)
+  const symbolColumn = column('Symbol')
+  const nameColumn = column('Security')
+  const sectorColumn = column('GICS Sector')
+  const industryColumn = column('GICS Sub-Industry')
+  if ([symbolColumn, nameColumn, sectorColumn].some(index => index < 0)) {
+    throw new Error('S&P 500 constituent CSV has an unexpected schema')
+  }
+
+  const unique = new Map()
+  for (const line of lines.slice(1)) {
+    const values = parseCsvLine(line)
+    const indexSymbol = normalizeIndexSymbol(values[symbolColumn])
+    if (!/^[A-Z][A-Z.]{0,9}$/.test(indexSymbol)) continue
+    unique.set(indexSymbol, {
+      indexSymbol,
+      symbol: toYahooSymbol(indexSymbol),
+      name: String(values[nameColumn] ?? indexSymbol).trim(),
+      sector: String(values[sectorColumn] ?? 'Unknown').trim() || 'Unknown',
+      industry: industryColumn >= 0 ? String(values[industryColumn] ?? '').trim() || null : null,
+    })
+  }
+  return [...unique.values()]
+}
+
+/** Reject incomplete or malformed lists rather than widening the scanner universe. */
+export function validateSp500Constituents(constituents) {
+  const count = Array.isArray(constituents) ? constituents.length : 0
+  if (count < MIN_EXPECTED_CONSTITUENTS || count > MAX_EXPECTED_CONSTITUENTS) {
+    throw new Error(`S&P 500 constituent count ${count} is outside the safe range`)
+  }
+  if (!constituents.every(item => item.indexSymbol && item.symbol && item.name)) {
+    throw new Error('S&P 500 constituent list contains invalid records')
+  }
+  const symbols = new Set(constituents.map(item => item.indexSymbol))
+  const missingAnchors = REQUIRED_INDEX_ANCHORS.filter(symbol => !symbols.has(symbol))
+  if (missingAnchors.length) {
+    throw new Error(`S&P 500 constituent list is missing required anchors: ${missingAnchors.join(', ')}`)
+  }
+  return constituents
+}
+
 /** Normalize one Nasdaq screener row into a stock universe record. */
 export function normalizeNasdaqStock(row, minimumSize = MIN_ASSET_SIZE_USD) {
   const symbol = String(row?.symbol ?? '').trim().toUpperCase()
@@ -98,90 +210,87 @@ export function normalizeNasdaqStock(row, minimumSize = MIN_ASSET_SIZE_USD) {
   }
 }
 
-/** Normalize one Yahoo top-ETF row, using net assets as the fund size metric. */
-export function normalizeYahooFund(quote, minimumSize = MIN_ASSET_SIZE_USD) {
-  const symbol = String(quote?.symbol ?? '').trim().toUpperCase()
-  const sizeValue = parseNumber(quote?.netAssets)
-  const price = parseNumber(quote?.regularMarketPrice)
-  const averageVolume = parseNumber(quote?.averageDailyVolume3Month) ?? 0
-
-  if (!/^[A-Z][A-Z.-]{0,9}$/.test(symbol)) return null
-  if (!Number.isFinite(sizeValue) || sizeValue < minimumSize) return null
-  if (!Number.isFinite(price) || price <= 2) return null
-
-  return {
-    symbol,
-    name: quote?.longName ?? quote?.shortName ?? symbol,
-    assetType: 'etf',
-    sizeValue,
-    sizeMetric: 'netAssets',
-    price,
-    volume: parseNumber(quote?.regularMarketVolume) ?? 0,
-    averageVolume,
-    dollarVolume: price * averageVolume,
-    dailyChangePct: parseNumber(quote?.regularMarketChangePercent),
-    sector: 'ETF',
-    industry: null,
-    country: 'United States',
-    source: 'Yahoo Finance',
-  }
-}
-
-async function fetchStockUniverse(minimumSize) {
+async function fetchNasdaqStockMetadata() {
   const payload = await fetchJson(NASDAQ_STOCKS_URL, NASDAQ_HEADERS)
   const rows = payload?.data?.rows ?? []
   return {
     discovered: rows.length,
-    assets: rows.map(row => normalizeNasdaqStock(row, minimumSize)).filter(Boolean),
+    rows,
   }
 }
 
-async function fetchFundUniverse(minimumSize) {
-  const fetchPage = start => {
-    const params = new URLSearchParams({ scrIds: 'top_etfs_us', count: '250', start: String(start) })
-    return fetchJson(`${YAHOO_ETF_URL}?${params}`, YAHOO_HEADERS)
-  }
-  const pages = await Promise.all([fetchPage(0), fetchPage(250)])
-  const results = pages.map(page => page?.finance?.result?.[0]).filter(Boolean)
-  const quotes = results.flatMap(result => result.quotes ?? [])
-  const total = Math.max(...results.map(result => result.total ?? 0), quotes.length)
+function buildSp500Asset(constituent, row) {
+  const price = parseNumber(row?.lastsale)
+  const volume = parseNumber(row?.volume) ?? 0
+  const sizeValue = parseNumber(row?.marketCap)
+  const validPrice = Number.isFinite(price) && price > 0 ? price : null
 
   return {
-    discovered: total,
-    assets: quotes.map(quote => normalizeYahooFund(quote, minimumSize)).filter(Boolean),
+    symbol: constituent.symbol,
+    indexSymbol: constituent.indexSymbol,
+    name: constituent.name,
+    assetType: 'stock',
+    indexMembership: SP500_INDEX_NAME,
+    sizeValue: Number.isFinite(sizeValue) && sizeValue > 0 ? sizeValue : null,
+    sizeMetric: 'marketCap',
+    price: validPrice,
+    volume,
+    averageVolume: null,
+    dollarVolume: validPrice ? validPrice * volume : 0,
+    dailyChangePct: parseNumber(row?.pctchange),
+    sector: constituent.sector,
+    industry: constituent.industry,
+    country: null,
+    source: row ? 'S&P 500 constituents + Nasdaq' : 'S&P 500 constituents',
   }
 }
 
-/** Discover all eligible stocks and large US ETFs from the upstream screeners. */
-export async function discoverMarketUniverse({ minimumSize = MIN_ASSET_SIZE_USD, force = false } = {}) {
-  const safeMinimum = Math.max(MIN_ASSET_SIZE_USD, Number(minimumSize) || MIN_ASSET_SIZE_USD)
-  if (!force && safeMinimum === MIN_ASSET_SIZE_USD) {
+/** Build a scanner universe containing current S&P 500 constituents only. */
+export async function discoverMarketUniverse({ force = false } = {}) {
+  if (!force) {
     const cached = cacheGet(UNIVERSE_CACHE_KEY)
     if (cached) return cached
   }
 
-  const [stocks, funds] = await Promise.all([
-    fetchStockUniverse(safeMinimum),
-    fetchFundUniverse(safeMinimum),
-  ])
-  const unique = new Map()
-  for (const asset of [...stocks.assets, ...funds.assets]) unique.set(asset.symbol, asset)
+  const csv = await fetchText(SP500_CONSTITUENTS_URL, YAHOO_HEADERS)
+  const constituents = validateSp500Constituents(parseSp500ConstituentsCsv(csv))
+
+  let stocks = { discovered: 0, rows: [], available: false }
+  try {
+    const metadata = await fetchNasdaqStockMetadata()
+    stocks = { ...metadata, available: true }
+  } catch {
+    // Membership remains authoritative; Nasdaq enrichment is optional.
+  }
+
+  const metadataBySymbol = new Map(
+    stocks.rows.map(row => [normalizeIndexSymbol(row?.symbol), row]),
+  )
+  const assets = constituents.map(constituent => (
+    buildSp500Asset(constituent, metadataBySymbol.get(constituent.indexSymbol))
+  ))
+  const marketDataMatched = assets.filter(asset => Number.isFinite(asset.sizeValue)).length
 
   const result = {
-    assets: [...unique.values()].sort((a, b) => b.sizeValue - a.sizeValue),
+    assets: assets.sort((a, b) => (b.sizeValue ?? 0) - (a.sizeValue ?? 0)),
     stats: {
       discoveredStocks: stocks.discovered,
-      discoveredFunds: funds.discovered,
-      eligibleStocks: stocks.assets.length,
-      eligibleFunds: funds.assets.length,
-      eligibleTotal: unique.size,
-      minimumSize: safeMinimum,
+      indexConstituents: constituents.length,
+      eligibleStocks: assets.length,
+      eligibleFunds: 0,
+      eligibleTotal: assets.length,
+      marketDataMatched,
+      marketDataMissing: assets.length - marketDataMatched,
+      indexName: SP500_INDEX_NAME,
+      membershipSource: 'datasets/s-and-p-500-companies',
+      membershipCheckedAt: Date.now(),
+      metadataProviderAvailable: stocks.available,
     },
-    provider: 'Nasdaq + Yahoo Finance',
+    provider: 'S&P 500 constituents + Nasdaq',
     createdAt: Date.now(),
   }
 
-  if (safeMinimum === MIN_ASSET_SIZE_USD) cacheSet(UNIVERSE_CACHE_KEY, result, UNIVERSE_TTL_SECONDS)
+  cacheSet(UNIVERSE_CACHE_KEY, result, UNIVERSE_TTL_SECONDS)
   return result
 }
 

@@ -6,7 +6,7 @@ import {
   DEFAULT_STRENGTH_THRESHOLD,
   discoverMarketUniverse,
   evaluateStrongAssets,
-  MIN_ASSET_SIZE_USD,
+  SP500_INDEX_NAME,
 } from './marketUniverse.js'
 
 const RESULT_TTL_MS = Math.max(5 * 60_000, Number.parseInt(process.env.SCANNER_RESULT_TTL_MS ?? `${30 * 60_000}`, 10))
@@ -90,7 +90,7 @@ export function scoreCupSetup(cup, currentPrice) {
 /** Convert an exact OHLCV match into the compact API result used by the UI. */
 export function buildCupCandidate(asset, cup, bars) {
   const currentPrice = bars?.[bars.length - 1]?.c
-  if (!Number.isFinite(currentPrice) || !cup) return null
+  if (!Number.isFinite(currentPrice) || !cup || asset?.indexMembership !== SP500_INDEX_NAME) return null
   const patternScore = scoreCupSetup(cup, currentPrice)
   const strengthScore = asset?.strength?.score ?? 0
   const opportunityScore = round(patternScore * 0.75 + strengthScore * 0.25, 1)
@@ -98,8 +98,10 @@ export function buildCupCandidate(asset, cup, bars) {
 
   return {
     ticker: asset.symbol,
+    indexSymbol: asset.indexSymbol ?? asset.symbol,
     name: asset.name,
     assetType: asset.assetType,
+    indexMembership: asset.indexMembership,
     sector: asset.sector,
     sizeValue: asset.sizeValue,
     sizeMetric: asset.sizeMetric,
@@ -126,7 +128,7 @@ export function buildCupCandidate(asset, cup, bars) {
     relative6mPct: percent(asset.strength?.relative6m),
     distanceFromHighPct: round(asset.strength?.distanceFromHighPct, 2),
     averageDollarVolume: round(asset.dollarVolume, 0),
-    provider: 'Nasdaq + Yahoo Finance',
+    provider: `${asset.source} + Yahoo Finance`,
     timeframe: '1d',
   }
 }
@@ -147,10 +149,10 @@ function trimJobs() {
 async function executeScan(job, options) {
   try {
     job.status = 'running'
-    updateJob(job, 'discovery', 0, 1, 'טוען את יקום המניות והקרנות')
-    const universe = await discoverMarketUniverse({ minimumSize: options.minimumSize })
+    updateJob(job, 'discovery', 0, 1, 'טוען ומאמת את רשימת חברות S&P 500')
+    const universe = await discoverMarketUniverse({ force: options.refreshUniverse })
     job.stats = { ...job.stats, ...universe.stats }
-    updateJob(job, 'discovery', 1, 1, `${universe.stats.eligibleTotal} נכסים עומדים בסף הגודל`)
+    updateJob(job, 'discovery', 1, 1, `${universe.stats.eligibleTotal} מניות מאומתות במדד S&P 500`)
 
     updateJob(job, 'strength', 0, universe.assets.length, 'מחשב מגמה וחוזק יחסי מול SPY')
     const strengthResult = await evaluateStrongAssets(universe.assets, {
@@ -160,12 +162,12 @@ async function executeScan(job, options) {
     job.stats = { ...job.stats, ...strengthResult.stats }
 
     const structural = []
-    updateJob(job, 'structure', 0, strengthResult.assets.length, 'מחפש מבנה Cup על כל הנכסים החזקים')
+    updateJob(job, 'structure', 0, strengthResult.assets.length, 'מחפש מבנה Cup במניות S&P 500 החזקות')
     strengthResult.assets.forEach((asset, index) => {
       const cup = detectCupHandlePattern(syntheticBars(asset.history))
       if (cup) structural.push({ asset, preCup: cup })
       if ((index + 1) % 25 === 0 || index === strengthResult.assets.length - 1) {
-        updateJob(job, 'structure', index + 1, strengthResult.assets.length, 'מחפש מבנה Cup על כל הנכסים החזקים')
+        updateJob(job, 'structure', index + 1, strengthResult.assets.length, 'מחפש מבנה Cup במניות S&P 500 החזקות')
       }
     })
 
@@ -215,7 +217,7 @@ async function executeScan(job, options) {
     updateJob(job, 'done', validationPool.length, validationPool.length, `נמצאו ${job.results.length} תבניות מאומתות`)
   } catch (error) {
     job.status = 'error'
-    job.error = error?.message ?? 'Market-wide scan failed'
+    job.error = error?.message ?? 'S&P 500 scan failed'
     updateJob(job, 'error', job.progress?.completed ?? 0, job.progress?.total ?? 0, 'הסריקה נעצרה עקב שגיאת נתונים')
   } finally {
     if (activeJobId === job.id) activeJobId = null
@@ -240,10 +242,9 @@ function publicJob(job) {
   }
 }
 
-/** Start or reuse the shared market-wide Cup & Handle scan. */
+/** Start or reuse the shared S&P 500 Cup & Handle scan. */
 export function startCupHandleScan({
   force = false,
-  minimumSize = MIN_ASSET_SIZE_USD,
   strengthThreshold = DEFAULT_STRENGTH_THRESHOLD,
   minimumQuality = 0.2,
 } = {}) {
@@ -254,7 +255,8 @@ export function startCupHandleScan({
   if (!force && latest && Date.now() - latest.completedAt < RESULT_TTL_MS) return publicJob(latest)
 
   const parameters = {
-    minimumSize: Math.max(MIN_ASSET_SIZE_USD, Number(minimumSize) || MIN_ASSET_SIZE_USD),
+    universe: SP500_INDEX_NAME,
+    refreshUniverse: force,
     strengthThreshold: clamp(Number(strengthThreshold) || DEFAULT_STRENGTH_THRESHOLD, 40, 90),
     minimumQuality: clamp(Number(minimumQuality) || 0.2, 0.1, 0.8),
   }

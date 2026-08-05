@@ -177,7 +177,7 @@ export async function getBars(ticker, interval, limit = 200) {
   return normalizedBars.slice(-limit)
 }
 
-/** Fetch the compact two-year daily history used by the market-wide scanner. */
+/** Fetch the compact two-year daily history used by the S&P 500 scanner. */
 export async function getScannerDailyBars(ticker, limit = 320) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=2y&includePrePost=false`
   const data = await yfFetch(url)

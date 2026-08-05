@@ -11,7 +11,6 @@ const router = Router()
 router.post('/cup-handle', (req, res) => {
   const job = startCupHandleScan({
     force: req.body?.force === true,
-    minimumSize: req.body?.minimumSize,
     strengthThreshold: req.body?.strengthThreshold,
     minimumQuality: req.body?.minimumQuality,
   })
