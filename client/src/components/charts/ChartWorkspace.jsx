@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import './chartSetup'
 import useStore from '../../store/useStore'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
@@ -14,6 +15,21 @@ const PriceChart = lazy(() => import('./PriceChart'))
 const TradingViewChart = lazy(() => import('./TradingViewChart'))
 import RsiChart from './RsiChart'
 import VolumeChart from './VolumeChart'
+import {
+  Activity,
+  BarChart3,
+  ChevronDown,
+  Crosshair,
+  Gauge,
+  GitBranch,
+  Minus,
+  MoveRight,
+  Ruler,
+  Shapes,
+  Target,
+  TrendingUp,
+  Waves,
+} from 'lucide-react'
 
 const DEFAULT_VISIBLE_BARS = {
   '1m': 160,
@@ -123,15 +139,15 @@ function SafeChart({ isLoading, resetKey, children }) {
 function compactPresetClass(active) {
   return `rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-700 ${
     active
-      ? 'border-emerald-400 bg-emerald-500/90 text-white'
-      : 'border-slate-700 text-slate-300 hover:border-emerald-400/70 hover:text-white'
+      ? 'border-sky-400/70 bg-sky-400/15 text-sky-100'
+      : 'border-slate-700 text-slate-300 hover:border-sky-400/60 hover:text-white'
   }`
 }
 
 function controlClass(active) {
   return `rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
     active
-      ? 'border-cyan-400 bg-cyan-500 text-white shadow-lg shadow-cyan-500/40'
+      ? 'border-sky-400/70 bg-sky-400/15 text-sky-100'
       : 'border-slate-600 bg-transparent text-slate-300 hover:border-cyan-400 hover:bg-slate-900/70 hover:text-white'
   }`
 }
@@ -139,8 +155,8 @@ function controlClass(active) {
 function quietControlClass(active) {
   return `rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
     active
-      ? 'border-emerald-400 bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/30'
-      : 'border-slate-600 bg-transparent text-slate-300 hover:border-emerald-400 hover:bg-slate-900/70 hover:text-white'
+      ? 'border-sky-400/70 bg-sky-400/15 text-sky-100'
+      : 'border-slate-600 bg-transparent text-slate-300 hover:border-sky-400 hover:bg-slate-900/70 hover:text-white'
   }`
 }
 
@@ -150,8 +166,8 @@ function quietControlClass(active) {
 function chipClass(active) {
   return `rounded-md border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors duration-150 ${
     active
-      ? 'border-emerald-400 bg-emerald-500/90 text-white'
-      : 'border-slate-700 bg-transparent text-slate-400 hover:border-emerald-400/70 hover:text-white'
+      ? 'border-sky-400/70 bg-sky-400/15 text-sky-100'
+      : 'border-slate-700 bg-transparent text-slate-400 hover:border-sky-400/60 hover:text-white'
   }`
 }
 
@@ -160,7 +176,9 @@ function chipClass(active) {
 function ChartQuickTools({ items }) {
   return (
     <div className="chart-quick-tools flex flex-wrap items-center gap-1.5">
-      {items.map(item => (
+      {items.map(item => {
+        const Icon = item.icon
+        return (
         <button
           key={item.key}
           type="button"
@@ -169,10 +187,11 @@ function ChartQuickTools({ items }) {
           title={item.label}
           className={chipClass(item.value)}
         >
-          <span aria-hidden="true" className="me-1">{item.icon}</span>
+          <Icon size={14} strokeWidth={1.8} aria-hidden="true" className="me-1 inline-block" />
           {item.label}
         </button>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -1511,21 +1530,21 @@ export default function ChartWorkspace({
           toolbar={(
             <ChartQuickTools
               items={[
-                { key: 'sma', icon: '📊', label: 'SMA', value: showSMA, onToggle: () => setShowSMA(v => !v) },
-                { key: 'ema', icon: '📈', label: 'EMA', value: showEMA, onToggle: () => setShowEMA(v => !v) },
-                { key: 'bb', icon: '🫧', label: chartCopy.bands ?? 'Bands', value: showBB, onToggle: () => setShowBB(v => !v) },
-                { key: 'vwap', icon: '🎯', label: 'VWAP', value: showVWAP, onToggle: () => setShowVWAP(v => !v) },
-                { key: 'volume', icon: '📦', label: 'Volume', value: showVolume, onToggle: toggleVolume },
-                { key: 'rsi', icon: '⚡', label: 'RSI', value: showRSI, onToggle: () => setShowRSI(v => !v) },
-                { key: 'macd', icon: '〰️', label: 'MACD', value: showMACD, onToggle: () => setShowMACD(v => !v) },
-                { key: 'trend', icon: '📏', label: chartCopy.trendline, value: showTriangles, onToggle: toggleTrendlines },
-                { key: 'extend', icon: '➡️', label: chartCopy.extendTrendlines, value: extendTrendlines, onToggle: toggleTrendlineExtension },
-                { key: 'levels', icon: '📍', label: chartCopy.horizontalLine, value: showLevels, onToggle: () => setShowLevels(v => !v) },
-                { key: 'gaps', icon: '🧱', label: chartCopy.zone, value: showGaps, onToggle: () => setShowGaps(v => !v) },
-                { key: 'fib', icon: '🌀', label: chartCopy.fibonacci, value: showFibonacci, onToggle: () => setShowFibonacci(v => !v) },
-                { key: 'targets', icon: '🎯', label: chartCopy.priceTargets, value: showTargets, onToggle: () => setShowTargets(v => !v) },
-                { key: 'patterns', icon: '🏷️', label: chartCopy.patternMarkers, value: showPatterns, onToggle: () => setShowPatterns(v => !v) },
-                { key: 'ruler', icon: '📐', label: chartCopy.ruler, value: measureMode, onToggle: () => setMeasureMode(v => !v) },
+                { key: 'sma', icon: BarChart3, label: 'SMA', value: showSMA, onToggle: () => setShowSMA(v => !v) },
+                { key: 'ema', icon: TrendingUp, label: 'EMA', value: showEMA, onToggle: () => setShowEMA(v => !v) },
+                { key: 'bb', icon: Waves, label: chartCopy.bands ?? 'Bands', value: showBB, onToggle: () => setShowBB(v => !v) },
+                { key: 'vwap', icon: Crosshair, label: 'VWAP', value: showVWAP, onToggle: () => setShowVWAP(v => !v) },
+                { key: 'volume', icon: BarChart3, label: 'Volume', value: showVolume, onToggle: toggleVolume },
+                { key: 'rsi', icon: Gauge, label: 'RSI', value: showRSI, onToggle: () => setShowRSI(v => !v) },
+                { key: 'macd', icon: Activity, label: 'MACD', value: showMACD, onToggle: () => setShowMACD(v => !v) },
+                { key: 'trend', icon: Ruler, label: chartCopy.trendline, value: showTriangles, onToggle: toggleTrendlines },
+                { key: 'extend', icon: MoveRight, label: chartCopy.extendTrendlines, value: extendTrendlines, onToggle: toggleTrendlineExtension },
+                { key: 'levels', icon: Minus, label: chartCopy.horizontalLine, value: showLevels, onToggle: () => setShowLevels(v => !v) },
+                { key: 'gaps', icon: Waves, label: chartCopy.zone, value: showGaps, onToggle: () => setShowGaps(v => !v) },
+                { key: 'fib', icon: GitBranch, label: chartCopy.fibonacci, value: showFibonacci, onToggle: () => setShowFibonacci(v => !v) },
+                { key: 'targets', icon: Target, label: chartCopy.priceTargets, value: showTargets, onToggle: () => setShowTargets(v => !v) },
+                { key: 'patterns', icon: Shapes, label: chartCopy.patternMarkers, value: showPatterns, onToggle: () => setShowPatterns(v => !v) },
+                { key: 'ruler', icon: Ruler, label: chartCopy.ruler, value: measureMode, onToggle: () => setMeasureMode(v => !v) },
               ]}
             />
           )}
@@ -1686,7 +1705,17 @@ export default function ChartWorkspace({
         )}
 
         <div className="lg:hidden">
-          <div className="grid gap-4">
+          <button
+            type="button"
+            className="chart-mobile-tools-toggle"
+            onClick={() => setControlsOpen(open => !open)}
+            aria-expanded={controlsOpen}
+          >
+            <span>{controlsOpen ? chartCopy.hideAllTools : chartCopy.showAllTools}</span>
+            <ChevronDown size={17} aria-hidden="true" className={controlsOpen ? 'rotate-180' : ''} />
+          </button>
+          {controlsOpen && (
+          <div className="mt-3 grid gap-4">
             <ChartControls
               chartType={chartType}
               setChartType={setChartType}
@@ -1734,17 +1763,22 @@ export default function ChartWorkspace({
               interval={interval}
             />
           </div>
+          )}
         </div>
-
         <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-4">
-          <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowDetails(!showDetails)}>
+          <button
+            type="button"
+            className="chart-details-toggle"
+            onClick={() => setShowDetails(!showDetails)}
+            aria-expanded={showDetails}
+          >
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
               {chartCopy.summary} · {patternSummary.length} {chartCopy.patternsWord} · {signalCount} {chartCopy.signalsWord}
             </div>
-            <button className="text-primary text-xs font-bold hover:underline">
+            <span className="text-primary text-xs font-bold">
               {showDetails ? (language === 'he' ? 'הסתר פירוט' : 'Hide Details') : (language === 'he' ? 'הצג פירוט' : 'Show Details')}
-            </button>
-          </div>
+            </span>
+          </button>
           {showDetails && (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <PatternSummaryCard patterns={patternSummary} copy={chartCopy} />

@@ -8,6 +8,10 @@ import {
 
 const router = Router()
 
+router.get('/status', (_req, res) => {
+  res.json({ configured: isConfigured() })
+})
+
 // Without an API key every fetcher returns its empty shape, and the handlers
 // below turned that into 404 "Profile not found" — which says the TICKER has no
 // profile when the truth is that this deployment has no Finnhub key. A caller

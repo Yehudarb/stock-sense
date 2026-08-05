@@ -28,7 +28,7 @@ export default function Badge({ action, label, children, tone = 'default', senti
   const colorClass = action ? (actionColors[action] ?? actionColors.HOLD) : (toneColors[resolvedTone] ?? toneColors.default)
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold ${colorClass} ${className}`}>
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${colorClass} ${className}`}>
       {label ?? children}
     </span>
   )

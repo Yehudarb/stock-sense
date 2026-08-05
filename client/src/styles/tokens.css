@@ -1,0 +1,118 @@
+:root {
+  color-scheme: dark;
+
+  /* Semantic palette */
+  --color-primary: 56 189 248;
+  --color-surface: 20 34 57;
+  --color-surface-muted: 29 47 76;
+  --color-surface-bright: 43 66 102;
+  --color-success: 52 211 153;
+  --color-danger: 251 113 133;
+  --color-accent: 96 165 250;
+  --color-warning: 251 191 36;
+  --color-info: 125 211 252;
+  --color-neutral: 148 163 184;
+
+  --page-bg: #101b2f;
+  --surface-1: #14233b;
+  --surface-2: #192b47;
+  --surface-3: #203653;
+  --surface-active: #173b57;
+  --border-subtle: rgba(186, 230, 253, 0.1);
+  --border-default: rgba(186, 230, 253, 0.16);
+  --border-strong: rgba(186, 230, 253, 0.24);
+  --text-primary: #f1f7ff;
+  --text-secondary: #b7c8dc;
+  --text-muted: #9fb1c7;
+  --text-faint: #91a6c0;
+  --accent: #38bdf8;
+  --positive: #6ee7b7;
+  --negative: #fda4af;
+  --warning: #fcd34d;
+  --information: #a5e8ff;
+
+  /* Compatibility aliases used by Tailwind and legacy components */
+  --body-bg: var(--page-bg);
+  --body-text: var(--text-primary);
+  --panel-border: var(--border-default);
+  --panel-bg: rgba(25, 43, 71, 0.78);
+  --chrome-bg: rgba(13, 25, 45, 0.97);
+  --sidebar-bg: rgba(15, 28, 49, 0.96);
+  --app-ambient:
+    radial-gradient(circle at 12% -8%, rgba(56, 189, 248, 0.1), transparent 27%),
+    linear-gradient(160deg, #122039 0%, var(--page-bg) 58%, #12213a 100%);
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Shape and depth */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --shadow-sm: 0 5px 16px rgba(2, 8, 23, 0.12);
+  --shadow-md: 0 14px 34px rgba(2, 8, 23, 0.18);
+  --focus-ring: 0 0 0 3px rgba(56, 189, 248, 0.32);
+
+  /* Motion and layering */
+  --duration-fast: 140ms;
+  --duration-normal: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --z-header: 60;
+  --z-nav: 70;
+  --z-popover: 80;
+  --content-max: 1560px;
+}
+
+.theme-light {
+  color-scheme: light;
+  --color-primary: 2 132 199;
+  --color-surface: 242 247 252;
+  --color-surface-muted: 228 236 246;
+  --color-surface-bright: 207 220 235;
+  --color-success: 5 150 105;
+  --color-danger: 220 38 38;
+  --color-accent: 37 99 235;
+  --color-warning: 217 119 6;
+  --color-info: 8 145 178;
+  --color-neutral: 100 116 139;
+
+  --page-bg: #edf3f9;
+  --surface-1: #f8fbff;
+  --surface-2: #ffffff;
+  --surface-3: #e5edf6;
+  --surface-active: #e0f2fe;
+  --border-subtle: rgba(71, 85, 105, 0.1);
+  --border-default: rgba(71, 85, 105, 0.17);
+  --border-strong: rgba(71, 85, 105, 0.26);
+  --text-primary: #10233a;
+  --text-secondary: #40556f;
+  --text-muted: #64748b;
+  --text-faint: #7b8ba1;
+  --accent: #0284c7;
+  --positive: #047857;
+  --negative: #be123c;
+  --warning: #b45309;
+  --information: #0e7490;
+
+  --body-bg: var(--page-bg);
+  --body-text: var(--text-primary);
+  --panel-border: var(--border-default);
+  --panel-bg: rgba(255, 255, 255, 0.84);
+  --chrome-bg: rgba(255, 255, 255, 0.96);
+  --sidebar-bg: rgba(246, 249, 253, 0.97);
+  --app-ambient:
+    radial-gradient(circle at 12% -8%, rgba(2, 132, 199, 0.08), transparent 25%),
+    linear-gradient(160deg, #f4f8fc 0%, var(--page-bg) 65%, #f0f5fa 100%);
+  --shadow-sm: 0 5px 16px rgba(15, 23, 42, 0.07);
+  --shadow-md: 0 14px 34px rgba(15, 23, 42, 0.1);
+  --focus-ring: 0 0 0 3px rgba(2, 132, 199, 0.24);
+}

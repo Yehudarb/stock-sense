@@ -3,6 +3,7 @@ import axios from 'axios'
 import { buildStockAnalysisPro } from '../lib/stockAnalysisPro'
 import { computeAll } from '../lib/indicators'
 import { getClosedAnalysisBars } from '../lib/analysisBars'
+import { getFinnhubAvailability } from './useFinnhub'
 
 /**
  * Feeds the Stock Analysis Pro engine. Everything the engine needs except the
@@ -37,15 +38,25 @@ export default function useStockAnalysisPro({
     setProfile(null)
     setNews(null)
 
-    Promise.allSettled([
-      axios.get(`/api/finnhub/profile/${ticker}`, { timeout: 15000 }),
-      axios.get(`/api/finnhub/news/${ticker}?limit=5`, { timeout: 15000 }),
-    ]).then(([profileResult, newsResult]) => {
+    async function fetchContext() {
+      const configured = await getFinnhubAvailability()
+      if (cancelled) return
+      if (!configured) {
+        setIsFetchingContext(false)
+        return
+      }
+
+      const [profileResult, newsResult] = await Promise.allSettled([
+        axios.get(`/api/finnhub/profile/${ticker}`, { timeout: 15000 }),
+        axios.get(`/api/finnhub/news/${ticker}?limit=5`, { timeout: 15000 }),
+      ])
       if (cancelled) return
       setProfile(profileResult.status === 'fulfilled' ? profileResult.value.data : null)
       setNews(newsResult.status === 'fulfilled' ? (newsResult.value.data?.news ?? null) : null)
       setIsFetchingContext(false)
-    })
+    }
+
+    fetchContext()
 
     return () => { cancelled = true }
   }, [enabled, ticker])

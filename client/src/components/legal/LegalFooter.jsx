@@ -15,10 +15,10 @@ export default function LegalFooter() {
               : 'This is an informational tool, not investment advice. All use and trading decisions remain at the user’s own risk.'}
           </div>
         </div>
-        <div className="flex flex-wrap gap-4">
-          <a href="#terms" className="transition-colors hover:text-slate-200">{isHebrew ? 'תנאי שימוש' : 'Terms of Service'}</a>
-          <a href="#privacy" className="transition-colors hover:text-slate-200">{isHebrew ? 'פרטיות' : 'Privacy Policy'}</a>
-          <a href="#disclaimers" className="transition-colors hover:text-slate-200">{isHebrew ? 'הבהרות' : 'Disclaimers'}</a>
+        <div className="flex flex-wrap gap-x-4">
+          <a href="#terms" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-slate-200">{isHebrew ? 'תנאי שימוש' : 'Terms of Service'}</a>
+          <a href="#privacy" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-slate-200">{isHebrew ? 'פרטיות' : 'Privacy Policy'}</a>
+          <a href="#disclaimers" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-slate-200">{isHebrew ? 'הבהרות' : 'Disclaimers'}</a>
         </div>
       </div>
     </footer>

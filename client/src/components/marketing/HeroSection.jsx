@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
+import { ChartNoAxesCombined, Database, Loader2, Search, ShieldCheck, Target } from 'lucide-react'
+import useStore from '../../store/useStore'
 import Button from '../ui/Button'
-import Card from '../ui/Card'
 import Input from '../ui/Input'
-import Badge from '../ui/Badge'
 
-const POPULAR_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMD', 'AMZN', 'GOOGL']
+const POPULAR_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'SPY']
 
 export default function HeroSection({
   currentTicker,
@@ -15,6 +15,30 @@ export default function HeroSection({
 }) {
   const [value, setValue] = useState(currentTicker ?? '')
   const [inlineError, setInlineError] = useState('')
+  const { language } = useStore()
+  const isHebrew = language === 'he'
+
+  const copy = {
+    eyebrow: isHebrew ? 'סביבת מחקר וקבלת החלטות' : 'Research and decision workspace',
+    title: isHebrew ? 'ניתוח מניה ברור, לפני שמקבלים החלטה.' : 'Clear stock analysis before making a decision.',
+    subtitle: isHebrew
+      ? 'בחרו סימול וקבלו מסקנה, גרף, רמות סיכון והסבר המבוססים על מנוע כללים דטרמיניסטי.'
+      : 'Choose a symbol and get a conclusion, chart, risk levels, and an explanation from a deterministic rules engine.',
+    inputLabel: isHebrew ? 'סימול מניה או קרן' : 'Stock or ETF symbol',
+    placeholder: isHebrew ? 'לדוגמה: TSLA, AAPL או SPY' : 'For example: TSLA, AAPL, or SPY',
+    analyze: isHebrew ? 'נתחו מניה' : 'Analyze stock',
+    analyzing: isHebrew ? 'מכין ניתוח...' : 'Preparing analysis...',
+    popular: isHebrew ? 'התחלה מהירה' : 'Quick start',
+    invalidEmpty: isHebrew ? 'יש להזין סימול כמו AAPL או NVDA.' : 'Enter a symbol such as AAPL or NVDA.',
+    invalidSymbol: isHebrew ? 'הזינו סימול שוק תקין בלבד, לדוגמה AAPL, SPY או ^VIX.' : 'Use a valid market symbol, for example AAPL, SPY, or ^VIX.',
+    panelTitle: isHebrew ? 'מה תקבלו בניתוח' : 'What the analysis includes',
+    panelSubtitle: isHebrew ? 'מהמחיר הנוכחי ועד לתוכנית סיכון ברורה.' : 'From current price to a clear risk plan.',
+    outcomes: [
+      [ChartNoAxesCombined, isHebrew ? 'מגמה ומבנה מחיר' : 'Trend and price structure', isHebrew ? 'נרות, ממוצעים, מומנטום ורמות מפתח.' : 'Candles, averages, momentum, and key levels.'],
+      [ShieldCheck, isHebrew ? 'סיכון לפני פעולה' : 'Risk before action', isHebrew ? 'Stop אפשרי, ביטול תרחיש ויחס סיכון/תשואה.' : 'Possible stop, invalidation, and risk/reward.'],
+      [Target, isHebrew ? 'מסקנה שניתנת לבדיקה' : 'A verifiable conclusion', isHebrew ? 'ציון כללים, סיבות ותנאי לשינוי המסקנה.' : 'Rule score, reasons, and a condition for reassessment.'],
+    ],
+  }
 
   useEffect(() => {
     setValue(currentTicker ?? '')
@@ -25,12 +49,12 @@ export default function HeroSection({
     const normalized = value.trim().toUpperCase()
 
     if (!normalized) {
-      setInlineError('Enter a ticker symbol like AAPL or NVDA to start an analysis.')
+      setInlineError(copy.invalidEmpty)
       return
     }
 
     if (!/^[A-Z.^-]{1,12}$/.test(normalized)) {
-      setInlineError('Use a market symbol only. Example: AAPL, MSFT, NVDA, SPY, or ^VIX.')
+      setInlineError(copy.invalidSymbol)
       return
     }
 
@@ -39,112 +63,82 @@ export default function HeroSection({
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.08),transparent_22%),linear-gradient(180deg,rgba(11,19,38,0.98),rgba(14,24,46,0.95))] p-6 shadow-premium sm:p-8 lg:p-10">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent_24%,transparent_76%,rgba(255,255,255,0.02))]" />
-      <div className="relative grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-center">
-        <div className="flex flex-col gap-6">
-          <div className="max-w-2xl space-y-4">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-100">
-              <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-              Market Intelligence Workspace
-            </div>
-            <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
-              Clear stock analysis before you make a move.
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-              Review trend, sentiment, risk, and market context in one structured workspace built for faster decision-making.
-            </p>
-          </div>
-
-          <form className="flex max-w-2xl flex-col gap-3 sm:flex-row" onSubmit={handleSubmit}>
-            <Input
-              aria-label="Ticker symbol"
-              placeholder="Enter a ticker symbol like TSLA or AAPL"
-              value={value}
-              onChange={event => setValue(event.target.value.toUpperCase())}
-              className="sm:flex-1"
-            />
-            <Button type="submit" size="lg" className="sm:min-w-[180px]">
-              {isLoading ? 'Loading...' : 'Analyze'}
-            </Button>
-          </form>
-
-          {inlineError && <div className="rounded-2xl border border-rose-400/15 bg-rose-400/8 px-4 py-3 text-sm text-rose-100">{inlineError}</div>}
-
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-slate-400">Popular:</span>
-            {POPULAR_TICKERS.slice(0, 5).map(ticker => (
-              <button
-                key={ticker}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-primary/30 hover:text-white"
-                onClick={() => {
-                  setValue(ticker)
-                  setInlineError('')
-                  onPickTicker(ticker)
-                }}
-                type="button"
-              >
-                {ticker}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4 backdrop-blur-md">
-              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Trend overview</div>
-              <div className="mt-2 text-sm font-semibold text-white">Directional context in seconds</div>
-              <div className="mt-1 text-sm leading-6 text-slate-400">See whether the chart is rising, flat, or under pressure.</div>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4 backdrop-blur-md">
-              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Risk snapshot</div>
-              <div className="mt-2 text-sm font-semibold text-white">Levels that matter now</div>
-              <div className="mt-1 text-sm leading-6 text-slate-400">Spot nearby support, resistance, and risk zones quickly.</div>
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-slate-950/35 p-4 backdrop-blur-md">
-              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Market context</div>
-              <div className="mt-2 text-sm font-semibold text-white">Broader conditions, less guesswork</div>
-              <div className="mt-1 text-sm leading-6 text-slate-400">Check how broader market conditions may affect the setup.</div>
-            </div>
-          </div>
+    <section className="empty-workspace">
+      <div className="empty-workspace__content">
+        <div className="empty-workspace__eyebrow">
+          <Database size={15} strokeWidth={1.8} aria-hidden="true" />
+          {copy.eyebrow}
         </div>
+        <h1>{copy.title}</h1>
+        <p>{copy.subtitle}</p>
 
-        <Card className="rounded-[1.75rem] p-5 sm:p-6">
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Example setup</div>
-                <div className="mt-2 text-2xl font-black tracking-tight text-white">{currentTicker}</div>
-              </div>
-              <Badge tone="balanced">{lastLoadedTicker ? 'Live' : 'Sample'}</Badge>
-            </div>
-
-            <p className="text-sm leading-6 text-slate-300">
-              Momentum is improving, but resistance remains nearby.
-            </p>
-
-            <div className="grid gap-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-xl border border-white/8 bg-slate-950/35 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Trend</div>
-                  <div className="mt-2 text-sm font-bold text-white">Mixed</div>
-                </div>
-                <div className="rounded-xl border border-white/8 bg-slate-950/35 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Sentiment</div>
-                  <div className="mt-2 text-sm font-bold text-emerald-300">Positive</div>
-                </div>
-                <div className="rounded-xl border border-white/8 bg-slate-950/35 p-3">
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Risk</div>
-                  <div className="mt-2 text-sm font-bold text-amber-300">Medium</div>
-                </div>
-              </div>
-            </div>
-
-            <Button variant="secondary" size="lg" className="w-full sm:w-auto" onClick={() => onAnalyze(value.trim().toUpperCase() || currentTicker)}>
-              View Analysis
-            </Button>
+        <form className="empty-search" onSubmit={handleSubmit}>
+          <div className="empty-search__field">
+            <Search size={18} strokeWidth={1.8} aria-hidden="true" />
+            <Input
+              aria-label={copy.inputLabel}
+              placeholder={copy.placeholder}
+              value={value}
+              disabled={isLoading}
+              onChange={event => setValue(event.target.value.toUpperCase())}
+            />
           </div>
-        </Card>
+          <Button type="submit" size="lg" disabled={isLoading}>
+            {isLoading ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Search size={18} aria-hidden="true" />}
+            {isLoading ? copy.analyzing : copy.analyze}
+          </Button>
+        </form>
+
+        {inlineError && <div className="empty-search__error" role="alert">{inlineError}</div>}
+
+        <div className="empty-quick-start">
+          <span>{copy.popular}</span>
+          {POPULAR_TICKERS.map(ticker => (
+            <button
+              key={ticker}
+              type="button"
+              onClick={() => {
+                setValue(ticker)
+                setInlineError('')
+                onPickTicker(ticker)
+              }}
+            >
+              {ticker}
+            </button>
+          ))}
+          {lastLoadedTicker && !POPULAR_TICKERS.includes(lastLoadedTicker) && (
+            <button type="button" onClick={() => onPickTicker(lastLoadedTicker)}>{lastLoadedTicker}</button>
+          )}
+        </div>
       </div>
+
+      <aside className="empty-workspace__preview">
+        <div className="empty-preview__header">
+          <span className="empty-preview__mark"><ChartNoAxesCombined size={21} aria-hidden="true" /></span>
+          <span>
+            <strong>{copy.panelTitle}</strong>
+            <small>{copy.panelSubtitle}</small>
+          </span>
+        </div>
+        <div className="empty-preview__outcomes">
+          {copy.outcomes.map(([Icon, title, description]) => (
+            <div key={title}>
+              <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
+              <span>
+                <strong>{title}</strong>
+                <small>{description}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="empty-preview__flow" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </aside>
     </section>
   )
 }

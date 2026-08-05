@@ -4,6 +4,7 @@ import useStore from '../../store/useStore'
 import { fmtPrice, fmtChange } from '../../lib/formatters'
 import { INTERVALS } from '../../../../shared/constants'
 import StockLogo from '../ui/StockLogo'
+import { Bookmark, ChartNoAxesCombined, Monitor, Moon, ScanSearch, SlidersHorizontal, Sun } from 'lucide-react'
 
 const INTERVAL_LABELS = {
   he: {
@@ -160,8 +161,10 @@ export default function Header({ isConnected }) {
             type="button"
             onClick={() => setShowScanner(true)}
             className="header-action header-action--scanner md:hidden"
+            aria-label={isHebrew ? 'פתח סורק מניות' : 'Open stock scanner'}
+            title={isHebrew ? 'פתח סורק מניות' : 'Open stock scanner'}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M7 10h10M9 15h6M11 20h2" /></svg>
+            <ScanSearch size={17} strokeWidth={1.8} aria-hidden="true" />
             <span>{isHebrew ? 'סורק' : 'Scanner'}</span>
           </button>
 
@@ -170,7 +173,7 @@ export default function Header({ isConnected }) {
             onClick={() => setSimpleMode(!simpleMode)}
             className="header-action header-action--mode"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 17h16M17 4v6M9 14v6" /></svg>
+            <SlidersHorizontal size={17} strokeWidth={1.8} aria-hidden="true" />
             <span>{simpleMode ? copy.simpleModeOn : copy.simpleModeOff}</span>
           </button>
 
@@ -181,7 +184,7 @@ export default function Header({ isConnected }) {
               className={`header-action ${proChart ? 'header-action--active' : ''}`}
               title={isHebrew ? 'החלף בין גרף Pro לגרף קלאסי' : 'Toggle Pro / Classic chart'}
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9m5 9V5m5 13v-7m5 7V3" /></svg>
+              <ChartNoAxesCombined size={17} strokeWidth={1.8} aria-hidden="true" />
               <span>{proChart ? (isHebrew ? 'גרף Pro' : 'Pro chart') : (isHebrew ? 'קלאסי' : 'Classic')}</span>
             </button>
           )}
@@ -189,7 +192,7 @@ export default function Header({ isConnected }) {
           <div className="header-utility">
             <label className="header-utility__select">
               <span className="sr-only">{copy.display}</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v12H3zM8 21h8M12 17v4" /></svg>
+              <Monitor size={16} strokeWidth={1.8} aria-hidden="true" />
               <select value={viewMode} onChange={event => setViewMode(event.target.value)} aria-label={copy.display}>
                 <option value="auto">{copy.auto}</option>
                 <option value="desktop">{copy.desktop}</option>
@@ -205,7 +208,7 @@ export default function Header({ isConnected }) {
                 aria-label={copy.watchlist}
                 title={copy.watchlist}
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16l-7-4-7 4z" /></svg>
+                <Bookmark size={16} strokeWidth={1.8} aria-hidden="true" />
               </button>
               {showWatchlistDropdown && (
                 <div className="header-watchlist-menu">
@@ -235,7 +238,9 @@ export default function Header({ isConnected }) {
             </div>
 
             <button type="button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="header-icon-button" title={copy.switchTheme} aria-label={copy.switchTheme}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d={theme === 'dark' ? 'M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8' : 'M19 15a7 7 0 0 1-10-10 8 8 0 1 0 10 10'} /></svg>
+              {theme === 'dark'
+                ? <Sun size={16} strokeWidth={1.8} aria-hidden="true" />
+                : <Moon size={16} strokeWidth={1.8} aria-hidden="true" />}
             </button>
 
             <button type="button" onClick={() => setLanguage(isHebrew ? 'en' : 'he')} className="header-language" title={copy.switchLanguage} aria-label={copy.switchLanguage}>

@@ -1,10 +1,16 @@
 import Card from './Card'
+import useStore from '../../store/useStore'
 
 export default function LoadingState({ title, subtitle, steps = [], hint }) {
+  const { language } = useStore()
+  const isHebrew = language === 'he'
   const activeIndex = Math.max(0, steps.findIndex(step => step.state !== 'done'))
+  const statusCopy = isHebrew
+    ? { done: 'הושלם', active: 'בתהליך', queued: 'ממתין' }
+    : { done: 'Done', active: 'In progress', queued: 'Queued' }
 
   return (
-    <Card className="rounded-2xl p-5 sm:p-6">
+    <Card className="loading-state rounded-2xl p-5 sm:p-6" aria-live="polite" aria-busy="true">
       <div className="flex flex-col gap-5">
         <div>
           <div className="text-sm font-bold text-white">{title}</div>
@@ -16,7 +22,7 @@ export default function LoadingState({ title, subtitle, steps = [], hint }) {
             const state = step.state
             const isActive = state === 'active' || (state !== 'done' && index === activeIndex)
             const dotClass = state === 'done'
-              ? 'bg-primary shadow-[0_0_16px_rgba(34,211,238,0.4)]'
+              ? 'bg-primary'
               : isActive
                 ? 'bg-amber-300 animate-pulse'
                 : 'bg-slate-700'
@@ -29,7 +35,7 @@ export default function LoadingState({ title, subtitle, steps = [], hint }) {
                   {step.detail && <div className="text-xs text-slate-500">{step.detail}</div>}
                 </div>
                 <span className="text-[11px] uppercase tracking-[0.2em] text-slate-600">
-                  {state === 'done' ? 'Done' : isActive ? 'Live' : 'Queued'}
+                  {state === 'done' ? statusCopy.done : isActive ? statusCopy.active : statusCopy.queued}
                 </span>
               </div>
             )

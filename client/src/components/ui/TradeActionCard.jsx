@@ -1,37 +1,27 @@
+import { AlertTriangle, ChevronDown } from 'lucide-react'
 import { fmtPrice } from '../../lib/formatters'
-import { TRADER_TEXT } from '../../lib/traderColors'
 
 const ACTION_THEME = {
-  STRONG_BUY: {
-    badge: 'bg-green-500/15 text-green-300 ring-1 ring-green-500/30',
-    accent: TRADER_TEXT.bullish,
-  },
-  BUY: {
-    badge: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
-    accent: TRADER_TEXT.entry,
-  },
-  HOLD: {
-    badge: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30',
-    accent: TRADER_TEXT.neutral,
-  },
-  SELL: {
-    badge: 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30',
-    accent: TRADER_TEXT.bearish,
-  },
-  STRONG_SELL: {
-    badge: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30',
-    accent: TRADER_TEXT.stopLoss,
-  },
+  STRONG_BUY: { tone: 'positive', labelClass: 'decision-status--positive' },
+  BUY: { tone: 'positive', labelClass: 'decision-status--positive' },
+  HOLD: { tone: 'neutral', labelClass: 'decision-status--neutral' },
+  SELL: { tone: 'negative', labelClass: 'decision-status--negative' },
+  STRONG_SELL: { tone: 'negative', labelClass: 'decision-status--negative' },
 }
 
-function pctText(value, positiveLabel = true) {
-  if (value == null || Number.isNaN(value)) return '-'
-  const normalized = Math.abs(value).toFixed(1)
-  return `${positiveLabel ? '+' : '-'}${normalized}%`
+function pctText(value, positive = true) {
+  if (value == null || Number.isNaN(value)) return null
+  return `${positive ? '+' : '-'}${Math.abs(value).toFixed(1)}%`
 }
 
-function metric(label, value, accent, sub = null) {
-  return { label, value, accent, sub }
+function DecisionLevel({ label, value, note, tone = 'default' }) {
+  return (
+    <div className="decision-level">
+      <span>{label}</span>
+      <strong className={`decision-level__value decision-level__value--${tone}`} dir="ltr">{value}</strong>
+      {note && <small>{note}</small>}
+    </div>
+  )
 }
 
 export default function TradeActionCard({ decision, language = 'he' }) {
@@ -40,89 +30,108 @@ export default function TradeActionCard({ decision, language = 'he' }) {
   const isEnglish = language === 'en'
   const theme = ACTION_THEME[decision.action] ?? ACTION_THEME.HOLD
   const entryZone = decision.entryLow != null && decision.entryHigh != null
-    ? `${fmtPrice(decision.entryLow)} - ${fmtPrice(decision.entryHigh)}`
-    : (isEnglish ? 'Wait for setup' : 'להמתין לסטאפ')
-  const rrRatio = decision.riskReward != null ? `1:${decision.riskReward}` : '-'
-  const riskPct = decision.downsidePct != null ? `${pctText(decision.downsidePct, false)}` : '-'
-  const tpPct = decision.upsidePct != null ? `${pctText(decision.upsidePct, true)}` : '-'
+    ? `${fmtPrice(decision.entryLow)} – ${fmtPrice(decision.entryHigh)}`
+    : (isEnglish ? 'Wait for confirmation' : 'להמתין לאישור')
+  const stopPrice = decision.invalidation ?? decision.stopLoss
+  const targetPrice = decision.takeProfit ?? decision.holdUntil
+  const changeLevel = decision.buyAbove ?? decision.resistance
+  const reasons = decision.reasons?.slice(0, 3) ?? []
 
   const copy = {
-    title: isEnglish ? 'Trade action' : 'פעולת מסחר',
-    confidence: isEnglish ? 'Signal strength' : 'עוצמת האות',
-    currentPrice: isEnglish ? 'Current price' : 'מחיר נוכחי',
-    entryZone: isEnglish ? 'Entry zone' : 'אזור כניסה',
-    ratio: isEnglish ? 'R/R' : 'יחס סיכון/תשואה',
-    stopLoss: isEnglish ? 'Stop Loss' : 'סטופ לוס',
-    takeProfit: isEnglish ? 'Take Profit' : 'טייק פרופיט',
-    risk: isEnglish ? 'Risk' : 'סיכון',
+    eyebrow: isEnglish ? 'Deterministic strategy output' : 'פלט מנוע אסטרטגיה דטרמיניסטי',
+    score: isEnglish ? 'Signal score' : 'ציון האות',
+    scoreNote: isEnglish ? 'Rule alignment, not probability' : 'התאמת כללים, לא הסתברות',
+    entry: isEnglish ? 'Entry zone' : 'אזור כניסה',
+    stop: isEnglish ? 'Invalidation / Stop' : 'ביטול תרחיש / Stop',
+    target: isEnglish ? 'Working target' : 'יעד עבודה',
+    ratio: isEnglish ? 'Risk / Reward' : 'סיכון / תשואה',
+    why: isEnglish ? 'Why this conclusion' : 'על מה מבוססת המסקנה',
+    change: isEnglish ? 'What changes the conclusion' : 'מה ישנה את המסקנה',
+    changeText: changeLevel != null
+      ? (isEnglish ? `A confirmed close above ${fmtPrice(changeLevel)} requires a fresh analysis.` : `סגירה מאושרת מעל ${fmtPrice(changeLevel)} מחייבת ניתוח מחדש.`)
+      : (isEnglish ? 'A confirmed structure change requires a fresh analysis.' : 'שינוי מבני מאושר במחיר מחייב ניתוח מחדש.'),
+    stopDetails: isEnglish ? 'Stop method and alternatives' : 'שיטת Stop וחלופות',
+    recommended: isEnglish ? 'Recommended' : 'מומלץ',
+    riskDistance: isEnglish ? 'Risk distance' : 'מרחק סיכון',
+    breakEven: isEnglish ? 'Break-even trigger' : 'מעבר ל-Break-even',
+    alternatives: isEnglish ? 'Alternatives' : 'חלופות',
+    fromPrice: isEnglish ? 'from current price' : 'מהמחיר הנוכחי',
   }
 
-  const metrics = [
-    metric(copy.currentPrice, fmtPrice(decision.currentPrice), 'text-white'),
-    metric(copy.entryZone, entryZone, TRADER_TEXT.entry),
-    metric(copy.ratio, rrRatio, theme.accent),
-    metric(copy.stopLoss, fmtPrice(decision.invalidation ?? decision.stopLoss), TRADER_TEXT.stopLoss, decision.stopContext?.recommended?.type ?? riskPct),
-    metric(copy.takeProfit, fmtPrice(decision.takeProfit ?? decision.holdUntil), TRADER_TEXT.takeProfit, tpPct),
-    metric(copy.risk, riskPct, decision.downsidePct != null && Math.abs(decision.downsidePct) > 5 ? 'text-yellow-300' : 'text-slate-200'),
-  ]
-
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(15,23,42,0.82))] shadow-[0_18px_40px_rgba(2,6,23,0.35)]">
-      <div className="flex flex-col gap-4 border-b border-white/8 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{copy.title}</div>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <span className={`rounded-full px-3 py-1 text-sm font-bold ${theme.badge}`}>{decision.primaryAction}</span>
-            <span className="text-sm text-slate-400">{decision.headline}</span>
+    <section className={`decision-card decision-card--${theme.tone}`}>
+      <header className="decision-card__header">
+        <div className="min-w-0">
+          <div className="decision-card__eyebrow">{copy.eyebrow}</div>
+          <div className="decision-card__verdict">
+            <span className={`decision-status ${theme.labelClass}`}>{decision.primaryAction}</span>
+            <p>{decision.headline}</p>
           </div>
         </div>
-        <div className="rounded-2xl bg-slate-950/70 px-4 py-3 text-left sm:text-right">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{copy.confidence}</div>
-          <div className={`mt-1 text-2xl font-black tracking-tight ${theme.accent}`}>{decision.signalStrength}/100</div>
+        <div className="decision-score">
+          <span>{copy.score}</span>
+          <strong dir="ltr">{decision.signalStrength}<small>/100</small></strong>
+          <small>{copy.scoreNote}</small>
         </div>
+      </header>
+
+      <div className="decision-levels">
+        <DecisionLevel label={copy.entry} value={entryZone} tone="entry" />
+        <DecisionLevel label={copy.stop} value={fmtPrice(stopPrice)} note={pctText(decision.downsidePct, false)} tone="negative" />
+        <DecisionLevel label={copy.target} value={fmtPrice(targetPrice)} note={pctText(decision.upsidePct)} tone="positive" />
+        <DecisionLevel label={copy.ratio} value={decision.riskReward != null ? `1:${decision.riskReward}` : '—'} />
       </div>
 
-      <div className="grid grid-cols-2 gap-px bg-white/8 sm:grid-cols-3">
-        {metrics.map(item => (
-          <div key={item.label} className="bg-slate-950/55 px-5 py-4">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</div>
-            <div className={`mt-2 text-lg font-black tracking-tight sm:text-xl ${item.accent}`}>{item.value}</div>
-            {item.sub && <div className="mt-1 text-xs text-slate-500">{item.sub}</div>}
-          </div>
-        ))}
+      <div className="decision-rationale">
+        <div>
+          <h2>{copy.why}</h2>
+          {reasons.length ? (
+            <ul>
+              {reasons.map(reason => <li key={reason}>{reason}</li>)}
+            </ul>
+          ) : (
+            <p>{decision.shortConclusion}</p>
+          )}
+        </div>
+        <aside>
+          <AlertTriangle size={17} aria-hidden="true" />
+          <span>
+            <strong>{copy.change}</strong>
+            <small>{copy.changeText}</small>
+          </span>
+        </aside>
       </div>
 
       {decision.stopContext?.recommended && (
-        <div className="border-t border-white/8 bg-slate-950/55 px-5 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-            {isEnglish ? 'Stop strategy' : 'אסטרטגיית סטופ'}
+        <details className="decision-stop-details">
+          <summary>
+            <span>{copy.stopDetails}</span>
+            <ChevronDown size={17} aria-hidden="true" />
+          </summary>
+          <div className="decision-stop-details__grid">
+            <DecisionLevel
+              label={copy.recommended}
+              value={fmtPrice(decision.stopContext.recommended.price)}
+              note={decision.stopContext.recommended.type}
+              tone="negative"
+            />
+            <DecisionLevel
+              label={copy.riskDistance}
+              value={`${decision.stopContext.recommended.riskPct}%`}
+              note={`${fmtPrice(decision.stopContext.recommended.distanceDollar)} ${copy.fromPrice}`}
+            />
+            <DecisionLevel
+              label={copy.breakEven}
+              value={fmtPrice(decision.stopContext.breakEvenTrigger)}
+              note={decision.stopContext.volatilityBand}
+            />
+            <DecisionLevel
+              label={copy.alternatives}
+              value={`${fmtPrice(decision.stopContext.aggressive?.price)} / ${fmtPrice(decision.stopContext.conservative?.price)}`}
+            />
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Recommended' : 'מומלץ'}</div>
-              <div className={`mt-1 text-lg font-black ${TRADER_TEXT.stopLoss}`}>{fmtPrice(decision.stopContext.recommended.price)}</div>
-              <div className="mt-1 text-xs text-slate-400">{decision.stopContext.recommended.type}</div>
-            </div>
-            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Risk distance' : 'מרחק סיכון'}</div>
-              <div className="mt-1 text-lg font-black text-slate-100">{decision.stopContext.recommended.riskPct}%</div>
-              <div className="mt-1 text-xs text-slate-400">{fmtPrice(decision.stopContext.recommended.distanceDollar)} {isEnglish ? 'from price' : 'מהמחיר'}</div>
-            </div>
-            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Break-even trigger' : 'מעבר לברייק איבן'}</div>
-              <div className="mt-1 text-lg font-black text-slate-100">{fmtPrice(decision.stopContext.breakEvenTrigger)}</div>
-              <div className="mt-1 text-xs text-slate-400">{decision.stopContext.volatilityBand}</div>
-            </div>
-            <div className="rounded-2xl border border-white/6 bg-slate-950/70 p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{isEnglish ? 'Alternatives' : 'חלופות'}</div>
-              <div className="mt-1 text-sm font-bold text-slate-100">
-                {fmtPrice(decision.stopContext.aggressive?.price)} / {fmtPrice(decision.stopContext.conservative?.price)}
-              </div>
-              <div className="mt-1 text-xs text-slate-400">{isEnglish ? 'Aggressive / Conservative' : 'אגרסיבי / שמרני'}</div>
-            </div>
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-slate-300">{decision.stopContext.comment}</p>
-        </div>
+          {decision.stopContext.comment && <p className="decision-stop-details__comment">{decision.stopContext.comment}</p>}
+        </details>
       )}
     </section>
   )

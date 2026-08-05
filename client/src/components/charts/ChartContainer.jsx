@@ -32,7 +32,7 @@ export default function ChartContainer({
 
   return (
     <section
-      className={`relative overflow-hidden rounded-[28px] border border-white/8 bg-slate-950/80 shadow-[0_24px_80px_rgba(2,6,23,0.35)] backdrop-blur ${className}`}
+      className={`chart-container relative overflow-hidden ${className}`}
       style={style}
     >
       {(title || subtitle || headerRight) && (

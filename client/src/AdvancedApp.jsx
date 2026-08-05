@@ -8,35 +8,28 @@ import useSocket from './hooks/useSocket'
 import useMultiTimeframe from './hooks/useMultiTimeframe'
 import useMarketContext from './hooks/useMarketContext'
 import Layout from './components/layout/Layout'
-import ChartWorkspace from './components/charts/ChartWorkspace'
-import EarningsPanel from './components/analysis/EarningsPanel'
+const ChartWorkspace = lazy(() => import('./components/charts/ChartWorkspace'))
 import ForecastOpinionPanel from './components/analysis/ForecastOpinionPanel'
-import MarketContextPanel from './components/analysis/MarketContextPanel'
 import MarketTradeAlert from './components/analysis/MarketTradeAlert'
-import SignalPanel from './components/analysis/SignalPanel'
-import AdvancedTrendsPanel from './components/analysis/AdvancedTrendsPanel'
-import AnalysisResultCard from './components/analysis/AnalysisResultCard'
+const AnalysisResultCard = lazy(() => import('./components/analysis/AnalysisResultCard'))
 const PaperTradingPanel = lazy(() => import('./components/analysis/PaperTradingPanel'))
-import TechnicalAnalysisPanel from './components/analysis/TechnicalAnalysisPanel'
-import AnalysisSidebar from './components/analysis/AnalysisSidebar'
-import FinnhubPanel from './components/analysis/FinnhubPanel'
-import TradingStopsPanel from './components/analysis/TradingStopsPanel'
-import TradeChecklistPanel from './components/analysis/TradeChecklistPanel'
-import PositionSizeCalculator from './components/analysis/PositionSizeCalculator'
-import PlainVerdictCard from './components/analysis/PlainVerdictCard'
+const TechnicalAnalysisPanel = lazy(() => import('./components/analysis/TechnicalAnalysisPanel'))
+const AnalysisSidebar = lazy(() => import('./components/analysis/AnalysisSidebar'))
+const FinnhubPanel = lazy(() => import('./components/analysis/FinnhubPanel'))
+const TradingStopsPanel = lazy(() => import('./components/analysis/TradingStopsPanel'))
+const TradeChecklistPanel = lazy(() => import('./components/analysis/TradeChecklistPanel'))
+const PositionSizeCalculator = lazy(() => import('./components/analysis/PositionSizeCalculator'))
+const PlainVerdictCard = lazy(() => import('./components/analysis/PlainVerdictCard'))
 // These render only inside their own tab, so their cost belongs to the click
 // that opens it rather than to every first paint.
 const StockAnalysisProPanel = lazy(() => import('./components/analysis/StockAnalysisProPanel'))
 const ValidationPanel = lazy(() => import('./components/analysis/ValidationPanel'))
-import MaStructurePanel from './components/analysis/MaStructurePanel'
+const MaStructurePanel = lazy(() => import('./components/analysis/MaStructurePanel'))
 import HeroSection from './components/marketing/HeroSection'
-import TrustSection from './components/marketing/TrustSection'
 import DisclaimerBanner from './components/legal/DisclaimerBanner'
 import Button from './components/ui/Button'
 import ErrorState from './components/ui/ErrorState'
-import KpiCard from './components/ui/KpiCard'
 import LoadingState from './components/ui/LoadingState'
-import SectionTitle from './components/ui/SectionTitle'
 import TradeActionCard from './components/ui/TradeActionCard'
 import StockLogo from './components/ui/StockLogo'
 import { fmtVolume, fmtPercent, fmtPrice } from './lib/formatters'
@@ -64,39 +57,6 @@ const FG_LABEL_HE = classification => ({
   Fear: 'פחד',
   'Extreme Fear': 'פחד קיצוני',
 })[classification] ?? classification
-
-const EXAMPLES = [
-  { ticker: 'AAPL', title: 'Trend overview', summary: 'Quickly see whether the chart is steady, stretched, or turning.' },
-  { ticker: 'NVDA', title: 'Risk snapshot', summary: 'Check nearby resistance, support, and pressure zones at a glance.' },
-  { ticker: 'TSLA', title: 'Market context', summary: 'Understand whether the broader environment supports the move.' },
-]
-
-function ExampleSection({ onAnalyzeTicker }) {
-  return (
-    <section className="space-y-6">
-      <SectionTitle
-        eyebrow="How people use it"
-        title="A simple way to review a stock before acting."
-        subtitle="Start with a ticker, scan the summary, and move into the chart only if you need more detail."
-      />
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {EXAMPLES.map(example => (
-          <button
-            key={example.ticker}
-            className="rounded-2xl border border-white/6 bg-slate-950/35 p-5 text-left transition-colors hover:border-primary/25 hover:bg-slate-950/55"
-            onClick={() => onAnalyzeTicker(example.ticker)}
-            type="button"
-          >
-            <div className="text-sm font-bold text-white">{example.title}</div>
-            <div className="mt-1 text-xs uppercase tracking-[0.2em] text-primary/80">{example.ticker}</div>
-            <p className="mt-3 text-sm leading-6 text-slate-400">{example.summary}</p>
-          </button>
-        ))}
-      </div>
-    </section>
-  )
-}
 
 function WorkspaceNav({ activeTab, onChange, language }) {
   const isHebrew = language === 'he'
@@ -143,6 +103,16 @@ function PanelFallback() {
   )
 }
 
+function SnapshotMetric({ label, value, color = '', note = null }) {
+  return (
+    <div className="snapshot-metric">
+      <span>{label}</span>
+      <strong className={color} dir="ltr">{value}</strong>
+      {note && <small>{note}</small>}
+    </div>
+  )
+}
+
 export default function AdvancedApp() {
   const {
     currentTicker,
@@ -178,7 +148,7 @@ export default function AdvancedApp() {
   const [copiedReport, setCopiedReport] = useState(false)
   const [timeframeToast, setTimeframeToast] = useState('')
   const [showMoreKpis, setShowMoreKpis] = useState(false)
-  const [activeMainTab, setActiveMainTab] = useState('intelligence')
+  const [activeMainTab, setActiveMainTab] = useState('chart')
   const autoBotRunRef = useRef(false)
 
   useTicker()
@@ -190,6 +160,12 @@ export default function AdvancedApp() {
   }, [])
 
   useEffect(() => {
+    if (!currentTicker) {
+      setEarnings(null)
+      setIsEarningsLoading(false)
+      return undefined
+    }
+
     let cancelled = false
     setIsEarningsLoading(true)
     setEarnings(null)
@@ -454,26 +430,34 @@ export default function AdvancedApp() {
               onPickTicker={handleAnalyzeTicker}
               lastLoadedTicker={lastLoadedTicker}
             />
-            <ExampleSection onAnalyzeTicker={handleAnalyzeTicker} />
-            <TrustSection />
           </>
         )}
 
         {overallLoading && !snapshot && (
           <LoadingState
-            title="Preparing the analysis"
-            subtitle="The system is building a structured market read before rendering the dashboard."
+            title={isHebrew ? 'מכינים את הניתוח' : 'Preparing the analysis'}
+            subtitle={isHebrew
+              ? 'המערכת בונה תמונת שוק מסודרת לפני הצגת לוח הניתוח.'
+              : 'The system is building a structured market read before rendering the dashboard.'}
             steps={loadingSteps}
-            hint={isBackendSlow ? 'The backend may be waking up on Render. If this is a cold start, the first request can take a little longer than usual.' : ''}
+            hint={isBackendSlow
+              ? (isHebrew
+                  ? 'ייתכן שהשרת מתעורר כעת. בביקור הראשון הטעינה יכולה להימשך מעט יותר.'
+                  : 'The backend may be waking up on Render. If this is a cold start, the first request can take a little longer than usual.')
+              : ''}
           />
         )}
 
         {error && !snapshot && (
           <ErrorState
-            title="Analysis could not be completed"
-            message="We could not assemble a usable market view for this ticker."
-            detail={error}
-            actionLabel="Retry analysis"
+            title={isHebrew ? 'לא ניתן להשלים את הניתוח' : 'Analysis could not be completed'}
+            message={isHebrew
+              ? 'לא הצלחנו להרכיב תמונת שוק תקינה עבור הסימול הזה.'
+              : 'We could not assemble a usable market view for this ticker.'}
+            detail={isHebrew
+              ? 'בדוק שהסימול תקין ונסה שוב. אם הבעיה נמשכת, ייתכן שמקור הנתונים אינו זמין כרגע.'
+              : error}
+            actionLabel={isHebrew ? 'נסה לנתח שוב' : 'Retry analysis'}
             onAction={handleRetry}
           />
         )}
@@ -550,21 +534,26 @@ export default function AdvancedApp() {
                         <small>{isHebrew ? 'המדדים שחשוב לבדוק לפני פעולה' : 'Key readings before taking action'}</small>
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <KpiCard label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
-                      <KpiCard label={copy.trend} value={regimeLabel} color={regimeColor} />
-                      <KpiCard label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
-                      <KpiCard label={copy.volume} value={fmtVolume(snapshot.volume)} />
+                    <div className="snapshot-metrics">
+                      <SnapshotMetric label={copy.changePct} value={fmtPercent(snapshot.changePct)} color={snapshot.changePct >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish} />
+                      <SnapshotMetric label={copy.trend} value={regimeLabel} color={regimeColor} />
+                      <SnapshotMetric label="RSI (14)" value={rsiLast?.toFixed(1) ?? '-'} color={rsiLast < 30 ? TRADER_TEXT.bullish : rsiLast > 70 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                      <SnapshotMetric label={copy.volume} value={fmtVolume(snapshot.volume)} />
                       
                       {showMoreKpis && (
                         <>
-                          <KpiCard label={copy.high20} value={high20 ? `$${high20}` : '-'} />
-                          <KpiCard label={copy.low20} value={low20 ? `$${low20}` : '-'} />
-                          <KpiCard label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
+                          <SnapshotMetric label={copy.high20} value={high20 ? `$${high20}` : '-'} />
+                          <SnapshotMetric label={copy.low20} value={low20 ? `$${low20}` : '-'} />
+                          <SnapshotMetric label="Stoch %K" value={stochLast?.toFixed(1) ?? '-'} color={stochLast < 20 ? TRADER_TEXT.bullish : stochLast > 80 ? TRADER_TEXT.bearish : TRADER_TEXT.neutral} />
                           {fearGreed?.value != null ? (
-                            <KpiCard label={copy.fearGreed} value={`${fearGreed.value} - ${isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}`} color={FG_COLOR(fearGreed.value)} />
+                            <SnapshotMetric
+                              label={copy.fearGreed}
+                              value={String(fearGreed.value)}
+                              note={isHebrew ? FG_LABEL_HE(fearGreed.classification) : fearGreed.classification}
+                              color={FG_COLOR(fearGreed.value)}
+                            />
                           ) : (
-                            <KpiCard
+                            <SnapshotMetric
                               label={copy.vsSma20}
                               value={smaDistPct != null ? `${parseFloat(smaDistPct) >= 0 ? '+' : ''}${smaDistPct}%` : '-'}
                               color={smaDistPct != null ? (parseFloat(smaDistPct) >= 0 ? TRADER_TEXT.bullish : TRADER_TEXT.bearish) : ''}
@@ -601,92 +590,101 @@ export default function AdvancedApp() {
                   {activeMainTab === 'chart' && (
                     <div className="space-y-4">
                       <MarketTradeAlert marketContext={marketContext} isLoading={isMarketContextLoading} language={language} />
-                      <ChartWorkspace
-                        currentTicker={currentTicker}
-                        interval={interval}
-                        snapshot={snapshot}
-                        ohlcv={ohlcv}
-                        indicators={indicators}
-                        signal={signal}
-                        technicalAnalysis={technicalAnalysis}
-                        paperTradingAccount={paperTrading.account}
-                        isLoading={isLoading}
-                      />
+                      <Suspense fallback={(
+                        <div className="chart-loading-shell" role="status" aria-live="polite">
+                          <strong>{isHebrew ? 'מכינים את סביבת הגרף' : 'Preparing chart workspace'}</strong>
+                          <span>{isHebrew ? 'טוען נרות, רמות ואינדיקטורים...' : 'Loading candles, levels, and indicators...'}</span>
+                        </div>
+                      )}>
+                        <ChartWorkspace
+                          currentTicker={currentTicker}
+                          interval={interval}
+                          snapshot={snapshot}
+                          ohlcv={ohlcv}
+                          indicators={indicators}
+                          signal={signal}
+                          technicalAnalysis={technicalAnalysis}
+                          paperTradingAccount={paperTrading.account}
+                          isLoading={isLoading}
+                        />
+                      </Suspense>
                       <ForecastOpinionPanel forecast={forecast} isLoading={overallLoading} language={language} />
                     </div>
                   )}
 
                   {activeMainTab === 'intelligence' && (
-                    <div className="space-y-6">
-                      <PlainVerdictCard decision={signal?.decision} checklist={checklist} language={language} />
+                    <Suspense fallback={<PanelFallback />}>
+                      <div className="space-y-6">
+                        <PlainVerdictCard decision={signal?.decision} checklist={checklist} language={language} />
 
-                      <MaStructurePanel
-                        indicators={indicators}
-                        price={ohlcv?.[ohlcv.length - 1]?.c}
-                        language={language}
-                      />
-
-                      {analysisResult && (
-                        <AnalysisResultCard
+                        <MaStructurePanel
+                          indicators={indicators}
+                          price={ohlcv?.[ohlcv.length - 1]?.c}
                           language={language}
-                          summary={analysisResult.summary}
-                          sentiment={analysisResult.overallSentiment}
-                          confidenceScore={analysisResult.confidenceScore}
-                          riskLevel={analysisResult.riskLevel}
-                          bullCase={analysisResult.bullCase}
-                          bearCase={analysisResult.bearCase}
-                          keyRisks={analysisResult.keyRisks}
-                          newsSentiment={analysisResult.newsSentiment}
-                          technicalOutlook={analysisResult.technicalOutlook}
-                          finalOutlook={analysisResult.finalOutlook}
                         />
-                      )}
 
-                      <TradeChecklistPanel
-                        ohlcv={ohlcv}
-                        indicators={indicators}
-                        signal={signal}
-                        forecast={forecast}
-                        earnings={earnings}
-                        language={language}
-                      />
+                        {analysisResult && (
+                          <AnalysisResultCard
+                            language={language}
+                            summary={analysisResult.summary}
+                            sentiment={analysisResult.overallSentiment}
+                            confidenceScore={analysisResult.confidenceScore}
+                            riskLevel={analysisResult.riskLevel}
+                            bullCase={analysisResult.bullCase}
+                            bearCase={analysisResult.bearCase}
+                            keyRisks={analysisResult.keyRisks}
+                            newsSentiment={analysisResult.newsSentiment}
+                            technicalOutlook={analysisResult.technicalOutlook}
+                            finalOutlook={analysisResult.finalOutlook}
+                          />
+                        )}
 
-                      <TradingStopsPanel
-                        ticker={currentTicker}
-                        currentPrice={snapshot?.price}
-                        atr={indicators?.atr14?.[indicators.atr14.length - 1]}
-                        supportPrice={null}
-                        language={language}
-                      />
+                        <TradeChecklistPanel
+                          ohlcv={ohlcv}
+                          indicators={indicators}
+                          signal={signal}
+                          forecast={forecast}
+                          earnings={earnings}
+                          language={language}
+                        />
 
-                      <PositionSizeCalculator
-                        currentPrice={snapshot?.price}
-                        suggestedStop={forecast?.invalidBelow}
-                        language={language}
-                      />
+                        <TradingStopsPanel
+                          ticker={currentTicker}
+                          currentPrice={snapshot?.price}
+                          atr={indicators?.atr14?.[indicators.atr14.length - 1]}
+                          supportPrice={null}
+                          language={language}
+                        />
 
-                      <TechnicalAnalysisPanel
-                        analysis={technicalAnalysis}
-                        isLoading={isTechnicalAnalysisLoading}
-                        error={technicalAnalysisError}
-                      />
+                        <PositionSizeCalculator
+                          currentPrice={snapshot?.price}
+                          suggestedStop={forecast?.invalidBelow}
+                          language={language}
+                        />
+
+                        <TechnicalAnalysisPanel
+                          analysis={technicalAnalysis}
+                          isLoading={isTechnicalAnalysisLoading}
+                          error={technicalAnalysisError}
+                        />
 
                       {/* Moved here from the old "details" tab: the same
                           question, read the analysis, was split across two
                           tabs with no rule for which held what. */}
-                      <FinnhubPanel ticker={currentTicker} language={language} />
-                      <AnalysisSidebar 
-                        forecast={forecast}
-                        marketContext={marketContext}
-                        earnings={earnings}
-                        trends={signal?.trends}
-                        signal={signal}
-                        isLoadingForecast={isMultiTimeframeLoading}
-                        isLoadingMarket={isMarketContextLoading}
-                        isLoadingEarnings={isEarningsLoading}
-                        language={language}
-                      />
-                    </div>
+                        <FinnhubPanel ticker={currentTicker} language={language} />
+                        <AnalysisSidebar
+                          forecast={forecast}
+                          marketContext={marketContext}
+                          earnings={earnings}
+                          trends={signal?.trends}
+                          signal={signal}
+                          isLoadingForecast={isMultiTimeframeLoading}
+                          isLoadingMarket={isMarketContextLoading}
+                          isLoadingEarnings={isEarningsLoading}
+                          language={language}
+                        />
+                      </div>
+                    </Suspense>
                   )}
 
                   {activeMainTab === 'pro' && (
@@ -754,7 +752,7 @@ export default function AdvancedApp() {
               )}
             </section>
 
-            <div className="mobile-bottom-nav lg:hidden">
+            <div className="mobile-bottom-nav xl:hidden">
               <div className="mobile-bottom-nav__inner">
                 {[ 
                   { id: 'intelligence', label: isHebrew ? 'החלטה' : 'Decision' },

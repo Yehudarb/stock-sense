@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 
+let availabilityRequest
+
+/**
+ * Resolve optional Finnhub capability once per page load.
+ */
+export function getFinnhubAvailability() {
+  if (!availabilityRequest) {
+    availabilityRequest = axios
+      .get('/api/finnhub/status', { timeout: 5000 })
+      .then(response => Boolean(response.data?.configured))
+      .catch(() => false)
+  }
+  return availabilityRequest
+}
+
 /**
  * Hook: Fetch Finnhub Company News
  */
@@ -18,6 +33,11 @@ export function useFinnhubNews(ticker, limit = 10) {
 
     async function fetch() {
       try {
+        const configured = await getFinnhubAvailability()
+        if (!configured) {
+          if (!cancelled) setNews([])
+          return
+        }
         const res = await axios.get(
           `/api/finnhub/news/${ticker}?limit=${limit}`,
           { timeout: 15000 }
@@ -58,6 +78,11 @@ export function useFinnhubProfile(ticker) {
 
     async function fetch() {
       try {
+        const configured = await getFinnhubAvailability()
+        if (!configured) {
+          if (!cancelled) setProfile(null)
+          return
+        }
         const res = await axios.get(`/api/finnhub/profile/${ticker}`, { timeout: 15000 })
         if (!cancelled) {
           setProfile(res.data)
@@ -95,6 +120,11 @@ export function useFinnhubQuote(ticker) {
 
     async function fetch() {
       try {
+        const configured = await getFinnhubAvailability()
+        if (!configured) {
+          if (!cancelled) setQuote(null)
+          return
+        }
         const res = await axios.get(`/api/finnhub/quote/${ticker}`, { timeout: 15000 })
         if (!cancelled) {
           setQuote(res.data)

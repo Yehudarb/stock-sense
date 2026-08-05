@@ -58,6 +58,9 @@ app.use('/api/trading', tradingEngineRouter)
 app.use('/api/stock-analysis-pro', stockAnalysisProRouter)
 app.use('/api/scanner', scannerRouter)
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }))
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').send('User-agent: *\nAllow: /\n')
+})
 
 if (hasClientBuild) {
   app.use(express.static(clientDistPath))

@@ -167,14 +167,13 @@ export default function StockLogo({ ticker, size = 'sm', className = '' }) {
   const sizeClass = SIZE_CLASS[size] ?? SIZE_CLASS.sm
   const logoSrc = fallbackStep === 0 && tradingViewSlug
     ? `https://s3-symbol-logo.tradingview.com/${tradingViewSlug}.svg`
-    : fallbackStep < 2 && clearbitDomain
-      ? `https://logo.clearbit.com/${clearbitDomain}`
-      : null
+    : null
 
   if (!logoSrc) {
     return (
       <span
         className={`inline-flex shrink-0 items-center justify-center rounded-full border border-slate-600 bg-gradient-to-br from-slate-700 to-slate-950 font-black text-slate-100 shadow-inner ${sizeClass} ${className}`}
+        data-logo-domain={clearbitDomain ?? undefined}
         aria-hidden="true"
       >
         {initials(symbol)}

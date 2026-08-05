@@ -1,16 +1,35 @@
+import { lazy, Suspense } from 'react'
 import useStore from './store/useStore'
-import SimpleApp from './simple/SimpleApp'
-import AdvancedApp from './AdvancedApp'
-import CupHandleScannerModal from './components/scanner/CupHandleScannerModal'
+
+const SimpleApp = lazy(() => import('./simple/SimpleApp'))
+const AdvancedApp = lazy(() => import('./AdvancedApp'))
+const CupHandleScannerModal = lazy(() => import('./components/scanner/CupHandleScannerModal'))
+
+function AppLoadingShell() {
+  return (
+    <div className="app-loading-shell" role="status" aria-live="polite">
+      <div className="app-loading-shell__brand">
+        <span aria-hidden="true" />
+        <strong>STOCK SENSE</strong>
+      </div>
+      <h1>ניתוח מניה ברור, לפני שמקבלים החלטה.</h1>
+      <p>טוען את סביבת הניתוח...</p>
+    </div>
+  )
+}
 
 export default function App() {
-  const { simpleMode } = useStore()
+  const { simpleMode, showScanner } = useStore()
   return (
     <>
-      {simpleMode ? <SimpleApp /> : <AdvancedApp />}
-      {/* Scanner modal renders alongside either app so the header button
-          works in both modes. Its own store flag controls visibility. */}
-      <CupHandleScannerModal />
+      <Suspense fallback={<AppLoadingShell />}>
+        {simpleMode ? <SimpleApp /> : <AdvancedApp />}
+      </Suspense>
+      {showScanner && (
+        <Suspense fallback={null}>
+          <CupHandleScannerModal />
+        </Suspense>
+      )}
     </>
   )
 }

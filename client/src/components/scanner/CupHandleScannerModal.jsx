@@ -82,6 +82,22 @@ export default function CupHandleScannerModal() {
   const [minStrength, setMinStrength] = useState(55)
   const [resultLimit, setResultLimit] = useState(100)
   const lastStartedRunRef = useRef(0)
+  const dialogRef = useRef(null)
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement
+    dialogRef.current?.focus()
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') setShowScanner(false)
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus?.()
+    }
+  }, [setShowScanner])
 
   useEffect(() => {
     if (!showScanner) return undefined
@@ -188,7 +204,11 @@ export default function CupHandleScannerModal() {
       dir="rtl"
     >
       <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
         aria-label="סורק Cup and Handle לכל השוק"
+        tabIndex={-1}
         onClick={event => event.stopPropagation()}
         style={{
           width: '100%', maxWidth: 1180, maxHeight: '92vh', overflow: 'hidden',
