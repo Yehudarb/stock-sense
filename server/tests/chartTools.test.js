@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { activeSmaKeys, buildGapMarkers, buildPatternMarkers, formatProTimeAxisLabel } from '../../client/src/components/charts/chartHelpers.js'
+import { activeSmaKeys, buildGapMarkers, buildPatternMarkers, buildProTimeAxisLabels, formatProTimeAxisLabel } from '../../client/src/components/charts/chartHelpers.js'
 import { detectRecentCandlestickPatterns } from '../../client/src/lib/patterns.js'
 
 function barsWithHammer() {
@@ -89,4 +89,17 @@ test('Pro chart time axis keeps dates visible for daily and intraday bars', () =
   assert.equal(formatProTimeAxisLabel(timestamp, '1d', 'he'), 'ב׳ 03.08')
   assert.equal(formatProTimeAxisLabel(timestamp, '15m', 'he'), '03.08 14:30')
   assert.equal(formatProTimeAxisLabel(timestamp, '1y', 'he'), '08.26')
+})
+
+test('Pro chart axis spans the displayed range with chronological date labels', () => {
+  const bars = Array.from({ length: 9 }, (_, index) => ({
+    t: Date.UTC(2026, 7, index + 3, 14, 30),
+  }))
+  const labels = buildProTimeAxisLabels(bars, 0, 8, '1d', 'he', 4)
+
+  assert.equal(labels.length, 4)
+  assert.equal(labels[0].index, 0)
+  assert.equal(labels.at(-1).index, 8)
+  assert.equal(labels[0].label, 'ב׳ 03.08')
+  assert.equal(labels.at(-1).label, 'ג׳ 11.08')
 })

@@ -8,9 +8,8 @@ import {
   activeSmaKeys,
   buildGapMarkers,
   buildPatternMarkers,
+  buildProTimeAxisLabels,
   computeFibonacci,
-  formatProTimeAxisLabel,
-  isIntradayChartInterval,
   isTrendlinePattern,
   measuredMoveTargets,
   OVERLAY_COLORS,
@@ -27,6 +26,7 @@ import { TRADER_COLORS } from '../../lib/traderColors'
 // Axis label size. The library's own default is 11px, small enough that the
 // price column on the right was hard to read at a glance.
 const AXIS_FONT_SIZE = 13
+const PRO_TIME_AXIS_HEIGHT = 36
 
 // Distinct colors per overlay so a busy chart is still readable.
 // Palette lives in chartHelpers so the legend that names these lines and the
@@ -352,18 +352,10 @@ export default function TradingViewChart({
         minimumWidth: 78,
         entireTextOnly: true,
       },
-      timeScale: {
-        visible: true,
-        borderVisible: true,
-        borderColor: palette.axis,
-        ticksVisible: true,
-        minimumHeight: 34,
-        timeVisible: isIntradayChartInterval(interval),
-        secondsVisible: false,
-        rightOffset: 4,
-        tickMarkMaxCharacterLength: 13,
-        tickMarkFormatter: time => formatProTimeAxisLabel(time, interval, language),
-      },
+      // The library time axis has intermittently rendered blank in the Pro
+      // layout. It stays hidden; a persistent React axis below uses the exact
+      // current visible range and cannot be clipped by the chart canvas.
+      timeScale: { visible: false, borderColor: palette.axis, rightOffset: 4 },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: palette.axis, width: 1, style: LineStyle.Dashed, labelBackgroundColor: palette.axis },
@@ -490,6 +482,11 @@ export default function TradingViewChart({
     visibleStartIndex,
     Math.max(visibleStartIndex, candles.length - 1),
   )
+  const timeAxisLabels = useMemo(
+    () => buildProTimeAxisLabels(ohlcv, visibleStartIndex, visibleEndIndex, interval, language),
+    [language, interval, ohlcv, visibleEndIndex, visibleStartIndex],
+  )
+  const chartHeight = Math.max(160, Number(height) - PRO_TIME_AXIS_HEIGHT)
   const patternMarkerData = useMemo(
     () => showPatterns ? buildPatternMarkers(ohlcv, patterns) : [],
     [ohlcv, patterns, showPatterns],
@@ -982,7 +979,7 @@ export default function TradingViewChart({
       data-pattern-marker-count={patternMarkerData.length}
       data-gap-marker-count={gapMarkerData.length}
       data-measurement-active={measurementEnabled ? 'true' : 'false'}
-      style={{ position: 'relative' }}
+      style={{ position: 'relative', height }}
     >
       {/* Floating OHLC readout on crosshair hover */}
       {hovered && (
@@ -1007,7 +1004,7 @@ export default function TradingViewChart({
 
       {(showPatterns || showGaps) && (
         <div style={{
-          position: 'absolute', bottom: 8, insetInlineStart: 8, zIndex: 5,
+          position: 'absolute', bottom: PRO_TIME_AXIS_HEIGHT + 8, insetInlineStart: 8, zIndex: 5,
           display: 'flex', gap: 6, pointerEvents: 'none',
         }}>
           {showPatterns && (
@@ -1031,7 +1028,24 @@ export default function TradingViewChart({
         </div>
       )}
 
-      <div ref={containerRef} style={{ height, width: '100%' }} />
+      <div ref={containerRef} style={{ height: chartHeight, width: '100%' }} />
+      <div
+        aria-label={language === 'he' ? 'ציר זמן ותאריכים' : 'Time and date axis'}
+        style={{
+          position: 'absolute', insetInlineStart: 8, insetInlineEnd: 86, bottom: 0,
+          height: PRO_TIME_AXIS_HEIGHT, borderTop: `1px solid ${palette.axis}`,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          paddingTop: 6, color: palette.text, fontSize: 11, fontWeight: 700,
+          fontVariantNumeric: 'tabular-nums', direction: 'ltr', pointerEvents: 'none',
+        }}
+      >
+        {timeAxisLabels.map((item, index) => (
+          <span key={item.index} style={{ position: 'relative', textAlign: index === 0 ? 'left' : index === timeAxisLabels.length - 1 ? 'right' : 'center' }}>
+            <i style={{ position: 'absolute', top: -7, left: '50%', width: 1, height: 4, background: palette.axis }} />
+            {item.label}
+          </span>
+        ))}
+      </div>
       {measurementEnabled && (
         <div
           role="application"
@@ -1041,7 +1055,7 @@ export default function TradingViewChart({
           onPointerUp={handleMeasurementPointerUp}
           onPointerCancel={handleMeasurementPointerUp}
           style={{
-            position: 'absolute', inset: 0, zIndex: 7, cursor: 'crosshair',
+            position: 'absolute', inset: 0, bottom: PRO_TIME_AXIS_HEIGHT, zIndex: 7, cursor: 'crosshair',
             touchAction: 'none', userSelect: 'none',
           }}
         >

@@ -77,6 +77,25 @@ export function formatProTimeAxisLabel(time, interval, language = 'he') {
   return language === 'he' ? `${weekdays[date.getUTCDay()]} ${day}.${month}` : `${weekdays[date.getUTCDay()]} ${day}/${month}`
 }
 
+/** Builds evenly spaced, chronological labels for the persistent Pro chart axis. */
+export function buildProTimeAxisLabels(ohlcv, startIndex, endIndex, interval, language = 'he', maxLabels = 6) {
+  if (!Array.isArray(ohlcv) || ohlcv.length === 0 || maxLabels < 1) return []
+
+  const start = Math.max(0, Math.min(ohlcv.length - 1, Math.floor(startIndex ?? 0)))
+  const end = Math.max(start, Math.min(ohlcv.length - 1, Math.ceil(endIndex ?? ohlcv.length - 1)))
+  const count = Math.min(maxLabels, end - start + 1)
+  const indexes = new Set()
+
+  for (let position = 0; position < count; position += 1) {
+    indexes.add(Math.round(start + ((end - start) * position) / Math.max(1, count - 1)))
+  }
+
+  return [...indexes].sort((left, right) => left - right).map(index => ({
+    index,
+    label: formatProTimeAxisLabel(ohlcv[index]?.t / 1000, interval, language),
+  })).filter(item => item.label != null)
+}
+
 export function seriesFromBars(ohlcv, key) {
   return ohlcv.map(bar => bar[key])
 }
