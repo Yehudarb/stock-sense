@@ -42,7 +42,7 @@ export default function Sidebar({ isConnected = false, activeTab, onTabChange })
   const canNavigate = !simpleMode && typeof onTabChange === 'function'
 
   return (
-    <aside className="app-sidebar hidden shrink-0 xl:sticky xl:top-0 xl:flex xl:h-screen xl:w-[276px] xl:flex-col">
+    <aside className="app-sidebar hidden shrink-0 xl:flex xl:w-[276px] xl:flex-col">
       <div className="app-sidebar__brand">
         <div className="brand-mark" aria-hidden="true">
           <span />
@@ -62,6 +62,11 @@ export default function Sidebar({ isConnected = false, activeTab, onTabChange })
       <div className="app-sidebar__stock-search">
         <TickerSearch prominent />
       </div>
+
+      <section className="app-sidebar__watchlist" aria-label={isHebrew ? 'רשימת מעקב' : 'Watchlist'}>
+        <div className="app-sidebar__label">{isHebrew ? 'רשימת מעקב' : 'Watchlist'}</div>
+        <WatchlistPanel />
+      </section>
 
       {canNavigate ? (
         <nav className="app-sidebar__nav" aria-label={isHebrew ? 'מודולי ניתוח' : 'Analysis modules'}>
@@ -106,10 +111,6 @@ export default function Sidebar({ isConnected = false, activeTab, onTabChange })
         </span>
       </button>
 
-      <div className="app-sidebar__watchlist">
-        <div className="app-sidebar__label">{isHebrew ? 'רשימת מעקב' : 'Watchlist'}</div>
-        <WatchlistPanel />
-      </div>
     </aside>
   )
 }

@@ -638,6 +638,42 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 .app-sidebar__stock-search .ticker-search__label { color: #99f6e4; font-size: 0.62rem; }
 .app-sidebar__stock-search .ticker-search__input { min-height: 2.7rem; border-color: rgba(45, 212, 191, 0.42); background: rgba(7, 24, 48, 0.92); font-weight: 700; }
 
+/* Keep the followed symbols in the first visible viewport. Navigation can
+   scroll inside its own short rail, but the watchlist never competes with the
+   document height or disappears below the scanner. */
+@media (min-width: 1280px) {
+  :root { --desktop-header-height: 6.8rem; }
+  .app-header { position: sticky; top: 0; }
+  .app-sidebar {
+    position: sticky;
+    top: var(--desktop-header-height);
+    height: calc(100vh - var(--desktop-header-height));
+    overflow: hidden;
+  }
+  .app-sidebar__watchlist {
+    display: flex;
+    height: clamp(9rem, 22vh, 13.5rem);
+    min-height: 9rem;
+    flex: 0 0 auto;
+    flex-direction: column;
+    border-top: 1px solid var(--panel-border);
+    border-bottom: 1px solid var(--panel-border);
+    padding: 0.75rem;
+  }
+  .app-sidebar__watchlist > div:last-child {
+    height: auto;
+    min-height: 0;
+    flex: 1;
+  }
+  .app-sidebar__nav {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .scanner-launch { flex: 0 0 auto; }
+}
+
 /* Dashboard hierarchy */
 .dashboard-command {
   display: grid;
