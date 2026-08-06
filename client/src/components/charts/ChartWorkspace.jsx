@@ -269,6 +269,23 @@ function MichaChartExplanation({ method, indicators, price, className = '' }) {
   ].filter(item => Number.isFinite(item.value))
 
   const fib = method.fibonacci?.goldenZone
+  const checklist = [
+    { label: 'מחיר מעל SMA 150', passed: method.trend?.priceAboveSma150, detail: method.trend?.priceAboveSma150 ? 'מאושר' : 'לא מאושר' },
+    { label: 'מחיר מעל SMA 200', passed: method.trend?.priceAboveSma200, detail: method.trend?.priceAboveSma200 ? 'מאושר' : 'לא מאושר' },
+    { label: 'SMA 150 מעל SMA 200', passed: method.trend?.sma150AboveSma200, detail: method.trend?.sma150AboveSma200 ? 'מבנה ארוך טווח תקין' : 'המבנה אינו תקין' },
+    { label: 'SMA 200 עולה', passed: method.trend?.sma200Rising, detail: method.trend?.sma200Rising ? 'המגמה ארוכת הטווח תומכת' : 'אין אישור שיפוע' },
+    { label: 'תזמון SMA 20', passed: ['healthy_pullback_to_sma20', 'trading_near_sma20', 'reclaiming_sma20'].includes(method.timing?.status), detail: method.timing?.status?.replaceAll('_', ' ') ?? 'אין נתון' },
+    { label: 'קו מגמה', passed: (method.trendlines ?? []).some(line => line.status !== 'broken'), detail: (method.trendlines ?? []).some(line => line.status === 'testing') ? 'נבדק כעת' : (method.trendlines ?? []).some(line => line.status === 'holding') ? 'מוחזק' : 'לא אומת' },
+    { label: 'Fibonacci תקין', passed: Boolean(method.fibonacci?.available && method.fibonacci?.status !== 'deep_retracement'), detail: method.fibonacci?.status?.replaceAll('_', ' ') ?? 'לא זמין' },
+    { label: 'אישור Trigger', passed: method.setup?.status === 'triggered', detail: method.setup?.status === 'triggered' ? 'התקבל אישור' : 'ממתין לנר אישור' },
+    { label: 'יחס סיכוי/סיכון', passed: (method.risk?.riskReward ?? 0) >= 1.5, detail: Number.isFinite(method.risk?.riskReward) ? `${method.risk.riskReward}:1` : 'לא מחושב' },
+  ]
+  const passedCount = checklist.filter(item => item.passed).length
+  const checklistSummary = method.score >= 75
+    ? 'יישור טכני חזק. יש להמתין לכל תנאי אישור שעדיין לא התקיים.'
+    : method.score >= 55
+      ? 'התמונה מעורבת עד סבירה. המערכת מסמנת מעקב, לא פעולה אוטומטית.'
+      : 'התנאים הטכניים אינם מיושרים מספיק לפי השיטה כרגע.'
   return (
     <aside dir="rtl" className={`w-[min(19rem,calc(100vw-2rem))] rounded-2xl border border-cyan-400/25 bg-slate-950/95 p-3 shadow-[0_18px_45px_rgba(2,6,23,0.55)] backdrop-blur ${className}`}>
       <div className="mb-3 flex items-start justify-between gap-2 border-b border-white/10 pb-2">
@@ -279,6 +296,14 @@ function MichaChartExplanation({ method, indicators, price, className = '' }) {
         <span className="rounded-full bg-cyan-400/15 px-2 py-1 text-[10px] font-bold text-cyan-200">{method.score ?? '--'}/100</span>
       </div>
       <div className="max-h-[min(48vh,31rem)] space-y-3 overflow-y-auto pe-1 text-xs">
+        <section className="rounded-xl border border-white/10 bg-slate-900/70 p-2.5">
+          <div className="mb-2 flex items-center justify-between gap-2"><span className="font-semibold text-slate-100">צ׳קליסט השיטה</span><span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-cyan-200">{passedCount}/{checklist.length}</span></div>
+          <div className="space-y-1.5">{checklist.map(item => <div key={item.label} className="flex items-start gap-2 text-[10px] leading-4">
+            <span className={item.passed ? 'font-bold text-emerald-300' : 'font-bold text-rose-300'}>{item.passed ? '✓' : '✕'}</span>
+            <span className="min-w-0 flex-1 text-slate-200">{item.label}</span><span className="text-end text-slate-500">{item.detail}</span>
+          </div>)}</div>
+          <p className="mt-2 border-t border-white/8 pt-2 text-[10px] leading-4 text-slate-300"><strong className="text-cyan-200">סיכום: </strong>{checklistSummary} ציון השיטה: <strong className="text-white">{method.score ?? '--'}/100</strong>.</p>
+        </section>
         <section>
           <div className="mb-1.5 font-semibold text-slate-200">ממוצעים נעים</div>
           <div className="space-y-2">
@@ -309,6 +334,28 @@ function MichaChartExplanation({ method, indicators, price, className = '' }) {
         </section>}
       </div>
     </aside>
+  )
+}
+
+/** A compact chart-side control that keeps the detailed method explanation out of the way. */
+function MichaSummaryPopover({ isOpen, onToggle, method, indicators, price, className = '' }) {
+  const score = method?.score
+  const scoreTone = score >= 75 ? 'border-emerald-400/55 bg-emerald-400/15 text-emerald-100' : score >= 55 ? 'border-amber-400/55 bg-amber-400/15 text-amber-100' : 'border-rose-400/55 bg-rose-400/15 text-rose-100'
+  return (
+    <div className={`relative ${className}`} dir="rtl">
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        onClick={onToggle}
+        className={`group flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold shadow-[0_10px_28px_rgba(2,6,23,0.45)] transition-transform hover:-translate-y-0.5 ${scoreTone}`}
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/55 text-sm">מ</span>
+        <span>סיכום מיכו</span>
+        <span className="rounded-full bg-slate-950/35 px-1.5 py-0.5 text-[10px]">{score ?? '--'}</span>
+        <span className="text-[10px] opacity-75">{isOpen ? 'סגור' : 'פתח'}</span>
+      </button>
+      {isOpen && <MichaChartExplanation method={method} indicators={indicators} price={price} className="absolute left-0 top-[calc(100%+0.5rem)] z-30" />}
+    </div>
   )
 }
 
@@ -694,6 +741,7 @@ export default function ChartWorkspace({
   const [showPatterns, setShowPatterns] = useState(false)
   const [showTriangles, setShowTriangles] = useState(false)
   const [showMichaMethod, setShowMichaMethod] = useState(false)
+  const [showMichaSummary, setShowMichaSummary] = useState(false)
   // Projection is what makes a trendline tradable rather than decorative, so
   // it is on by default; the toggle is for when the chart gets busy.
   const [extendTrendlines, setExtendTrendlines] = useState(false)
@@ -1678,7 +1726,9 @@ export default function ChartWorkspace({
             <strong className="text-white">{INTERVAL_LABELS[language]?.[interval] ?? interval}</strong>
           </div>
           {showMichaMethod && (
-            <MichaChartExplanation
+            <MichaSummaryPopover
+              isOpen={showMichaSummary}
+              onToggle={() => setShowMichaSummary(value => !value)}
               method={technicalMethod}
               indicators={indicators}
               price={snapshot?.price ?? spot}
@@ -1707,7 +1757,9 @@ export default function ChartWorkspace({
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
           {showMichaMethod && (
-            <MichaChartExplanation
+            <MichaSummaryPopover
+              isOpen={showMichaSummary}
+              onToggle={() => setShowMichaSummary(value => !value)}
               method={technicalMethod}
               indicators={indicators}
               price={snapshot?.price ?? spot}
