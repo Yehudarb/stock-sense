@@ -18,19 +18,19 @@ export default function Layout({ children, isConnected, activeTab, onTabChange }
 
   return (
     <div
-      className={`app-shell flex min-h-screen flex-col bg-surface md:h-screen ${viewMode === 'mobile' ? 'app-shell--mobile-preview' : ''}`}
+      className={`app-shell flex min-h-screen min-w-0 flex-col bg-surface ${viewMode === 'mobile' ? 'app-shell--mobile-preview' : ''}`}
       dir={isHebrew ? 'rtl' : 'ltr'}
       data-theme={theme}
       data-view-mode={viewMode}
     >
       <Header isConnected={isConnected} />
-      <div className="app-shell__body flex flex-1 flex-col md:min-h-0 md:flex-row md:overflow-hidden">
+      <div className="app-shell__body flex min-w-0 flex-1 flex-col md:flex-row">
         <Sidebar
           isConnected={isConnected}
           activeTab={activeTab}
           onTabChange={onTabChange}
         />
-        <main className="app-main flex-1 overflow-y-auto p-3 sm:p-4 md:min-h-0 md:p-5 xl:p-7">
+        <main className="app-main min-w-0 flex-1 p-3 sm:p-4 md:p-5 xl:p-7">
           <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-6">
             {children}
           </div>

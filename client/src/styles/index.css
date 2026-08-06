@@ -196,6 +196,24 @@ body {
   transition: background 200ms ease, color 200ms ease;
 }
 
+html {
+  min-width: 320px;
+  scrollbar-gutter: stable;
+}
+
+/* One page-level scroll surface prevents the browser, main panel, sidebar and
+   individual cards from competing for the wheel or touch gesture. */
+.app-shell,
+.app-shell__body,
+.app-main {
+  min-width: 0;
+}
+
+.app-main {
+  overflow: visible;
+  overscroll-behavior-y: auto;
+}
+
 .live-dot {
   width: 8px;
   height: 8px;
@@ -854,6 +872,19 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   .dashboard-command__search { grid-column: 1 / -1; }
   .ticker-search--prominent { min-width: 0; }
   .dashboard-overview { grid-template-columns: 1fr; }
+}
+
+/* The sidebar is still visible between 1281px and 1439px. At that width the
+   content area is closer to a tablet than a full desktop, so collapse the
+   dashboard before cards are clipped or the user reaches for browser zoom. */
+@media (min-width: 1281px) and (max-width: 1439px) {
+  .dashboard-command { grid-template-columns: minmax(12rem, 1fr) auto auto; }
+  .dashboard-command__context { display: none; }
+  .dashboard-command__search { grid-column: 1 / -1; }
+  .ticker-search--prominent { min-width: 0; }
+  .dashboard-overview { grid-template-columns: 1fr; }
+  .workspace-nav { gap: 0.55rem; padding: 0.55rem; }
+  .workspace-nav__intro { display: none; }
 }
 
 @media (max-width: 900px) {

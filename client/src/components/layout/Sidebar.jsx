@@ -42,7 +42,7 @@ export default function Sidebar({ isConnected = false, activeTab, onTabChange })
   const canNavigate = !simpleMode && typeof onTabChange === 'function'
 
   return (
-    <aside className="app-sidebar hidden shrink-0 xl:flex xl:h-full xl:w-[276px] xl:flex-col">
+    <aside className="app-sidebar hidden shrink-0 xl:sticky xl:top-0 xl:flex xl:h-screen xl:w-[276px] xl:flex-col">
       <div className="app-sidebar__brand">
         <div className="brand-mark" aria-hidden="true">
           <span />
