@@ -4,7 +4,7 @@ import useStore from '../../store/useStore'
 import { fmtPercent, fmtPrice } from '../../lib/formatters'
 import Badge from '../ui/Badge'
 import ChartContainer from './ChartContainer'
-import { isTrendlinePattern, OVERLAY_COLORS, patternBreakoutLevel } from './chartHelpers'
+import { activeSmaKeys, isTrendlinePattern, OVERLAY_COLORS, patternBreakoutLevel } from './chartHelpers'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import IndicatorLineChart from './IndicatorLineChart'
 import MacdChart from './MacdChart'
@@ -246,16 +246,13 @@ function priceRelation(price, average) {
 }
 
 /** Explains each overlay produced by Micha Method without changing its calculations. */
-function MichaChartExplanation({ method, indicators, price, ticker, className = '' }) {
+function MichaChartExplanation({ method, price, ticker, className = '' }) {
   if (!method) {
     return <aside className={`rounded-2xl border border-amber-400/25 bg-slate-950/95 p-3 text-xs text-amber-100 ${className}`}>שיטת מיכו ממתינה להיסטוריית נרות מספקת לצורך חישוב.</aside>
   }
 
-  const last = indicators?.sma20?.length ? indicators.sma20.length - 1 : null
   const averages = [
     { name: 'SMA 20', value: method.timing?.sma20, color: '#22d3ee', text: michaTimingText(method.timing?.status) },
-    { name: 'SMA 50', value: last != null ? indicators?.sma50?.[last] : null, color: '#a78bfa', text: 'קו ביניים להקשר מגמה; אינו טריגר עצמאי בשיטה.' },
-    { name: 'SMA 100', value: last != null ? indicators?.sma100?.[last] : null, color: '#f59e0b', text: 'קו מבני משני לבחינת רציפות המגמה.' },
     { name: 'SMA 150', value: method.trend?.sma150, color: '#f97316', text: method.trend?.priceAboveSma150 ? 'המחיר מעל SMA 150, רכיב חיובי במגמה ארוכת הטווח.' : 'המחיר מתחת ל-SMA 150, לכן המגמה ארוכת הטווח אינה מאושרת במלואה.' },
     { name: 'SMA 200', value: method.trend?.sma200, color: '#ec4899', text: method.trend?.sma200Rising ? 'SMA 200 עולה, תנאי מבני חיובי בשיטה.' : 'SMA 200 אינו עולה, ולכן אין אישור מלא למגמה ארוכת הטווח.' },
   ].filter(item => Number.isFinite(item.value))
@@ -338,7 +335,7 @@ function MichaChartExplanation({ method, indicators, price, ticker, className = 
 }
 
 /** A compact chart-side control that keeps the detailed method explanation out of the way. */
-function MichaSummaryPopover({ isOpen, onToggle, method, indicators, price, ticker, className = '' }) {
+function MichaSummaryPopover({ isOpen, onToggle, method, price, ticker, className = '' }) {
   const score = method?.score
   const scoreTone = score >= 75 ? 'border-emerald-400/55 bg-emerald-400/15 text-emerald-100' : score >= 55 ? 'border-amber-400/55 bg-amber-400/15 text-amber-100' : 'border-rose-400/55 bg-rose-400/15 text-rose-100'
   return (
@@ -354,7 +351,7 @@ function MichaSummaryPopover({ isOpen, onToggle, method, indicators, price, tick
         <span className="rounded-full bg-slate-950/35 px-1.5 py-0.5 text-[10px]">{score ?? '--'}</span>
         <span className="text-[10px] opacity-75">{isOpen ? 'סגור' : 'פתח'}</span>
       </button>
-      {isOpen && <MichaChartExplanation method={method} indicators={indicators} price={price} ticker={ticker} className="absolute left-0 top-[calc(100%+0.5rem)] z-30" />}
+      {isOpen && <MichaChartExplanation method={method} price={price} ticker={ticker} className="absolute left-0 top-[calc(100%+0.5rem)] z-30" />}
     </div>
   )
 }
@@ -1168,15 +1165,23 @@ export default function ChartWorkspace({
     },
   ]
 
+  const visibleSmaKeys = showSMA
+    ? activeSmaKeys(false)
+    : showMichaMethod
+      ? activeSmaKeys(true)
+      : []
+  const smaLegendAction = showSMA ? () => setShowSMA(false) : () => setShowMichaMethod(false)
+  const smaLegend = visibleSmaKeys.map(key => ({
+    label: `SMA ${key.slice(3)}`,
+    color: OVERLAY_COLORS[key],
+    action: smaLegendAction,
+  }))
+
   const activeLegend = [
     chartType === 'candlestick' ? { label: 'Candles', color: OVERLAY_COLORS.candles, action: () => setChartType('line') } : null,
     chartType === 'line' ? { label: 'Line', color: OVERLAY_COLORS.line, action: () => setChartType('candlestick') } : null,
     chartType === 'area' ? { label: 'Area', color: OVERLAY_COLORS.area, action: () => setChartType('candlestick') } : null,
-    showSMA ? { label: 'SMA 20', color: OVERLAY_COLORS.sma20, action: () => setShowSMA(false) } : null,
-    showSMA ? { label: 'SMA 50', color: OVERLAY_COLORS.sma50, action: () => setShowSMA(false) } : null,
-    showSMA ? { label: 'SMA 100', color: OVERLAY_COLORS.sma100, action: () => setShowSMA(false) } : null,
-    showSMA ? { label: 'SMA 150', color: OVERLAY_COLORS.sma150, action: () => setShowSMA(false) } : null,
-    showSMA ? { label: 'SMA 200', color: OVERLAY_COLORS.sma200, action: () => setShowSMA(false) } : null,
+    ...smaLegend,
     showEMA ? { label: 'EMA 9', color: OVERLAY_COLORS.ema9, action: () => setShowEMA(false) } : null,
     showEMA ? { label: 'EMA 10', color: OVERLAY_COLORS.ema10, action: () => setShowEMA(false) } : null,
     showEMA ? { label: 'EMA 20', color: OVERLAY_COLORS.ema20, action: () => setShowEMA(false) } : null,
@@ -1224,11 +1229,7 @@ export default function ChartWorkspace({
   ].filter(Boolean)
 
   const mainChartKeys = [
-    showSMA ? { label: 'SMA 20', color: OVERLAY_COLORS.sma20 } : null,
-    showSMA ? { label: 'SMA 50', color: OVERLAY_COLORS.sma50 } : null,
-    showSMA ? { label: 'SMA 100', color: OVERLAY_COLORS.sma100 } : null,
-    showSMA ? { label: 'SMA 150', color: OVERLAY_COLORS.sma150 } : null,
-    showSMA ? { label: 'SMA 200', color: OVERLAY_COLORS.sma200 } : null,
+    ...visibleSmaKeys.map(key => ({ label: `SMA ${key.slice(3)}`, color: OVERLAY_COLORS[key] })),
     showEMA ? { label: 'EMA 9', color: OVERLAY_COLORS.ema9 } : null,
     showEMA ? { label: 'EMA 10', color: OVERLAY_COLORS.ema10 } : null,
     showEMA ? { label: 'EMA 20', color: OVERLAY_COLORS.ema20 } : null,
@@ -1737,7 +1738,6 @@ export default function ChartWorkspace({
               isOpen={showMichaSummary}
               onToggle={() => setShowMichaSummary(value => !value)}
               method={technicalMethod}
-              indicators={indicators}
               price={snapshot?.price ?? spot}
               ticker={currentTicker}
               className="mb-3 lg:hidden"
@@ -1769,7 +1769,6 @@ export default function ChartWorkspace({
               isOpen={showMichaSummary}
               onToggle={() => setShowMichaSummary(value => !value)}
               method={technicalMethod}
-              indicators={indicators}
               price={snapshot?.price ?? spot}
               ticker={currentTicker}
               className="absolute left-4 top-4 z-20 hidden lg:block"
@@ -1786,6 +1785,7 @@ export default function ChartWorkspace({
                 height={resolvedPriceChartHeight}
                 chartType={chartType}
                 showSMA={showSMA || showMichaMethod}
+                methodSmaOnly={showMichaMethod && !showSMA}
                 showEMA={showEMA}
                 showWMA={showWMA}
                 showBB={showBB}
@@ -1824,6 +1824,7 @@ export default function ChartWorkspace({
               ohlcv={ohlcv}
               indicators={indicators}
               showSMA={showSMA || showMichaMethod}
+              methodSmaOnly={showMichaMethod && !showSMA}
               showEMA={showEMA}
               showWMA={showWMA}
               showBB={showBB}

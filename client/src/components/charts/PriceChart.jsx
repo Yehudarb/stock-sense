@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js'
 import { CHART_COLORS } from '../../../../shared/constants'
 import useStore from '../../store/useStore'
-import { computeFibonacci, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, isTrendlinePattern, labelsFromBars, OVERLAY_COLORS, patternBreakoutLevel, seriesFromBars, seriesFromIndicator } from './chartHelpers'
+import { activeSmaKeys, computeFibonacci, createCrosshairPlugin, formatTooltipDate, getChartPalette, getWindowBounds, isTrendlinePattern, labelsFromBars, OVERLAY_COLORS, patternBreakoutLevel, seriesFromBars, seriesFromIndicator } from './chartHelpers'
 import { TRADER_COLORS } from '../../lib/traderColors'
 
 const TV_GREEN = TRADER_COLORS.entry
@@ -19,6 +19,14 @@ const GAP_COLORS = {
   open: { stroke: TRADER_COLORS.resistance, fill: 'rgba(249, 115, 22, 0.13)' },
   partial: { stroke: TRADER_COLORS.warning, fill: 'rgba(234, 179, 8, 0.12)' },
   closed: { stroke: '#64748b', fill: 'rgba(100, 116, 139, 0.08)' },
+}
+
+const SMA_DATASET_OPTIONS = {
+  sma20: { label: 'SMA 20', color: OVERLAY_COLORS.sma20, width: 1.6 },
+  sma50: { label: 'SMA 50', color: OVERLAY_COLORS.sma50, width: 1.4 },
+  sma100: { label: 'SMA 100', color: OVERLAY_COLORS.sma100, width: 1.1 },
+  sma150: { label: 'SMA 150', color: OVERLAY_COLORS.sma150, width: 1.5 },
+  sma200: { label: 'SMA 200', color: OVERLAY_COLORS.sma200, width: 1.4 },
 }
 
 
@@ -85,11 +93,7 @@ function buildPriceRange(ohlcv, indicators, overlays, targetPatterns, gaps, fibo
   })
 
   if (overlays.showSMA) {
-    pushRangeValues(values, indicators?.sma20)
-    pushRangeValues(values, indicators?.sma50)
-    pushRangeValues(values, indicators?.sma100)
-    pushRangeValues(values, indicators?.sma150)
-    pushRangeValues(values, indicators?.sma200)
+    activeSmaKeys(overlays.methodSmaOnly).forEach(key => pushRangeValues(values, indicators?.[key]))
   }
   if (overlays.showEMA) {
     pushRangeValues(values, indicators?.ema9)
@@ -919,6 +923,7 @@ export default function PriceChart({
   ohlcv,
   indicators,
   showSMA,
+  methodSmaOnly = false,
   showEMA,
   showWMA = false,
   showBB,
@@ -1053,6 +1058,7 @@ export default function PriceChart({
 
     const priceRange = applyPriceScale(buildPriceRange(visibleOhlcv, visibleIndicators, {
       showSMA,
+      methodSmaOnly,
       showEMA,
       showWMA,
       showBB,
@@ -1176,22 +1182,21 @@ export default function PriceChart({
     }
 
     if (showSMA && visibleIndicators?.sma20) {
-      ;[
-        ['SMA 20', visibleIndicators.sma20, OVERLAY_COLORS.sma20, 1.6],
-        ['SMA 50', visibleIndicators.sma50, OVERLAY_COLORS.sma50, 1.4],
-        ['SMA 100', visibleIndicators.sma100, OVERLAY_COLORS.sma100, 1.1],
-        ['SMA 150', visibleIndicators.sma150, OVERLAY_COLORS.sma150, 1.5],
-        ['SMA 200', visibleIndicators.sma200, OVERLAY_COLORS.sma200, 1.4],
-      ].forEach(([label, values, color, width]) => datasets.push({
-        type: 'line',
-        label,
-        data: seriesFromIndicator(values),
-        borderColor: color,
-        borderWidth: width,
-        pointRadius: 0,
-        tension: 0.1,
-        yAxisID: 'y',
-      }))
+      activeSmaKeys(methodSmaOnly).forEach(key => {
+        const { label, color, width } = SMA_DATASET_OPTIONS[key]
+        const values = visibleIndicators[key]
+        if (!values) return
+        datasets.push({
+          type: 'line',
+          label,
+          data: seriesFromIndicator(values),
+          borderColor: color,
+          borderWidth: width,
+          pointRadius: 0,
+          tension: 0.1,
+          yAxisID: 'y',
+        })
+      })
     }
 
     if (showEMA && visibleIndicators?.ema50) {
@@ -1717,7 +1722,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showTargets, showLevels, showTechnicalMethod, ticker, decision, technicalMethod, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, resetToken, theme, isMobileViewport])
+  }, [ohlcv, indicators, showSMA, methodSmaOnly, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showTargets, showLevels, showTechnicalMethod, ticker, decision, technicalMethod, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, resetToken, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

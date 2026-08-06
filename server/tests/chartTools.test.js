@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildGapMarkers, buildPatternMarkers } from '../../client/src/components/charts/chartHelpers.js'
+import { activeSmaKeys, buildGapMarkers, buildPatternMarkers } from '../../client/src/components/charts/chartHelpers.js'
 import { detectRecentCandlestickPatterns } from '../../client/src/lib/patterns.js'
 
 function barsWithHammer() {
@@ -76,4 +76,9 @@ test('a one-bar gap still produces a visible marker', () => {
   assert.equal(markers.length, 1)
   assert.equal(markers[0].shape, 'arrowDown')
   assert.match(markers[0].text, /Gap.*open/)
+})
+
+test('Micha overlay uses only the method moving averages', () => {
+  assert.deepEqual(activeSmaKeys(true), ['sma20', 'sma150', 'sma200'])
+  assert.deepEqual(activeSmaKeys(false), ['sma20', 'sma50', 'sma100', 'sma150', 'sma200'])
 })

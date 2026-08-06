@@ -5,6 +5,7 @@ import {
 } from 'lightweight-charts'
 import useStore from '../../store/useStore'
 import {
+  activeSmaKeys,
   buildGapMarkers,
   buildPatternMarkers,
   computeFibonacci,
@@ -252,6 +253,7 @@ export default function TradingViewChart({
   // Overlay toggles routed from ChartControls in the header. Any missing
   // prop is treated as false — the chart just doesn't draw that series.
   showSMA = false,
+  methodSmaOnly = false,
   showEMA = false,
   showWMA = false,
   showBB = false,
@@ -512,18 +514,19 @@ export default function TradingViewChart({
       }
     }
 
-    // Moving averages — when the SMA/EMA/WMA family toggle is on we show the
-    // classic pair (20 + 50) because that's what most analysts want to see;
-    // SMA200 gets its own toggle via the chip UI in a later pass.
-    // 100/150 were computed on every load and never drawn. 150 in particular is
-    // the trend gate this workflow reads ("above the 150 MA"), so it was being
-    // paid for and thrown away.
+    // The normal SMA control is a five-line study. Micha Method deliberately
+    // narrows that to its three defined trend and timing averages.
     if (showSMA) {
-      ensureLine('sma20', indicators.sma20, C.sma20)
-      ensureLine('sma50', indicators.sma50, C.sma50)
-      ensureLine('sma100', indicators.sma100, C.sma100, { width: 1 })
-      ensureLine('sma150', indicators.sma150, C.sma150, { width: 2 })
-      ensureLine('sma200', indicators.sma200, C.sma200)
+      const options = {
+        sma20: { color: C.sma20 },
+        sma50: { color: C.sma50 },
+        sma100: { color: C.sma100, width: 1 },
+        sma150: { color: C.sma150, width: 2 },
+        sma200: { color: C.sma200 },
+      }
+      const visibleKeys = new Set(activeSmaKeys(methodSmaOnly))
+      activeSmaKeys(methodSmaOnly).forEach(key => ensureLine(key, indicators[key], options[key].color, options[key]))
+      activeSmaKeys(false).filter(key => !visibleKeys.has(key)).forEach(remove)
     }
     else { remove('sma20'); remove('sma50'); remove('sma100'); remove('sma150'); remove('sma200') }
 
@@ -589,7 +592,7 @@ export default function TradingViewChart({
   }, [
     chartEpoch,
     ohlcv, indicators,
-    showSMA, showEMA, showWMA, showBB, showVWAP, showVolume, showVolumeMA,
+    showSMA, methodSmaOnly, showEMA, showWMA, showBB, showVWAP, showVolume, showVolumeMA,
     showSupertrend, showIchimoku, showKeltner, showDonchian,
   ])
 

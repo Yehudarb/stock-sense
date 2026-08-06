@@ -246,6 +246,16 @@ export const OVERLAY_COLORS = {
   macdSignal: '#fb923c',
 }
 
+// Micha Method uses these three averages as its trend and timing gates. Keep
+// the selection shared by both chart engines so its overlay cannot drift into
+// the broader five-line SMA study.
+export const STANDARD_SMA_KEYS = ['sma20', 'sma50', 'sma100', 'sma150', 'sma200']
+export const MICHA_SMA_KEYS = ['sma20', 'sma150', 'sma200']
+
+export function activeSmaKeys(methodSmaOnly = false) {
+  return methodSmaOnly ? MICHA_SMA_KEYS : STANDARD_SMA_KEYS
+}
+
 // The level a pattern has to clear before its target means anything.
 //
 // The detector sets meta.breakoutLevel for only some patterns — cup-and-handle
