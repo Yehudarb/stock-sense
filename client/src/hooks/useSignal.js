@@ -37,7 +37,19 @@ export default function useSignal(ohlcv, indicators, language = 'he', multiTimef
     })
     const ensemble = computeEnsembleConsensus(analysisBars, analysisIndicators, { ...signal, pro, patterns: patternResult })
     const decision = computeAnalystDecision(analysisBars, analysisIndicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language, cupHandle)
-    const technicalMethod = computeTechnicalMethod(analysisBars, analysisIndicators, patternResult)
+    const methodResult = computeTechnicalMethod(analysisBars, analysisIndicators, patternResult)
+    // The chart must be able to prove which closed candle produced its Micha
+    // read. This prevents a loading transition from looking like an analysis
+    // that belongs to the previously selected ticker or timeframe.
+    const technicalMethod = methodResult ? {
+      ...methodResult,
+      context: {
+        interval,
+        barCount: analysisBars.length,
+        firstClosedAt: analysisBars[0]?.t ?? null,
+        lastClosedAt: barContext.lastClosedAt,
+      },
+    } : null
     const trends   = analyzeAdvancedTrends(analysisBars, analysisIndicators)
     return { ...signal, analysis, patterns: patternResult, risk, decision, technicalMethod, pro, ensemble, trends, barContext }
   }, [ohlcv, indicators, language, multiTimeframe, interval, cupHandle])

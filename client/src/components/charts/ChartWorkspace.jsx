@@ -246,7 +246,7 @@ function priceRelation(price, average) {
 }
 
 /** Explains each overlay produced by Micha Method without changing its calculations. */
-function MichaChartExplanation({ method, indicators, price, className = '' }) {
+function MichaChartExplanation({ method, indicators, price, ticker, className = '' }) {
   if (!method) {
     return <aside className={`rounded-2xl border border-amber-400/25 bg-slate-950/95 p-3 text-xs text-amber-100 ${className}`}>שיטת מיכו ממתינה להיסטוריית נרות מספקת לצורך חישוב.</aside>
   }
@@ -291,7 +291,7 @@ function MichaChartExplanation({ method, indicators, price, className = '' }) {
       <div className="mb-3 flex items-start justify-between gap-2 border-b border-white/10 pb-2">
         <div>
           <div className="text-sm font-bold text-cyan-100">שיטת מיכו על הגרף</div>
-          <div className="mt-0.5 text-[10px] text-slate-400">הסבר לכל קו שמסומן כעת</div>
+          <div className="mt-0.5 text-[10px] text-slate-400">{ticker ?? '--'} · {method.context?.interval ?? '--'} · {method.context?.barCount ?? '--'} נרות סגורים</div>
         </div>
         <span className="rounded-full bg-cyan-400/15 px-2 py-1 text-[10px] font-bold text-cyan-200">{method.score ?? '--'}/100</span>
       </div>
@@ -338,7 +338,7 @@ function MichaChartExplanation({ method, indicators, price, className = '' }) {
 }
 
 /** A compact chart-side control that keeps the detailed method explanation out of the way. */
-function MichaSummaryPopover({ isOpen, onToggle, method, indicators, price, className = '' }) {
+function MichaSummaryPopover({ isOpen, onToggle, method, indicators, price, ticker, className = '' }) {
   const score = method?.score
   const scoreTone = score >= 75 ? 'border-emerald-400/55 bg-emerald-400/15 text-emerald-100' : score >= 55 ? 'border-amber-400/55 bg-amber-400/15 text-amber-100' : 'border-rose-400/55 bg-rose-400/15 text-rose-100'
   return (
@@ -354,7 +354,7 @@ function MichaSummaryPopover({ isOpen, onToggle, method, indicators, price, clas
         <span className="rounded-full bg-slate-950/35 px-1.5 py-0.5 text-[10px]">{score ?? '--'}</span>
         <span className="text-[10px] opacity-75">{isOpen ? 'סגור' : 'פתח'}</span>
       </button>
-      {isOpen && <MichaChartExplanation method={method} indicators={indicators} price={price} className="absolute left-0 top-[calc(100%+0.5rem)] z-30" />}
+      {isOpen && <MichaChartExplanation method={method} indicators={indicators} price={price} ticker={ticker} className="absolute left-0 top-[calc(100%+0.5rem)] z-30" />}
     </div>
   )
 }
@@ -784,6 +784,13 @@ export default function ChartWorkspace({
     setPricePanelHeightPx(null)
     setVisibleBars(current => Math.min(current ?? DEFAULT_VISIBLE_BARS[interval] ?? n, 110))
   }, [interval, isMobileLayout, n])
+
+  // Do not leave an open popover on screen while another symbol or interval
+  // is loading. Once fresh closed bars arrive, the user opens a clearly
+  // labelled analysis for that exact chart context.
+  useEffect(() => {
+    setShowMichaSummary(false)
+  }, [currentTicker, interval])
 
   const allPresets = useMemo(() => [...PRIMARY_PRESETS, ...INTRADAY_PRESETS], [])
   const activePreset = allPresets.find(item => item.id === selectedPresetId) ?? PRIMARY_PRESETS[0]
@@ -1732,6 +1739,7 @@ export default function ChartWorkspace({
               method={technicalMethod}
               indicators={indicators}
               price={snapshot?.price ?? spot}
+              ticker={currentTicker}
               className="mb-3 lg:hidden"
             />
           )}
@@ -1763,6 +1771,7 @@ export default function ChartWorkspace({
               method={technicalMethod}
               indicators={indicators}
               price={snapshot?.price ?? spot}
+              ticker={currentTicker}
               className="absolute left-4 top-4 z-20 hidden lg:block"
             />
           )}
