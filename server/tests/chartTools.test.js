@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { activeSmaKeys, buildGapMarkers, buildPatternMarkers } from '../../client/src/components/charts/chartHelpers.js'
+import { activeSmaKeys, buildGapMarkers, buildPatternMarkers, formatProTimeAxisLabel } from '../../client/src/components/charts/chartHelpers.js'
 import { detectRecentCandlestickPatterns } from '../../client/src/lib/patterns.js'
 
 function barsWithHammer() {
@@ -81,4 +81,12 @@ test('a one-bar gap still produces a visible marker', () => {
 test('Micha overlay uses only the method moving averages', () => {
   assert.deepEqual(activeSmaKeys(true), ['sma20', 'sma150', 'sma200'])
   assert.deepEqual(activeSmaKeys(false), ['sma20', 'sma50', 'sma100', 'sma150', 'sma200'])
+})
+
+test('Pro chart time axis keeps dates visible for daily and intraday bars', () => {
+  const timestamp = Date.UTC(2026, 7, 3, 14, 30) / 1000
+
+  assert.equal(formatProTimeAxisLabel(timestamp, '1d', 'he'), 'ב׳ 03.08')
+  assert.equal(formatProTimeAxisLabel(timestamp, '15m', 'he'), '03.08 14:30')
+  assert.equal(formatProTimeAxisLabel(timestamp, '1y', 'he'), '08.26')
 })

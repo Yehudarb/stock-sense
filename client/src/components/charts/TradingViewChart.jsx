@@ -9,6 +9,8 @@ import {
   buildGapMarkers,
   buildPatternMarkers,
   computeFibonacci,
+  formatProTimeAxisLabel,
+  isIntradayChartInterval,
   isTrendlinePattern,
   measuredMoveTargets,
   OVERLAY_COLORS,
@@ -350,7 +352,18 @@ export default function TradingViewChart({
         minimumWidth: 78,
         entireTextOnly: true,
       },
-      timeScale: { borderColor: palette.axis, timeVisible: true, secondsVisible: false, rightOffset: 8 },
+      timeScale: {
+        visible: true,
+        borderVisible: true,
+        borderColor: palette.axis,
+        ticksVisible: true,
+        minimumHeight: 34,
+        timeVisible: isIntradayChartInterval(interval),
+        secondsVisible: false,
+        rightOffset: 4,
+        tickMarkMaxCharacterLength: 13,
+        tickMarkFormatter: time => formatProTimeAxisLabel(time, interval, language),
+      },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: palette.axis, width: 1, style: LineStyle.Dashed, labelBackgroundColor: palette.axis },
@@ -427,7 +440,7 @@ export default function TradingViewChart({
   // [theme], so every field changes together and depending on the object is
   // both correct and complete — listing a subset only worked because bg
   // happened to change alongside axis, grid, text and the wick colours.
-  }, [palette, chartType])
+  }, [palette, chartType, interval, language])
 
   // ── Primary data ─────────────────────────────────────────────────
   useEffect(() => {

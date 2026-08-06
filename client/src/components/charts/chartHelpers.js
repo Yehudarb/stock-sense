@@ -38,6 +38,45 @@ export function formatTooltipDate(timestamp, interval) {
   })
 }
 
+const INTRADAY_CHART_INTERVALS = new Set(['1m', '5m', '15m', '1h', '4h'])
+const HEBREW_WEEKDAYS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
+const ENGLISH_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** Returns whether a chart interval requires time-of-day labels on the x-axis. */
+export function isIntradayChartInterval(interval) {
+  return INTRADAY_CHART_INTERVALS.has(interval)
+}
+
+function chartTimeToUtcDate(time) {
+  if (typeof time === 'number') return new Date(time * 1000)
+  if (typeof time === 'string') return new Date(`${time}T00:00:00.000Z`)
+  if (time && Number.isInteger(time.year) && Number.isInteger(time.month) && Number.isInteger(time.day)) {
+    return new Date(Date.UTC(time.year, time.month - 1, time.day))
+  }
+  return null
+}
+
+/** Formats short, legible x-axis labels for the Pro chart's time scale. */
+export function formatProTimeAxisLabel(time, interval, language = 'he') {
+  const date = chartTimeToUtcDate(time)
+  if (!date || Number.isNaN(date.getTime())) return null
+
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const year = String(date.getUTCFullYear()).slice(-2)
+
+  if (isIntradayChartInterval(interval)) {
+    const hours = String(date.getUTCHours()).padStart(2, '0')
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+    return `${day}.${month} ${hours}:${minutes}`
+  }
+
+  if (interval === '1y' || interval === '5y') return `${month}.${year}`
+
+  const weekdays = language === 'he' ? HEBREW_WEEKDAYS : ENGLISH_WEEKDAYS
+  return language === 'he' ? `${weekdays[date.getUTCDay()]} ${day}.${month}` : `${weekdays[date.getUTCDay()]} ${day}/${month}`
+}
+
 export function seriesFromBars(ohlcv, key) {
   return ohlcv.map(bar => bar[key])
 }
