@@ -15,13 +15,14 @@ function classifyRisk(price, stop, atr, target, config) {
 }
 
 /** Convert independent evidence into a monitorable setup; never a direct buy/sell order. */
-export function classifyMethodSetup({ bars, indicators, trend, timing, levels, fibonacci, confluence }, config = TECHNICAL_METHOD_CONFIG) {
+export function classifyMethodSetup({ bars, indicators, trend, timing, levels, fibonacci, trendlines = [], confluence }, config = TECHNICAL_METHOD_CONFIG) {
   const price = bars.at(-1)?.c
   const atr = indicators?.atr14?.at(-1)
   const support = levels?.nearestSupport
   const resistance = levels?.nearestResistance
   const strongTrend = trend?.qualified
   const healthyTiming = ['healthy_pullback_to_sma20', 'trading_near_sma20', 'reclaiming_sma20'].includes(timing?.status)
+  const supportTrendline = trendlines.find(line => line.type === 'support')
   let setupType = 'no_valid_setup'
   let status = 'not_ready'
   let actionState = 'wait'
@@ -30,7 +31,9 @@ export function classifyMethodSetup({ bars, indicators, trend, timing, levels, f
   if (strongTrend) reasonsFor.push('Long-term trend requirements are qualified.')
   else reasonsAgainst.push('Long-term trend is not fully qualified.')
   if (support) reasonsFor.push('A validated support zone is nearby.')
-  if (timing?.status === 'healthy_pullback_to_sma20') { setupType = 'pullback_to_sma20'; status = strongTrend ? 'ready_for_monitoring' : 'forming'; actionState = strongTrend ? 'prepare' : 'watch' }
+  if (supportTrendline?.status === 'broken') { setupType = 'trendline_breakdown'; status = 'invalidated'; actionState = 'avoid'; reasonsAgainst.push('The validated ascending support trendline is broken.') }
+  else if (supportTrendline?.status === 'testing' && strongTrend) { setupType = 'trendline_support_test'; status = 'ready_for_monitoring'; actionState = 'prepare'; reasonsFor.push('Price is testing a validated ascending support trendline.') }
+  else if (timing?.status === 'healthy_pullback_to_sma20') { setupType = 'pullback_to_sma20'; status = strongTrend ? 'ready_for_monitoring' : 'forming'; actionState = strongTrend ? 'prepare' : 'watch' }
   else if (fibonacci?.status === 'golden_zone_test' && strongTrend) { setupType = 'fibonacci_golden_zone_pullback'; status = 'ready_for_monitoring'; actionState = 'prepare' }
   else if (strongTrend && healthyTiming && support) { setupType = 'pullback_to_major_support'; status = 'ready_for_monitoring'; actionState = 'watch' }
   else if (strongTrend && resistance?.distanceFromPricePercent <= 2.5) { setupType = 'breakout_setup'; status = 'forming'; actionState = 'watch' }

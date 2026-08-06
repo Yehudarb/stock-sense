@@ -943,6 +943,7 @@ export default function PriceChart({
   ticker,
   decision,
   technicalMethod,
+  showTechnicalMethod = false,
   demoAccount,
   language = 'en',
   technicalAnalysis,
@@ -1093,19 +1094,25 @@ export default function PriceChart({
           }
         : null,
     ].filter(Boolean)
-    const levelCandidates = (showLevels || showPivotPoints || showPrevHighLow || showHighLow52 || showTargets)
+    const levelCandidates = (showLevels || showTechnicalMethod || showPivotPoints || showPrevHighLow || showHighLow52 || showTargets)
       ? [
           ...(showLevels ? [
             { price: decision?.support, color: TRADER_COLORS.support },
             { price: decision?.resistance, color: TRADER_COLORS.resistance },
             { price: decision?.invalidation ?? decision?.stopLoss, color: TRADER_COLORS.stopLoss, label: 'SL', dash: [5, 5], width: 1.8 },
             { price: decision?.takeProfit, color: TRADER_COLORS.takeProfit, label: 'TP', dash: [5, 5], width: 1.8 },
-            { price: technicalMethod?.supportResistance?.nearestSupport?.midpoint, color: 'rgba(45, 212, 191, 0.9)', label: 'M S' },
-            { price: technicalMethod?.supportResistance?.nearestResistance?.midpoint, color: 'rgba(251, 146, 60, 0.92)', label: 'M R' },
-            { price: technicalMethod?.risk?.technicalInvalidationLevel, color: 'rgba(244, 114, 182, 0.92)', label: 'M SL', dash: [5, 5], width: 1.5 },
             ...((technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(6, 182, 212, 0.9)' }))),
             ...((technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2).map(price => ({ price, color: 'rgba(249, 115, 22, 0.9)' }))),
             ...((technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1).map(price => ({ price, color: 'rgba(56, 189, 248, 0.9)' }))),
+          ] : []),
+          ...(showLevels || showTechnicalMethod ? [
+            { price: technicalMethod?.supportResistance?.nearestSupport?.midpoint, color: 'rgba(45, 212, 191, 0.9)', label: 'M S' },
+            { price: technicalMethod?.supportResistance?.nearestResistance?.midpoint, color: 'rgba(251, 146, 60, 0.92)', label: 'M R' },
+            { price: technicalMethod?.risk?.technicalInvalidationLevel, color: 'rgba(244, 114, 182, 0.92)', label: 'M SL', dash: [5, 5], width: 1.5 },
+            { price: technicalMethod?.setup?.trigger?.price, color: 'rgba(56, 189, 248, 0.95)', label: 'M Trigger', width: 1.7 },
+            ...((technicalMethod?.setup?.possibleTargets ?? []).slice(0, 2).map((price, index) => ({ price, color: 'rgba(168, 85, 247, 0.9)', label: `M T${index + 1}`, dash: [6, 4], width: 1.5 }))),
+            { price: technicalMethod?.fibonacci?.goldenZone?.lower, color: 'rgba(234, 179, 8, 0.85)', label: 'M Fib 50', dash: [3, 4] },
+            { price: technicalMethod?.fibonacci?.goldenZone?.upper, color: 'rgba(234, 179, 8, 0.85)', label: 'M Fib 61.8', dash: [3, 4] },
           ] : []),
           // Keep the complete P/R1-R3/S1-S3 ladder identical in both engines.
           ...(showPivotPoints && indicators?.pivotPoints ? [
@@ -1710,7 +1717,7 @@ export default function PriceChart({
         chartRef.current = null
       }
     }
-  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showTargets, showLevels, ticker, decision, technicalMethod, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, resetToken, theme, isMobileViewport])
+  }, [ohlcv, indicators, showSMA, showEMA, showWMA, showBB, showVWAP, showSupertrend, showIchimoku, showKeltner, showDonchian, showPivotPoints, showPrevHighLow, showHighLow52, chartType, patterns, gaps, showFibonacci, showFibExtension, showGaps, showPatterns, showTriangles, showTargets, showLevels, showTechnicalMethod, ticker, decision, technicalMethod, demoAccount, language, technicalAnalysis, interval, visibleBars, viewOffset, priceScale, priceOffsetPct, measurementEnabled, hoveredIndex, onHoverIndexChange, onPanBars, onPanPrice, resetToken, theme, isMobileViewport])
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
 }

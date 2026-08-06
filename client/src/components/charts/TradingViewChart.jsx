@@ -283,6 +283,7 @@ export default function TradingViewChart({
   gaps = null,              // signal.pro.gaps  — { gaps: [{ zoneLow, zoneHigh, ... }] }
   decision = null,          // entry / stop / target / support / resistance
   technicalMethod = null,   // Long-Term Technical Confluence Method zones
+  showTechnicalMethod = false,
   technicalAnalysis = null, // keyLevels.support | .resistance | .breakoutLevels
   // How many of the loaded bars to show. The rest is warmup history that
   // feeds the indicators without being displayed.
@@ -812,15 +813,22 @@ export default function TradingViewChart({
       addLine({ value: decision?.resistance, color: TRADER_COLORS.resistance, title: 'R', width: 1.5, style: LineStyle.Solid })
       addLine({ value: decision?.invalidation ?? decision?.stopLoss, color: TRADER_COLORS.stopLoss,   title: 'SL', width: 1.8, style: LineStyle.Dashed })
       addLine({ value: decision?.takeProfit, color: TRADER_COLORS.takeProfit, title: 'TP', width: 1.8, style: LineStyle.Dashed })
-      addLine({ value: technicalMethod?.supportResistance?.nearestSupport?.midpoint, color: 'rgba(45, 212, 191, 0.9)', title: 'M-S', width: 1.5, style: LineStyle.Solid })
-      addLine({ value: technicalMethod?.supportResistance?.nearestResistance?.midpoint, color: 'rgba(251, 146, 60, 0.92)', title: 'M-R', width: 1.5, style: LineStyle.Solid })
-      addLine({ value: technicalMethod?.risk?.technicalInvalidationLevel, color: 'rgba(244, 114, 182, 0.92)', title: 'M Stop', width: 1.5, style: LineStyle.Dashed })
       ;(technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2)
         .forEach((value, i) => addLine({ value, color: 'rgba(6, 182, 212, 0.9)', title: `S${i + 2}`, axisLabel: false }))
       ;(technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2)
         .forEach((value, i) => addLine({ value, color: 'rgba(249, 115, 22, 0.9)', title: `R${i + 2}`, axisLabel: false }))
       ;(technicalAnalysis?.keyLevels?.breakoutLevels ?? []).slice(0, 1)
         .forEach(value => addLine({ value, color: 'rgba(56, 189, 248, 0.9)', title: 'BO' }))
+    }
+    if (showLevels || showTechnicalMethod) {
+      addLine({ value: technicalMethod?.supportResistance?.nearestSupport?.midpoint, color: 'rgba(45, 212, 191, 0.9)', title: 'M-S', width: 1.5, style: LineStyle.Solid })
+      addLine({ value: technicalMethod?.supportResistance?.nearestResistance?.midpoint, color: 'rgba(251, 146, 60, 0.92)', title: 'M-R', width: 1.5, style: LineStyle.Solid })
+      addLine({ value: technicalMethod?.risk?.technicalInvalidationLevel, color: 'rgba(244, 114, 182, 0.92)', title: 'M Stop', width: 1.5, style: LineStyle.Dashed })
+      addLine({ value: technicalMethod?.setup?.trigger?.price, color: 'rgba(56, 189, 248, 0.95)', title: 'M Trigger', width: 1.7, style: LineStyle.Solid })
+      ;(technicalMethod?.setup?.possibleTargets ?? []).slice(0, 2)
+        .forEach((value, i) => addLine({ value, color: 'rgba(168, 85, 247, 0.9)', title: `M T${i + 1}`, width: 1.5, style: LineStyle.Dashed }))
+      addLine({ value: technicalMethod?.fibonacci?.goldenZone?.lower, color: 'rgba(234, 179, 8, 0.85)', title: 'M Fib 50', style: LineStyle.Dotted })
+      addLine({ value: technicalMethod?.fibonacci?.goldenZone?.upper, color: 'rgba(234, 179, 8, 0.85)', title: 'M Fib 61.8', style: LineStyle.Dotted })
     }
 
     // ── Pattern entry / target / stop ──
@@ -899,7 +907,7 @@ export default function TradingViewChart({
   }, [
     chartEpoch, ohlcv, indicators,
     showPivotPoints, showPrevHighLow, showHighLow52,
-    showLevels, showFibonacci, showFibExtension, showTargets,
+    showLevels, showTechnicalMethod, showFibonacci, showFibExtension, showTargets,
     decision, technicalMethod, technicalAnalysis, patterns, visibleEndIndex, visibleStartIndex,
   ])
 

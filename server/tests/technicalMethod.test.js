@@ -5,6 +5,7 @@ import { computeAll } from '../../client/src/lib/indicators.js'
 import { analyzeLongTermTrend, analyzeShortTermTiming } from '../../client/src/lib/technicalMethod/movingAverages.js'
 import { analyzeFibonacci } from '../../client/src/lib/technicalMethod/fibonacci.js'
 import { detectPriceLevels } from '../../client/src/lib/technicalMethod/levels.js'
+import { detectMethodTrendlines } from '../../client/src/lib/technicalMethod/trendlines.js'
 import { computeTechnicalMethod } from '../../client/src/lib/technicalMethod/index.js'
 
 function trendBars(length = 260) {
@@ -53,6 +54,22 @@ test('price-level detector rejects one-touch noise and returns structured zones'
 
   assert.ok(levels.support.every(level => level.touchCount >= 2))
   assert.ok(levels.support.every(level => level.lowerBound < level.upperBound))
+})
+
+test('trendline detector returns a validated, projected three-touch support line', () => {
+  const bars = trendBars()
+  const supportIndexes = [130, 175, 220]
+  supportIndexes.forEach((index, touch) => {
+    const low = 95 + touch * 6
+    bars[index] = { ...bars[index], l: low, o: low + 1.8, c: low + 2.3, h: low + 3.1 }
+  })
+  const lines = detectMethodTrendlines(bars, computeAll(bars, '1d'))
+  const support = lines.find(line => line.type === 'support')
+
+  assert.ok(support)
+  assert.equal(support.touchCount, 3)
+  assert.equal(support.projection.index, bars.length - 1)
+  assert.ok(['holding', 'testing'].includes(support.status))
 })
 
 test('method conclusion remains research-oriented and exposes risk, setup, and completeness', () => {

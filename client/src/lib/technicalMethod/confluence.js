@@ -8,7 +8,7 @@ function signal(category, direction, weight, scoreContribution, title, explanati
 }
 
 /** Keep every weighted contribution traceable to its independent technical evidence. */
-export function buildConfluence({ trend, timing, levels, fibonacci, patterns, indicators }, config = TECHNICAL_METHOD_CONFIG) {
+export function buildConfluence({ trend, timing, levels, fibonacci, trendlines = [], patterns, indicators }, config = TECHNICAL_METHOD_CONFIG) {
   const volumeRatio = indicators?.volRatio?.at(-1)
   const bestPattern = patterns?.best ?? null
   const support = levels?.nearestSupport
@@ -29,8 +29,20 @@ export function buildConfluence({ trend, timing, levels, fibonacci, patterns, in
   entries.push(signal('pattern', bestPattern?.direction ?? 'neutral', config.weights.technicalPatterns, patternScore, 'Technical pattern', bestPattern ? `Leading pattern: ${bestPattern.label}.` : 'No high-confidence pattern is active.', bestPattern ?? {}, Boolean(bestPattern)))
   const volumeScore = Number.isFinite(volumeRatio) ? clamp(50 + (volumeRatio - 1) * 35) : null
   if (volumeScore != null) entries.push(signal('volume', volumeScore >= 60 ? 'bullish' : volumeScore < 40 ? 'bearish' : 'neutral', config.weights.volumeConfirmation, volumeScore, 'Volume confirmation', `Relative volume is ${volumeRatio.toFixed(2)}x.`, { volumeRatio }, volumeRatio >= 1.1))
-  // Trendline data is optional in the current chart engine. Keep the category explicit rather than fabricating a line.
-  entries.push(signal('trendline', 'neutral', config.weights.trendlines, 50, 'Trendline', 'No validated three-touch trendline is available in this analysis depth.', {}, false))
+  const supportLine = trendlines.find(line => line.type === 'support')
+  const resistanceLine = trendlines.find(line => line.type === 'resistance')
+  const primaryLine = supportLine ?? resistanceLine
+  const trendlineScore = !primaryLine ? 50 : primaryLine.status === 'broken' ? 20 : primaryLine.status === 'testing' ? 78 : 68
+  entries.push(signal(
+    'trendline',
+    !primaryLine ? 'neutral' : primaryLine.status === 'broken' ? 'bearish' : primaryLine.direction,
+    config.weights.trendlines,
+    trendlineScore,
+    'Trendline',
+    !primaryLine ? 'No validated three-touch trendline is available.' : `${primaryLine.touchCount}-touch ${primaryLine.type} trendline is ${primaryLine.status}.`,
+    { supportLine, resistanceLine },
+    Boolean(primaryLine && primaryLine.status !== 'broken'),
+  ))
   const availableWeight = entries.filter(entry => Number.isFinite(entry.scoreContribution)).reduce((sum, entry) => sum + entry.weight, 0)
   const weighted = entries.reduce((sum, entry) => sum + (Number.isFinite(entry.scoreContribution) ? entry.scoreContribution * entry.weight : 0), 0)
   const score = availableWeight ? weighted / availableWeight : null

@@ -253,6 +253,8 @@ function ChartControls({
   chartCopy,
   showTriangles,
   toggleTrendlines,
+  showMichaMethod,
+  toggleMichaMethod,
   extendTrendlines,
   toggleTrendlineExtension,
   showLevels,
@@ -317,6 +319,7 @@ function ChartControls({
       </Group>
 
       <Group label={chartCopy.analysisTools}>
+        <PanelToggle label={<LabelWithIcon icon="🧭" label="שיטת מיכו" />} value={showMichaMethod} onToggle={toggleMichaMethod} />
         <PanelToggle label={<LabelWithIcon icon="📏" label={chartCopy.trendline} />} value={showTriangles} onToggle={toggleTrendlines} />
         <PanelToggle label={<LabelWithIcon icon="➡️" label={chartCopy.extendTrendlines} />} value={extendTrendlines} onToggle={toggleTrendlineExtension} />
         <PanelToggle label={<LabelWithIcon icon="📍" label={chartCopy.horizontalLine} />} value={showLevels} onToggle={() => setShowLevels(value => !value)} />
@@ -606,6 +609,7 @@ export default function ChartWorkspace({
   const [showMACD, setShowMACD] = useState(false)
   const [showPatterns, setShowPatterns] = useState(false)
   const [showTriangles, setShowTriangles] = useState(false)
+  const [showMichaMethod, setShowMichaMethod] = useState(false)
   // Projection is what makes a trendline tradable rather than decorative, so
   // it is on by default; the toggle is for when the chart gets busy.
   const [extendTrendlines, setExtendTrendlines] = useState(false)
@@ -1236,6 +1240,26 @@ export default function ChartWorkspace({
   const viewEndIndex = Math.max(0, n - 1 - viewOffset)
   const viewStartIndex = Math.max(0, viewEndIndex - activeVisibleBars + 1)
   const detectedPatterns = signal?.patterns?.patterns ?? []
+  const chartPatterns = useMemo(() => {
+    const methodTrendlines = (technicalMethod?.trendlines ?? []).map(line => ({
+      key: `MICHA_TRENDLINE_${line.type}_${line.id}`,
+      label: `Micha ${line.type} trendline`,
+      direction: line.direction,
+      weight: line.status === 'broken' ? -60 : 60,
+      meta: { type: 'micha_trendline', stage: line.status },
+      visual: {
+        startIndex: line.from.index,
+        endIndex: line.projection.index,
+        high: Math.max(line.from.price, line.to.price, line.projection.price),
+        low: Math.min(line.from.price, line.to.price, line.projection.price),
+        lines: [
+          { from: { index: line.from.index, price: line.from.price }, to: { index: line.to.index, price: line.to.price } },
+          { from: { index: line.to.index, price: line.to.price }, to: { index: line.projection.index, price: line.projection.price } },
+        ],
+      },
+    }))
+    return { ...(signal?.patterns ?? {}), patterns: [...detectedPatterns, ...methodTrendlines] }
+  }, [detectedPatterns, signal?.patterns, technicalMethod?.trendlines])
   const allPatternMarkers = [...detectedPatterns, ...(signal?.patterns?.markers ?? [])]
   const patternsInView = allPatternMarkers.filter(pattern => {
     const start = pattern?.visual?.startIndex
@@ -1296,7 +1320,7 @@ export default function ChartWorkspace({
     ...secondaryPanels.map(panel => ({ key: panel.key, label: panel.title })),
   ].filter(Boolean)
 
-  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolume}-${showVolumeMA}-${showRSI}-${showMACD}-${showStoch}-${showStochRsi}-${showATR}-${showADX}-${showOBV}-${showCCI}-${showMomentum}-${showWilliamsR}-${showMFI}-${showCMF}-${showADL}-${showPatterns}-${showTriangles}-${showTargets}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}-${measureMode}-${chartResetToken}`
+  const chartResetKey = `${currentTicker}-${interval}-${chartType}-${activeVisibleBars}-${viewOffset}-${showSMA}-${showEMA}-${showWMA}-${showBB}-${showVWAP}-${showSupertrend}-${showIchimoku}-${showKeltner}-${showDonchian}-${showPivotPoints}-${showPrevHighLow}-${showHighLow52}-${showVolume}-${showVolumeMA}-${showRSI}-${showMACD}-${showStoch}-${showStochRsi}-${showATR}-${showADX}-${showOBV}-${showCCI}-${showMomentum}-${showWilliamsR}-${showMFI}-${showCMF}-${showADL}-${showPatterns}-${showTriangles}-${showMichaMethod}-${showTargets}-${showLevels}-${showFibonacci}-${showFibExtension}-${showGaps}-${measureMode}-${chartResetToken}`
   const patternSummary = technicalAnalysis?.patterns ?? []
   const signalCount = technicalAnalysis?.indicatorInterpretations?.length ?? 0
   const chartCopy = language === 'he'
@@ -1479,6 +1503,8 @@ export default function ChartWorkspace({
               chartCopy={chartCopy}
               showTriangles={showTriangles}
               toggleTrendlines={toggleTrendlines}
+              showMichaMethod={showMichaMethod}
+              toggleMichaMethod={() => setShowMichaMethod(value => !value)}
               extendTrendlines={extendTrendlines}
               toggleTrendlineExtension={toggleTrendlineExtension}
               showLevels={showLevels}
@@ -1538,6 +1564,7 @@ export default function ChartWorkspace({
                 { key: 'volume', icon: BarChart3, label: 'Volume', value: showVolume, onToggle: toggleVolume },
                 { key: 'rsi', icon: Gauge, label: 'RSI', value: showRSI, onToggle: () => setShowRSI(v => !v) },
                 { key: 'macd', icon: Activity, label: 'MACD', value: showMACD, onToggle: () => setShowMACD(v => !v) },
+                { key: 'micha', icon: Crosshair, label: 'שיטת מיכו', value: showMichaMethod, onToggle: () => setShowMichaMethod(v => !v) },
                 { key: 'trend', icon: Ruler, label: chartCopy.trendline, value: showTriangles, onToggle: toggleTrendlines },
                 { key: 'extend', icon: MoveRight, label: chartCopy.extendTrendlines, value: extendTrendlines, onToggle: toggleTrendlineExtension },
                 { key: 'levels', icon: Minus, label: chartCopy.horizontalLine, value: showLevels, onToggle: () => setShowLevels(v => !v) },
@@ -1597,7 +1624,7 @@ export default function ChartWorkspace({
                 indicators={indicators}
                 height={resolvedPriceChartHeight}
                 chartType={chartType}
-                showSMA={showSMA}
+                showSMA={showSMA || showMichaMethod}
                 showEMA={showEMA}
                 showWMA={showWMA}
                 showBB={showBB}
@@ -1615,12 +1642,13 @@ export default function ChartWorkspace({
                 showFibonacci={showFibonacci}
                 showFibExtension={showFibExtension}
                 showPatterns={showPatterns}
-                showTriangles={showTriangles}
+                showTriangles={showTriangles || showMichaMethod}
                 showGaps={showGaps}
-                patterns={signal?.patterns}
+                patterns={chartPatterns}
                 gaps={signal?.pro?.gaps}
                 decision={signal?.decision}
                 technicalMethod={technicalMethod}
+                showTechnicalMethod={showMichaMethod}
                 technicalAnalysis={technicalAnalysis}
                 extendTrendlines={extendTrendlines}
                 showTargets={showTargets}
@@ -1634,7 +1662,7 @@ export default function ChartWorkspace({
             <PriceChart
               ohlcv={ohlcv}
               indicators={indicators}
-              showSMA={showSMA}
+              showSMA={showSMA || showMichaMethod}
               showEMA={showEMA}
               showWMA={showWMA}
               showBB={showBB}
@@ -1647,18 +1675,19 @@ export default function ChartWorkspace({
               showPrevHighLow={showPrevHighLow}
               showHighLow52={showHighLow52}
               chartType={chartType}
-              patterns={signal?.patterns}
+              patterns={chartPatterns}
               gaps={signal?.pro?.gaps}
               showFibonacci={showFibonacci}
               showFibExtension={showFibExtension}
               showGaps={showGaps}
               showPatterns={showPatterns}
-              showTriangles={showTriangles}
+              showTriangles={showTriangles || showMichaMethod}
               showTargets={showTargets}
               showLevels={showLevels}
               ticker={currentTicker}
               decision={signal?.decision}
               technicalMethod={technicalMethod}
+              showTechnicalMethod={showMichaMethod}
               language={language}
               technicalAnalysis={technicalAnalysis}
               demoAccount={paperTradingAccount}

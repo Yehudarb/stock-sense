@@ -2,6 +2,7 @@ import { TECHNICAL_METHOD_CONFIG } from './config.js'
 import { analyzeLongTermTrend, analyzeShortTermTiming } from './movingAverages.js'
 import { detectPriceLevels } from './levels.js'
 import { analyzeFibonacci } from './fibonacci.js'
+import { detectMethodTrendlines } from './trendlines.js'
 import { buildConfluence } from './confluence.js'
 import { classifyMethodSetup } from './setup.js'
 
@@ -24,8 +25,9 @@ export function computeTechnicalMethod(bars, indicators, patterns = null, config
   const timing = analyzeShortTermTiming(bars, indicators, config)
   const supportResistance = detectPriceLevels(bars, indicators, config)
   const fibonacci = analyzeFibonacci(bars, trend, config)
-  const confluence = buildConfluence({ trend, timing, levels: supportResistance, fibonacci, patterns, indicators }, config)
-  const setup = classifyMethodSetup({ bars, indicators, trend, timing, levels: supportResistance, fibonacci, confluence }, config)
+  const trendlines = detectMethodTrendlines(bars, indicators, config)
+  const confluence = buildConfluence({ trend, timing, levels: supportResistance, fibonacci, trendlines, patterns, indicators }, config)
+  const setup = classifyMethodSetup({ bars, indicators, trend, timing, levels: supportResistance, fibonacci, trendlines, confluence }, config)
   const completeness = [trend.available, timing.available, fibonacci.available, Boolean(supportResistance.nearestSupport || supportResistance.nearestResistance)].filter(Boolean).length / 4 * 100
   const score = confluence.score
   const conclusion = {
@@ -37,7 +39,7 @@ export function computeTechnicalMethod(bars, indicators, patterns = null, config
     keyRisks: [...setup.reasonsAgainst, ...setup.risk.warnings, ...confluence.signals.filter(item => item.direction === 'bearish' && item.confirmed).map(item => item.title)].slice(0, 5),
     confirmationNeeded: setup.status === 'triggered' ? [] : [setup.trigger.description], invalidationConditions: [setup.invalidationCondition],
   }
-  return { methodName: config.name, displayName: config.displayName, calculatedAt: new Date(bars.at(-1).t).toISOString(), score, confidence: conclusion.confidence, dataCompletenessPercent: conclusion.dataCompletenessPercent, trend, timing, supportResistance, trendlines: [], patterns: patterns?.patterns ?? [], fibonacci, confluences: confluence.signals, setup, risk: setup.risk, conclusion }
+  return { methodName: config.name, displayName: config.displayName, calculatedAt: new Date(bars.at(-1).t).toISOString(), score, confidence: conclusion.confidence, dataCompletenessPercent: conclusion.dataCompletenessPercent, trend, timing, supportResistance, trendlines, patterns: patterns?.patterns ?? [], fibonacci, confluences: confluence.signals, setup, risk: setup.risk, conclusion }
 }
 
 /** Backward-compatible scanner representation. */
