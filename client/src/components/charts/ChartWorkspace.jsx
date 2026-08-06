@@ -228,6 +228,90 @@ function SeriesKey({ label, color }) {
   )
 }
 
+function michaTimingText(status) {
+  return {
+    healthy_pullback_to_sma20: 'המחיר בדק את SMA 20 והגיב מעליו באופן חיובי.',
+    trading_near_sma20: 'המחיר קרוב ל-SMA 20; זהו קו הייחוס הקצר של השיטה.',
+    reclaiming_sma20: 'המחיר חזר מעל SMA 20, אך נדרש אישור בנר סגור.',
+    extended_above_sma20: 'המחיר רחוק מעל SMA 20 ולכן התזמון עשוי להיות מתוח.',
+    lost_sma20_support: 'המחיר איבד את SMA 20; הקו מתפקד כרגע כהתנגדות.',
+    below_falling_sma20: 'המחיר מתחת ל-SMA 20 יורד, מצב שאינו תומך בכניסה.',
+  }[status] ?? 'אין תזמון ברור מול SMA 20 כרגע.'
+}
+
+function priceRelation(price, average) {
+  if (!Number.isFinite(price) || !Number.isFinite(average)) return 'אין נתון מספיק'
+  const distance = Math.abs((price - average) / average * 100).toFixed(1)
+  return price >= average ? `המחיר מעליו ב-${distance}%` : `המחיר מתחתיו ב-${distance}%`
+}
+
+/** Explains each overlay produced by Micha Method without changing its calculations. */
+function MichaChartExplanation({ method, indicators, price, className = '' }) {
+  if (!method) {
+    return <aside className={`rounded-2xl border border-amber-400/25 bg-slate-950/95 p-3 text-xs text-amber-100 ${className}`}>שיטת מיכו ממתינה להיסטוריית נרות מספקת לצורך חישוב.</aside>
+  }
+
+  const last = indicators?.sma20?.length ? indicators.sma20.length - 1 : null
+  const averages = [
+    { name: 'SMA 20', value: method.timing?.sma20, color: '#22d3ee', text: michaTimingText(method.timing?.status) },
+    { name: 'SMA 50', value: last != null ? indicators?.sma50?.[last] : null, color: '#a78bfa', text: 'קו ביניים להקשר מגמה; אינו טריגר עצמאי בשיטה.' },
+    { name: 'SMA 100', value: last != null ? indicators?.sma100?.[last] : null, color: '#f59e0b', text: 'קו מבני משני לבחינת רציפות המגמה.' },
+    { name: 'SMA 150', value: method.trend?.sma150, color: '#f97316', text: method.trend?.priceAboveSma150 ? 'המחיר מעל SMA 150, רכיב חיובי במגמה ארוכת הטווח.' : 'המחיר מתחת ל-SMA 150, לכן המגמה ארוכת הטווח אינה מאושרת במלואה.' },
+    { name: 'SMA 200', value: method.trend?.sma200, color: '#ec4899', text: method.trend?.sma200Rising ? 'SMA 200 עולה, תנאי מבני חיובי בשיטה.' : 'SMA 200 אינו עולה, ולכן אין אישור מלא למגמה ארוכת הטווח.' },
+  ].filter(item => Number.isFinite(item.value))
+
+  const levels = [
+    { name: 'תמיכה', value: method.supportResistance?.nearestSupport?.midpoint, color: '#2dd4bf', text: 'אזור שבו נרשמו נגיעות קודמות; שבר שלו מחליש את המבנה.' },
+    { name: 'התנגדות', value: method.supportResistance?.nearestResistance?.midpoint, color: '#fb923c', text: 'אזור היצע קרוב. סגירה מעליו היא תנאי אפשרי לאישור.' },
+    { name: 'Trigger', value: method.setup?.trigger?.price, color: '#38bdf8', text: method.setup?.trigger?.description ?? 'רמת האישור של השיטה.' },
+    { name: 'Stop / Invalidation', value: method.risk?.technicalInvalidationLevel, color: '#f472b6', text: method.risk?.stopReason ?? 'סגירה מתחת לרמה זו מבטלת את התזה הטכנית.' },
+    { name: 'יעד', value: method.setup?.possibleTargets?.[0], color: '#a855f7', text: 'יעד אפשרי שמבוסס על ההתנגדות הקרובה, לא התחייבות למחיר.' },
+  ].filter(item => Number.isFinite(item.value))
+
+  const fib = method.fibonacci?.goldenZone
+  return (
+    <aside dir="rtl" className={`w-[min(19rem,calc(100vw-2rem))] rounded-2xl border border-cyan-400/25 bg-slate-950/95 p-3 shadow-[0_18px_45px_rgba(2,6,23,0.55)] backdrop-blur ${className}`}>
+      <div className="mb-3 flex items-start justify-between gap-2 border-b border-white/10 pb-2">
+        <div>
+          <div className="text-sm font-bold text-cyan-100">שיטת מיכו על הגרף</div>
+          <div className="mt-0.5 text-[10px] text-slate-400">הסבר לכל קו שמסומן כעת</div>
+        </div>
+        <span className="rounded-full bg-cyan-400/15 px-2 py-1 text-[10px] font-bold text-cyan-200">{method.score ?? '--'}/100</span>
+      </div>
+      <div className="max-h-[min(48vh,31rem)] space-y-3 overflow-y-auto pe-1 text-xs">
+        <section>
+          <div className="mb-1.5 font-semibold text-slate-200">ממוצעים נעים</div>
+          <div className="space-y-2">
+            {averages.map(item => <div key={item.name} className="border-s-2 ps-2.5" style={{ borderColor: item.color }}>
+              <div className="flex justify-between gap-2 font-semibold text-slate-100"><span>{item.name}</span><span>{fmtPrice(item.value)}</span></div>
+              <div className="mt-0.5 text-[10px] text-cyan-100">{priceRelation(price, item.value)}</div>
+              <p className="mt-0.5 leading-4 text-[10px] text-slate-400">{item.text}</p>
+            </div>)}
+          </div>
+        </section>
+        {(method.trendlines?.length ?? 0) > 0 && <section>
+          <div className="mb-1.5 font-semibold text-slate-200">קווי מגמה</div>
+          {method.trendlines.map(line => <div key={line.id} className="mb-2 border-s-2 border-emerald-400 ps-2.5 text-[10px] leading-4 text-slate-300">
+            <strong className="text-emerald-200">{line.type === 'support' ? 'קו תמיכה עולה' : 'קו התנגדות יורד'}: {fmtPrice(line.currentValue)}</strong><br />
+            {line.touchCount} נגיעות, מצב: {line.status === 'testing' ? 'נבדק כעת' : line.status === 'holding' ? 'מוחזק' : 'נשבר'}.
+          </div>)}
+        </section>}
+        {levels.length > 0 && <section>
+          <div className="mb-1.5 font-semibold text-slate-200">רמות פעולה</div>
+          <div className="space-y-2">{levels.map(item => <div key={item.name} className="border-s-2 ps-2.5" style={{ borderColor: item.color }}>
+            <div className="flex justify-between gap-2 font-semibold text-slate-100"><span>{item.name}</span><span>{fmtPrice(item.value)}</span></div>
+            <p className="mt-0.5 leading-4 text-[10px] text-slate-400">{item.text}</p>
+          </div>)}</div>
+        </section>}
+        {Number.isFinite(fib?.lower) && Number.isFinite(fib?.upper) && <section className="border-s-2 border-amber-400 ps-2.5 text-[10px] leading-4 text-slate-300">
+          <strong className="text-amber-200">Fibonacci Golden Zone: {fmtPrice(fib.lower)} עד {fmtPrice(fib.upper)}</strong><br />
+          {fib.priceInsideZone ? 'המחיר נמצא בתוך אזור ה-50%-61.8%.' : 'המחיר מחוץ לאזור ה-50%-61.8%.'}
+        </section>}
+      </div>
+    </aside>
+  )
+}
+
 function PanelToggle({ label, value, onToggle }) {
   return (
     <button type="button" className={quietControlClass(value)} onClick={onToggle}>
@@ -1593,6 +1677,14 @@ export default function ChartWorkspace({
             <span>{language === 'he' ? 'צופה ב-' : 'Viewing:'}</span>
             <strong className="text-white">{INTERVAL_LABELS[language]?.[interval] ?? interval}</strong>
           </div>
+          {showMichaMethod && (
+            <MichaChartExplanation
+              method={technicalMethod}
+              indicators={indicators}
+              price={snapshot?.price ?? spot}
+              className="mb-3 lg:hidden"
+            />
+          )}
           {mainChartKeys.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
               {mainChartKeys.map(item => <SeriesKey key={`${item.label}-${item.color}`} label={item.label} color={item.color} />)}
@@ -1614,6 +1706,14 @@ export default function ChartWorkspace({
           >
             <span className="h-1 w-full rounded-full bg-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.55)]" />
           </button>
+          {showMichaMethod && (
+            <MichaChartExplanation
+              method={technicalMethod}
+              indicators={indicators}
+              price={snapshot?.price ?? spot}
+              className="absolute left-4 top-4 z-20 hidden lg:block"
+            />
+          )}
           <SafeChart isLoading={isLoading} resetKey={`price-${chartResetKey}`}>
             {proChart ? (
               // The lightweight-charts (TradingView) engine. Every indicator
