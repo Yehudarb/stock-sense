@@ -20,6 +20,7 @@ const TradingStopsPanel = lazy(() => import('./components/analysis/TradingStopsP
 const TradeChecklistPanel = lazy(() => import('./components/analysis/TradeChecklistPanel'))
 const PositionSizeCalculator = lazy(() => import('./components/analysis/PositionSizeCalculator'))
 const PlainVerdictCard = lazy(() => import('./components/analysis/PlainVerdictCard'))
+const TechnicalMethodPanel = lazy(() => import('./components/analysis/TechnicalMethodPanel'))
 // These render only inside their own tab, so their cost belongs to the click
 // that opens it rather than to every first paint.
 const StockAnalysisProPanel = lazy(() => import('./components/analysis/StockAnalysisProPanel'))
@@ -607,6 +608,7 @@ export default function AdvancedApp() {
                           ohlcv={ohlcv}
                           indicators={indicators}
                           signal={signal}
+                          technicalMethod={signal?.technicalMethod}
                           technicalAnalysis={technicalAnalysis}
                           paperTradingAccount={paperTrading.account}
                           isLoading={isLoading}
@@ -619,6 +621,7 @@ export default function AdvancedApp() {
                   {activeMainTab === 'intelligence' && (
                     <Suspense fallback={<PanelFallback />}>
                       <div className="space-y-6">
+                        <TechnicalMethodPanel method={signal?.technicalMethod} language={language} />
                         <PlainVerdictCard decision={signal?.decision} checklist={checklist} language={language} />
 
                         <MaStructurePanel

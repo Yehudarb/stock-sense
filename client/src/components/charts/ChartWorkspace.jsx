@@ -558,6 +558,7 @@ export default function ChartWorkspace({
   ohlcv,
   indicators,
   signal,
+  technicalMethod,
   technicalAnalysis,
   paperTradingAccount,
   isLoading,
@@ -1619,6 +1620,7 @@ export default function ChartWorkspace({
                 patterns={signal?.patterns}
                 gaps={signal?.pro?.gaps}
                 decision={signal?.decision}
+                technicalMethod={technicalMethod}
                 technicalAnalysis={technicalAnalysis}
                 extendTrendlines={extendTrendlines}
                 showTargets={showTargets}
@@ -1656,6 +1658,7 @@ export default function ChartWorkspace({
               showLevels={showLevels}
               ticker={currentTicker}
               decision={signal?.decision}
+              technicalMethod={technicalMethod}
               language={language}
               technicalAnalysis={technicalAnalysis}
               demoAccount={paperTradingAccount}

@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto'
 import { getClosedAnalysisBars } from '../../client/src/lib/analysisBars.js'
 import { detectCupHandlePattern } from '../../client/src/lib/patterns.js'
+import { computeAll } from '../../client/src/lib/indicators.js'
+import { compactTechnicalMethod, computeTechnicalMethod } from '../../client/src/lib/technicalMethod/index.js'
 import { getScannerDailyBars } from './yahooFinance.js'
 import {
   DEFAULT_STRENGTH_THRESHOLD,
@@ -95,6 +97,8 @@ export function buildCupCandidate(asset, cup, bars) {
   const opportunityScore = round(patternScore * 0.75 + strengthScore * 0.25, 1)
   const target = cup.meta?.pivotTarget ?? cup.targetPrice
 
+  const indicators = computeAll(bars, '1d')
+  const technicalMethod = indicators ? computeTechnicalMethod(bars, indicators, { best: cup, patterns: [cup] }) : null
   return {
     ticker: asset.symbol,
     indexSymbol: asset.indexSymbol ?? asset.symbol,
@@ -129,6 +133,7 @@ export function buildCupCandidate(asset, cup, bars) {
     averageDollarVolume: round(asset.dollarVolume, 0),
     provider: `${asset.source} + Yahoo Finance`,
     timeframe: '1d',
+    ...compactTechnicalMethod(technicalMethod),
   }
 }
 

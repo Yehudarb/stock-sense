@@ -9,6 +9,7 @@ import { computeEnsembleConsensus } from '../lib/ensembleConsensus'
 import { analyzeAdvancedTrends } from '../lib/advancedTrends'
 import { computeAll } from '../lib/indicators'
 import { getClosedAnalysisBars } from '../lib/analysisBars'
+import { computeTechnicalMethod } from '../lib/technicalMethod'
 
 export default function useSignal(ohlcv, indicators, language = 'he', multiTimeframe = null, interval = '1d', cupHandle = null) {
   return useMemo(() => {
@@ -36,7 +37,8 @@ export default function useSignal(ohlcv, indicators, language = 'he', multiTimef
     })
     const ensemble = computeEnsembleConsensus(analysisBars, analysisIndicators, { ...signal, pro, patterns: patternResult })
     const decision = computeAnalystDecision(analysisBars, analysisIndicators, { ...signal, pro, patterns: patternResult, ensemble }, risk, language, cupHandle)
+    const technicalMethod = computeTechnicalMethod(analysisBars, analysisIndicators, patternResult)
     const trends   = analyzeAdvancedTrends(analysisBars, analysisIndicators)
-    return { ...signal, analysis, patterns: patternResult, risk, decision, pro, ensemble, trends, barContext }
+    return { ...signal, analysis, patterns: patternResult, risk, decision, technicalMethod, pro, ensemble, trends, barContext }
   }, [ohlcv, indicators, language, multiTimeframe, interval, cupHandle])
 }

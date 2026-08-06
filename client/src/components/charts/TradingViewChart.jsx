@@ -282,6 +282,7 @@ export default function TradingViewChart({
   patterns = null,          // signal.patterns  — { patterns: [{ visual, ... }] }
   gaps = null,              // signal.pro.gaps  — { gaps: [{ zoneLow, zoneHigh, ... }] }
   decision = null,          // entry / stop / target / support / resistance
+  technicalMethod = null,   // Long-Term Technical Confluence Method zones
   technicalAnalysis = null, // keyLevels.support | .resistance | .breakoutLevels
   // How many of the loaded bars to show. The rest is warmup history that
   // feeds the indicators without being displayed.
@@ -811,6 +812,9 @@ export default function TradingViewChart({
       addLine({ value: decision?.resistance, color: TRADER_COLORS.resistance, title: 'R', width: 1.5, style: LineStyle.Solid })
       addLine({ value: decision?.invalidation ?? decision?.stopLoss, color: TRADER_COLORS.stopLoss,   title: 'SL', width: 1.8, style: LineStyle.Dashed })
       addLine({ value: decision?.takeProfit, color: TRADER_COLORS.takeProfit, title: 'TP', width: 1.8, style: LineStyle.Dashed })
+      addLine({ value: technicalMethod?.supportResistance?.nearestSupport?.midpoint, color: 'rgba(45, 212, 191, 0.9)', title: 'M-S', width: 1.5, style: LineStyle.Solid })
+      addLine({ value: technicalMethod?.supportResistance?.nearestResistance?.midpoint, color: 'rgba(251, 146, 60, 0.92)', title: 'M-R', width: 1.5, style: LineStyle.Solid })
+      addLine({ value: technicalMethod?.risk?.technicalInvalidationLevel, color: 'rgba(244, 114, 182, 0.92)', title: 'M Stop', width: 1.5, style: LineStyle.Dashed })
       ;(technicalAnalysis?.keyLevels?.support ?? []).slice(0, 2)
         .forEach((value, i) => addLine({ value, color: 'rgba(6, 182, 212, 0.9)', title: `S${i + 2}`, axisLabel: false }))
       ;(technicalAnalysis?.keyLevels?.resistance ?? []).slice(0, 2)
@@ -896,7 +900,7 @@ export default function TradingViewChart({
     chartEpoch, ohlcv, indicators,
     showPivotPoints, showPrevHighLow, showHighLow52,
     showLevels, showFibonacci, showFibExtension, showTargets,
-    decision, technicalAnalysis, patterns, visibleEndIndex, visibleStartIndex,
+    decision, technicalMethod, technicalAnalysis, patterns, visibleEndIndex, visibleStartIndex,
   ])
 
   const measurementPoint = event => {

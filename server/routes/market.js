@@ -1,6 +1,9 @@
 import { Router } from 'express'
 import { getBars, getSnapshot, searchTickers, getFearGreed, getEarnings } from '../services/yahooFinance.js'
 import { cacheGet, cacheSet } from '../services/cache.js'
+import { computeAll } from '../../client/src/lib/indicators.js'
+import { detectPatterns } from '../../client/src/lib/patterns.js'
+import { computeTechnicalMethod } from '../../client/src/lib/technicalMethod/index.js'
 
 const router = Router()
 const inFlightRequests = new Map()
@@ -62,6 +65,22 @@ router.get('/bars/:ticker', async (req, res, next) => {
       }
       throw err
     }
+  } catch (err) { next(err) }
+})
+
+/** Optional, backward-compatible namespace for the Long-Term Technical Confluence Method. */
+router.get('/analysis/:ticker', async (req, res, next) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase()
+    const cacheKey = `technical-method:${ticker}`
+    const cached = cacheGet(cacheKey)
+    if (cached) return res.json(cached)
+    const bars = await getBars(ticker, '1d', 300)
+    const indicators = computeAll(bars, '1d')
+    const technicalMethod = indicators ? computeTechnicalMethod(bars, indicators, detectPatterns(bars)) : null
+    const payload = { ticker, technicalMethod, calculatedAt: new Date().toISOString() }
+    cacheSet(cacheKey, payload, 900)
+    return res.json(payload)
   } catch (err) { next(err) }
 })
 

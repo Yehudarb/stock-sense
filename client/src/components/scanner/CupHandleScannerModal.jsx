@@ -334,7 +334,7 @@ export default function CupHandleScannerModal() {
                       <th style={cellHead}>מניה</th><th style={cellHead}>מדד / שווי שוק</th><th style={cellHead}>שלב</th>
                       <th style={cellHead}>מחיר</th><th style={cellHead}>Pivot</th><th style={cellHead}>יעד</th>
                       <th style={cellHead}>Stop</th><th style={cellHead}>Upside</th><th style={cellHead}>חוזק</th>
-                      <th style={cellHead}>איכות</th><th style={cellHead}>Score</th>
+                      <th style={cellHead}>איכות</th><th style={cellHead}>Score</th><th style={cellHead}>Micha</th><th style={cellHead}>Setup</th><th style={cellHead}>סיכון</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -362,6 +362,9 @@ export default function CupHandleScannerModal() {
                           <td style={cellBody}>{candidate.strengthScore}<div style={subText}>6M {fmtPct(candidate.return6mPct)}</div></td>
                           <td style={cellBody}>{(candidate.quality * 100).toFixed(0)}</td>
                           <td style={{ ...cellBody, fontWeight: 850, color: '#67e8f9' }}>{candidate.opportunityScore}</td>
+                          <td style={{ ...cellBody, color: '#a5f3fc', fontWeight: 800 }}>{candidate.technicalMethodScore ?? '-'}</td>
+                          <td style={cellBody}>{candidate.setupType?.replaceAll('_', ' ') ?? '-'}</td>
+                          <td style={{ ...cellBody, color: candidate.riskLevel === 'high' ? '#fca5a5' : '#cbd5e1' }}>{candidate.riskLevel ?? '-'}</td>
                         </tr>
                       )
                     })}
@@ -381,7 +384,7 @@ export default function CupHandleScannerModal() {
                         <span>Pivot <b>${fmtPrice(candidate.pivot)}</b></span><span>Target <b>${fmtPrice(candidate.target)}</b></span>
                         <span>Stop <b>${fmtPrice(candidate.stopLoss)}</b></span><span>Upside <b className={candidate.upsidePct > 0 ? 'positive' : ''}>{fmtPct(candidate.upsidePct)}</b></span>
                       </div>
-                      <div className="cup-scanner-card__meta"><span>Strength {candidate.strengthScore}</span><span>Quality {(candidate.quality * 100).toFixed(0)}</span><span>Score {candidate.opportunityScore}</span></div>
+                      <div className="cup-scanner-card__meta"><span>Strength {candidate.strengthScore}</span><span>Quality {(candidate.quality * 100).toFixed(0)}</span><span>Micha {candidate.technicalMethodScore ?? '-'}</span><span>{candidate.setupType?.replaceAll('_', ' ') ?? '-'}</span></div>
                     </button>
                   )
                 })}
