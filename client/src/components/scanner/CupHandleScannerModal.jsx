@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useStore from '../../store/useStore'
+import { filterMethodCandidates, METHOD_PRESETS } from '../../lib/technicalMethod/scanner.js'
 
 const POLL_INTERVAL_MS = 1_800
 
@@ -78,6 +79,9 @@ export default function CupHandleScannerModal() {
   const [stageFilter, setStageFilter] = useState(new Set(['near_breakout', 'broken_out', 'in_handle']))
   const [minQuality, setMinQuality] = useState(0.25)
   const [minStrength, setMinStrength] = useState(55)
+  const [methodPreset, setMethodPreset] = useState(() => window.localStorage.getItem('stockSense.methodPreset') ?? 'all')
+  const [minMethodScore, setMinMethodScore] = useState(0)
+  const [minRiskReward, setMinRiskReward] = useState(0)
   const [resultLimit, setResultLimit] = useState(100)
   const lastStartedRunRef = useRef(0)
   const dialogRef = useRef(null)
@@ -161,17 +165,26 @@ export default function CupHandleScannerModal() {
     counts[candidate.stage] = (counts[candidate.stage] ?? 0) + 1
     return counts
   }, {}), [candidates])
-  const filtered = useMemo(() => candidates.filter(candidate => (
+  const baseFiltered = useMemo(() => candidates.filter(candidate => (
     candidate.indexMembership === 'S&P 500' &&
     stageFilter.has(candidate.stage) &&
     candidate.quality >= minQuality &&
     candidate.strengthScore >= minStrength
   )), [candidates, minQuality, minStrength, stageFilter])
+  const filtered = useMemo(() => filterMethodCandidates(baseFiltered, {
+    preset: methodPreset,
+    minimumScore: minMethodScore,
+    minimumRiskReward: minRiskReward,
+  }), [baseFiltered, methodPreset, minMethodScore, minRiskReward])
   const visible = filtered.slice(0, resultLimit)
 
   useEffect(() => {
     setResultLimit(100)
-  }, [minQuality, minStrength, stageFilter])
+  }, [methodPreset, minMethodScore, minQuality, minRiskReward, minStrength, stageFilter])
+
+  useEffect(() => {
+    window.localStorage.setItem('stockSense.methodPreset', methodPreset)
+  }, [methodPreset])
 
   if (!showScanner) return null
 
@@ -281,6 +294,20 @@ export default function CupHandleScannerModal() {
             חוזק {minStrength}+
             <input type="range" min="40" max="90" step="5" value={minStrength} onChange={event => setMinStrength(Number(event.target.value))} />
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#a5f3fc', fontSize: 11 }}>
+            Preset שיטת מיכו
+            <select value={methodPreset} onChange={event => setMethodPreset(event.target.value)} style={{ background: '#101b2d', color: '#e2e8f0', border: '1px solid #36506b', borderRadius: 7, padding: '5px 8px' }}>
+              {Object.entries(METHOD_PRESETS).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#94a3b8', fontSize: 11 }}>
+            Micha {minMethodScore}+
+            <input type="range" min="0" max="90" step="5" value={minMethodScore} onChange={event => setMinMethodScore(Number(event.target.value))} />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#94a3b8', fontSize: 11 }}>
+            R/R {minRiskReward || 'הכל'}
+            <input type="range" min="0" max="3" step="0.5" value={minRiskReward} onChange={event => setMinRiskReward(Number(event.target.value))} />
+          </label>
         </div>
 
         {!scanning && job?.status === 'done' && (
@@ -334,7 +361,8 @@ export default function CupHandleScannerModal() {
                       <th style={cellHead}>מניה</th><th style={cellHead}>מדד / שווי שוק</th><th style={cellHead}>שלב</th>
                       <th style={cellHead}>מחיר</th><th style={cellHead}>Pivot</th><th style={cellHead}>יעד</th>
                       <th style={cellHead}>Stop</th><th style={cellHead}>Upside</th><th style={cellHead}>חוזק</th>
-                      <th style={cellHead}>איכות</th><th style={cellHead}>Score</th><th style={cellHead}>Micha</th><th style={cellHead}>Setup</th><th style={cellHead}>סיכון</th>
+                      <th style={cellHead}>איכות</th><th style={cellHead}>Score</th><th style={cellHead}>Micha</th><th style={cellHead}>מגמה</th>
+                      <th style={cellHead}>SMA20</th><th style={cellHead}>קו / Fib</th><th style={cellHead}>תבנית</th><th style={cellHead}>Setup</th><th style={cellHead}>R/R</th><th style={cellHead}>סיכון</th><th style={cellHead}>עודכן</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -363,8 +391,14 @@ export default function CupHandleScannerModal() {
                           <td style={cellBody}>{(candidate.quality * 100).toFixed(0)}</td>
                           <td style={{ ...cellBody, fontWeight: 850, color: '#67e8f9' }}>{candidate.opportunityScore}</td>
                           <td style={{ ...cellBody, color: '#a5f3fc', fontWeight: 800 }}>{candidate.technicalMethodScore ?? '-'}</td>
+                          <td style={cellBody}>{candidate.longTermTrendStatus?.replaceAll('_', ' ') ?? '-'}</td>
+                          <td style={cellBody}>{fmtPct(candidate.distanceFromSma20Percent)}</td>
+                          <td style={cellBody}>{candidate.trendlineStatus ?? '-'}<div style={subText}>{candidate.fibonacciStatus?.replaceAll('_', ' ') ?? '-'}</div></td>
+                          <td style={cellBody}>{candidate.pattern?.replaceAll('_', ' ') ?? '-'}<div style={subText}>{candidate.patternStatus?.replaceAll('_', ' ') ?? '-'}</div></td>
                           <td style={cellBody}>{candidate.setupType?.replaceAll('_', ' ') ?? '-'}</td>
+                          <td style={cellBody}>{Number.isFinite(candidate.riskReward) ? `${candidate.riskReward}:1` : '-'}</td>
                           <td style={{ ...cellBody, color: candidate.riskLevel === 'high' ? '#fca5a5' : '#cbd5e1' }}>{candidate.riskLevel ?? '-'}</td>
+                          <td style={cellBody}>{candidate.lastUpdated ? new Date(candidate.lastUpdated).toLocaleDateString('he-IL') : '-'}</td>
                         </tr>
                       )
                     })}
@@ -384,7 +418,7 @@ export default function CupHandleScannerModal() {
                         <span>Pivot <b>${fmtPrice(candidate.pivot)}</b></span><span>Target <b>${fmtPrice(candidate.target)}</b></span>
                         <span>Stop <b>${fmtPrice(candidate.stopLoss)}</b></span><span>Upside <b className={candidate.upsidePct > 0 ? 'positive' : ''}>{fmtPct(candidate.upsidePct)}</b></span>
                       </div>
-                      <div className="cup-scanner-card__meta"><span>Strength {candidate.strengthScore}</span><span>Quality {(candidate.quality * 100).toFixed(0)}</span><span>Micha {candidate.technicalMethodScore ?? '-'}</span><span>{candidate.setupType?.replaceAll('_', ' ') ?? '-'}</span></div>
+                      <div className="cup-scanner-card__meta"><span>Strength {candidate.strengthScore}</span><span>Quality {(candidate.quality * 100).toFixed(0)}</span><span>Micha {candidate.technicalMethodScore ?? '-'}</span><span>{candidate.longTermTrendStatus?.replaceAll('_', ' ') ?? '-'}</span><span>{candidate.setupType?.replaceAll('_', ' ') ?? '-'}</span><span>R/R {candidate.riskReward ?? '-'}</span></div>
                     </button>
                   )
                 })}

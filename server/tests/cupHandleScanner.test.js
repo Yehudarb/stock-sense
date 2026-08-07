@@ -5,6 +5,11 @@ import { detectCupHandlePattern } from '../../client/src/lib/patterns.js'
 import { buildCupCandidate, scoreCupSetup } from '../services/cupHandleScanner.js'
 
 const cup = {
+  key: 'CUP_HANDLE',
+  label: 'Cup and Handle',
+  weight: 82,
+  direction: 'bullish',
+  status: 'developing',
   targetPrice: 128,
   meta: {
     quality: 0.8,
@@ -88,6 +93,13 @@ test('scanner candidate preserves size, strength and deterministic trade levels'
   assert.equal(candidate.upsidePct, 16.36)
   assert.ok(candidate.opportunityScore > 0)
   assert.equal(candidate.provider, 'S&P 500 constituents + Nasdaq + Yahoo Finance')
+  assert.ok(Number.isFinite(candidate.technicalMethodScore))
+  assert.equal(candidate.pattern, 'cup_and_handle')
+  assert.equal(candidate.patternStatus, 'breakout_pending')
+  assert.equal(candidate.longTermTrendStatus, 'insufficient_history')
+  assert.equal(candidate.setupStatus, 'not_ready')
+  assert.ok('riskReward' in candidate)
+  assert.ok('lastUpdated' in candidate)
 })
 
 test('scanner refuses a pattern from an asset outside the S&P 500', () => {

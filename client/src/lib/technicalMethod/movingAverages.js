@@ -36,8 +36,15 @@ export function analyzeLongTermTrend(bars, indicators, config = TECHNICAL_METHOD
   const price = bars[index]?.c
   const sma150 = indicators?.sma150?.[index]
   const sma200 = indicators?.sma200?.[index]
-  if (!Number.isFinite(price) || !Number.isFinite(sma150) || !Number.isFinite(sma200)) {
-    return { available: false, status: 'neutral', qualified: false, reason: 'Insufficient history for SMA150/SMA200.' }
+  if (bars.length < config.minimumBars || !Number.isFinite(price) || !Number.isFinite(sma150) || !Number.isFinite(sma200)) {
+    return {
+      available: false,
+      status: 'insufficient_history',
+      qualified: false,
+      barsAvailable: bars.length,
+      barsRequired: config.minimumBars,
+      reason: `At least ${config.minimumBars} closed bars are required for SMA150/SMA200.`,
+    }
   }
 
   const slope150_20 = pct(indicators.sma150[index - 20], sma150)
@@ -50,6 +57,7 @@ export function analyzeLongTermTrend(bars, indicators, config = TECHNICAL_METHOD
   const above200 = price > sma200
   const sma150Above200 = sma150 > sma200
   const sma200Rising = Number.isFinite(slope200) && slope200 > 0
+  const sma150Rising = Number.isFinite(slope150) && slope150 > 0
   const qualified = above150 && above200 && sma150Above200 && sma200Rising
 
   return {
@@ -62,7 +70,8 @@ export function analyzeLongTermTrend(bars, indicators, config = TECHNICAL_METHOD
     sma150Slope20Percent: round(slope150_20), sma150Slope50Percent: round(slope150_50),
     sma200Slope20Percent: round(slope200_20), sma200Slope50Percent: round(slope200_50),
     sma150SlopeState: classifySlope(slope150), sma200SlopeState: classifySlope(slope200),
-    priceAboveSma150: above150, priceAboveSma200: above200, sma150AboveSma200: sma150Above200, sma200Rising,
+    priceAboveSma150: above150, priceAboveSma200: above200, sma150AboveSma200: sma150Above200, sma150Rising, sma200Rising,
+    barsAvailable: bars.length, barsRequired: config.minimumBars,
     consecutiveAboveSma150: consecutive(indicators.sma150, bars.map(bar => bar.c), (close, value) => close > value),
     consecutiveAboveSma200: consecutive(indicators.sma200, bars.map(bar => bar.c), (close, value) => close > value),
     consecutiveBelowSma150: consecutive(indicators.sma150, bars.map(bar => bar.c), (close, value) => close < value),

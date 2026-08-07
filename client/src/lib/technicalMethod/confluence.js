@@ -25,8 +25,8 @@ export function buildConfluence({ trend, timing, levels, fibonacci, trendlines =
   entries.push(signal('support_resistance', support ? 'bullish' : resistance ? 'bearish' : 'neutral', config.weights.supportResistance, levelScore, 'Price structure', support ? 'Nearest support zone is active.' : resistance ? 'Nearest resistance zone is the closest reference.' : 'No high-confidence nearby zone.', { support, resistance }, Boolean(support || resistance)))
   const fibScore = !fibonacci?.available ? null : ({ golden_zone_test: 85, healthy_retracement: 70, shallow_pullback: 62, deep_retracement: 35, structure_at_risk: 20 })[fibonacci.status] ?? 50
   if (fibScore != null) entries.push(signal('fibonacci', fibScore >= 60 ? 'bullish' : fibScore < 40 ? 'bearish' : 'neutral', config.weights.fibonacci, fibScore, 'Fibonacci context', `Fibonacci state is ${fibonacci.status}.`, fibonacci, fibonacci.status !== 'not_available'))
-  const patternScore = bestPattern ? clamp(50 + (bestPattern.weight ?? 0) / 2) : 50
-  entries.push(signal('pattern', bestPattern?.direction ?? 'neutral', config.weights.technicalPatterns, patternScore, 'Technical pattern', bestPattern ? `Leading pattern: ${bestPattern.label}.` : 'No high-confidence pattern is active.', bestPattern ?? {}, Boolean(bestPattern)))
+  const patternScore = bestPattern ? clamp(bestPattern.direction === 'bearish' ? 100 - bestPattern.confidenceScore : bestPattern.direction === 'bullish' ? bestPattern.confidenceScore : 50) : 50
+  entries.push(signal('pattern', bestPattern?.direction ?? 'neutral', config.weights.technicalPatterns, patternScore, 'Technical pattern', bestPattern ? `Leading pattern: ${bestPattern.label} (${bestPattern.status}).` : 'No pattern passed the configured evidence-quality threshold.', bestPattern ?? {}, Boolean(bestPattern)))
   const volumeScore = Number.isFinite(volumeRatio) ? clamp(50 + (volumeRatio - 1) * 35) : null
   if (volumeScore != null) entries.push(signal('volume', volumeScore >= 60 ? 'bullish' : volumeScore < 40 ? 'bearish' : 'neutral', config.weights.volumeConfirmation, volumeScore, 'Volume confirmation', `Relative volume is ${volumeRatio.toFixed(2)}x.`, { volumeRatio }, volumeRatio >= 1.1))
   const supportLine = trendlines.find(line => line.type === 'support')
@@ -35,7 +35,7 @@ export function buildConfluence({ trend, timing, levels, fibonacci, trendlines =
   const trendlineScore = !primaryLine ? 50 : primaryLine.status === 'broken' ? 20 : primaryLine.status === 'testing' ? 78 : 68
   entries.push(signal(
     'trendline',
-    !primaryLine ? 'neutral' : primaryLine.status === 'broken' ? 'bearish' : primaryLine.direction,
+    !primaryLine ? 'neutral' : primaryLine.status === 'broken' ? 'bearish' : primaryLine.bias,
     config.weights.trendlines,
     trendlineScore,
     'Trendline',

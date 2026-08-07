@@ -31,31 +31,51 @@ function lineFromPivots(pivots, direction, bars, atr, config) {
   // The anchored section establishes the line. Count breaks only after the
   // final confirmed pivot, otherwise ordinary pullback noise rejects every
   // otherwise valid multi-touch trendline.
-  const violations = bars.slice(last.index + 1).reduce((count, bar, offset) => {
+  const postAnchor = bars.slice(last.index + 1)
+  const violations = postAnchor.reduce((count, bar, offset) => {
     const expected = last.price + slopePerBar * (offset + 1)
     const violates = direction === 'support' ? bar.c < expected - buffer : bar.c > expected + buffer
     return count + (violates ? 1 : 0)
   }, 0)
-  if (violations > config.trendlines.maxViolations) return null
-
   const currentIndex = bars.length - 1
   const currentValue = first.price + slopePerBar * (currentIndex - first.index)
   const distancePercent = Math.abs(bars.at(-1).c - currentValue) / bars.at(-1).c * 100
-  const broken = direction === 'support'
-    ? bars.at(-1).c < currentValue - buffer
-    : bars.at(-1).c > currentValue + buffer
-  const status = broken ? 'broken' : distancePercent <= 1.25 ? 'testing' : 'holding'
+  const confirmationBars = bars.slice(-config.trendlines.breakConfirmationBars)
+  const confirmedBreak = confirmationBars.length === config.trendlines.breakConfirmationBars && confirmationBars.every((bar, offset) => {
+    const index = currentIndex - confirmationBars.length + 1 + offset
+    const expected = first.price + slopePerBar * (index - first.index)
+    return direction === 'support' ? bar.c < expected - buffer : bar.c > expected + buffer
+  })
+  const priorBreak = postAnchor.slice(0, -1).some((bar, offset) => {
+    const expected = last.price + slopePerBar * (offset + 1)
+    return direction === 'support' ? bar.c < expected - buffer : bar.c > expected + buffer
+  })
+  const reclaimed = priorBreak && !confirmedBreak && distancePercent <= config.trendlines.testingDistancePercent
+  if (!confirmedBreak && violations > config.trendlines.maxViolations && !reclaimed) return null
+  const status = confirmedBreak ? 'broken' : reclaimed ? 'reclaimed' : distancePercent <= config.trendlines.testingDistancePercent ? 'testing' : 'holding'
+  const duration = last.index - first.index
+  const qualityScore = Math.min(100, Math.max(0, Math.round(
+    touches.length * 18 + Math.min(25, duration / 4) + Math.max(0, 24 - violations * 8) + Math.max(0, 15 - (currentIndex - last.index) / 4),
+  )))
 
   return {
     id: `micha-${direction}-${first.index}-${last.index}`,
     type: direction,
-    direction: direction === 'support' ? 'bullish' : 'bearish',
+    direction: direction === 'support' ? 'ascending' : 'descending',
+    bias: direction === 'support' ? 'bullish' : 'bearish',
     touchCount: touches.length,
+    qualityScore,
+    trendlineQualityScore: qualityScore,
     slopePerBar: round(slopePerBar, 4),
     currentValue: round(currentValue),
     distanceFromPricePercent: round(distancePercent),
     violations,
     status,
+    startDate: new Date(first.t).toISOString(),
+    endDate: new Date(last.t).toISOString(),
+    startPrice: round(first.price),
+    endPrice: round(last.price),
+    currentProjectedValue: round(currentValue),
     from: { index: first.index, price: round(first.price), t: first.t },
     to: { index: last.index, price: round(last.price), t: last.t },
     projection: { index: currentIndex, price: round(currentValue), t: bars.at(-1).t },

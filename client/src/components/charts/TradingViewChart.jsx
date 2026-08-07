@@ -842,6 +842,13 @@ export default function TradingViewChart({
         .forEach((value, i) => addLine({ value, color: 'rgba(168, 85, 247, 0.9)', title: `M T${i + 1}`, width: 1.5, style: LineStyle.Dashed }))
       addLine({ value: technicalMethod?.fibonacci?.goldenZone?.lower, color: 'rgba(234, 179, 8, 0.85)', title: 'M Fib 50', style: LineStyle.Dotted })
       addLine({ value: technicalMethod?.fibonacci?.goldenZone?.upper, color: 'rgba(234, 179, 8, 0.85)', title: 'M Fib 61.8', style: LineStyle.Dotted })
+      if (showTechnicalMethod && technicalMethod?.setup?.setupType !== 'no_valid_setup') {
+        const setupLabel = technicalMethod.setup.status === 'triggered' ? 'M ✓ Confirmed'
+          : technicalMethod.setup.status === 'invalidated' ? 'M ✕ Invalidated' : 'M • Monitoring'
+        const setupColor = technicalMethod.setup.status === 'triggered' ? 'rgba(16, 185, 129, 0.95)'
+          : technicalMethod.setup.status === 'invalidated' ? 'rgba(244, 63, 94, 0.95)' : 'rgba(34, 211, 238, 0.9)'
+        addLine({ value: ohlcv?.at(-1)?.c, color: setupColor, title: setupLabel, width: 1, style: LineStyle.Dotted })
+      }
     }
 
     // ── Pattern entry / target / stop ──

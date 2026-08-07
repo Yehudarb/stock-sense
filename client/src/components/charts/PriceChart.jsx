@@ -1119,6 +1119,12 @@ export default function PriceChart({
             ...((technicalMethod?.setup?.possibleTargets ?? []).slice(0, 2).map((price, index) => ({ price, color: 'rgba(168, 85, 247, 0.9)', label: `M T${index + 1}`, dash: [6, 4], width: 1.5 }))),
             { price: technicalMethod?.fibonacci?.goldenZone?.lower, color: 'rgba(234, 179, 8, 0.85)', label: 'M Fib 50', dash: [3, 4] },
             { price: technicalMethod?.fibonacci?.goldenZone?.upper, color: 'rgba(234, 179, 8, 0.85)', label: 'M Fib 61.8', dash: [3, 4] },
+            showTechnicalMethod && technicalMethod?.setup?.setupType !== 'no_valid_setup' ? {
+              price: visibleOhlcv.at(-1)?.c,
+              color: technicalMethod?.setup?.status === 'triggered' ? 'rgba(16, 185, 129, 0.95)' : technicalMethod?.setup?.status === 'invalidated' ? 'rgba(244, 63, 94, 0.95)' : 'rgba(34, 211, 238, 0.9)',
+              label: technicalMethod?.setup?.status === 'triggered' ? 'M ✓' : technicalMethod?.setup?.status === 'invalidated' ? 'M ✕' : 'M •',
+              dash: [2, 4],
+            } : null,
           ] : []),
           // Keep the complete P/R1-R3/S1-S3 ladder identical in both engines.
           ...(showPivotPoints && indicators?.pivotPoints ? [
@@ -1150,7 +1156,7 @@ export default function PriceChart({
               { price: pattern.meta?.invalidationLevel, color: TRADER_COLORS.stopLoss, label: 'SL', dash: [3, 4], width: 1.4 },
             ]
           }) : []),
-        ].filter((level, index, levels) => level.price != null && levels.findIndex(item => item.price === level.price && item.color === level.color) === index)
+        ].filter((level, index, levels) => level?.price != null && levels.findIndex(item => item?.price === level.price && item?.color === level.color) === index)
       : []
 
     if (isCandlestick) {
